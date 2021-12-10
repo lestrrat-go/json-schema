@@ -1,0 +1,84 @@
+objects:
+  - name: Schema
+    fields:
+      - name: id
+        json: '$id'
+      - name: definitions
+        json: '$defs'
+      - name: schema
+        json: '$schema'
+      - name: dynamicReference
+        json: '$dynamicRef'
+      - name: reference
+        json: '$reference'
+      - name: comment
+        json: '$comment'
+      - name: anchor
+        json: '$anchor'
+      - name: allOf
+        type: '[]*Schema'
+      - name: anyOf
+        type: '[]*Schema'
+      - name: oneOf
+        type: '[]*Schema'
+      - name: not
+        type: '*Schema'
+      # if/then/else WTF are these
+      - name: items
+        type: '*Schema'
+      - name: contains
+        type: '*Schema'
+      - name: properties
+        type: 'map[string]*Schema'
+      - name: patternProperties
+        type: 'map[string]*Schema'
+      - name: additionalProperties
+        type: '*Schema'
+      - name: propertyNames
+        type: 'map[string]*Schema'
+      - name: unevaluatedItems
+        type: '*Schema'
+      - name: unevaluatedProperties
+        type: '*Schema'
+      - name: types
+        json: 'type'
+        type: '[]PrimitiveType'
+      - name: enum
+        type: '[]interface{}'
+      - name: constantValue
+        json: const
+        exported_name: Const
+        type: 'interface{}'
+      - name: multipleOf
+        type: float64
+      - name: maximum
+        type: float64
+      - name: exclusiveMaximum
+        type: float64
+      - name: minimum
+        type: float64
+      - name: exclusiveMinimum
+        type: float64
+      - name: maxLength
+        type: int
+      - name: minLength
+        type: int
+      - name: pattern
+      - name: maxItems
+        type: uint
+      - name: minItems
+        type: uint
+      - name: uniqueItems
+        type: bool
+      - name: maxContains
+        type: uint
+      - name: minContains
+        type: uint
+      - name: maxProperties
+        type: uint
+      - name: minProperties
+        type: uint
+      - name: required
+        type: bool
+        #      - name: dependentRequired
+
