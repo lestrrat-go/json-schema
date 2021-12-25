@@ -55,132 +55,264 @@ func New() *Schema {
 	}
 }
 
+func (s *Schema) HasAdditionalProperties() bool {
+	return s.additionalProperties != nil
+}
+
 func (s *Schema) AdditionalProperties() *Schema {
 	return s.additionalProperties
+}
+
+func (s *Schema) HasAllOf() bool {
+	return s.allOf != nil
 }
 
 func (s *Schema) AllOf() []*Schema {
 	return s.allOf
 }
 
+func (s *Schema) HasAnchor() bool {
+	return s.anchor != nil
+}
+
 func (s *Schema) Anchor() string {
 	return *(s.anchor)
+}
+
+func (s *Schema) HasAnyOf() bool {
+	return s.anyOf != nil
 }
 
 func (s *Schema) AnyOf() []*Schema {
 	return s.anyOf
 }
 
+func (s *Schema) HasComment() bool {
+	return s.comment != nil
+}
+
 func (s *Schema) Comment() string {
 	return *(s.comment)
+}
+
+func (s *Schema) HasConst() bool {
+	return s.constantValue != nil
 }
 
 func (s *Schema) Const() interface{} {
 	return *(s.constantValue)
 }
 
+func (s *Schema) HasContains() bool {
+	return s.contains != nil
+}
+
 func (s *Schema) Contains() *Schema {
 	return s.contains
+}
+
+func (s *Schema) HasDefinitions() bool {
+	return s.definitions != nil
 }
 
 func (s *Schema) Definitions() string {
 	return *(s.definitions)
 }
 
+func (s *Schema) HasDynamicReference() bool {
+	return s.dynamicReference != nil
+}
+
 func (s *Schema) DynamicReference() string {
 	return *(s.dynamicReference)
+}
+
+func (s *Schema) HasEnum() bool {
+	return s.enum != nil
 }
 
 func (s *Schema) Enum() []interface{} {
 	return s.enum
 }
 
+func (s *Schema) HasExclusiveMaximum() bool {
+	return s.exclusiveMaximum != nil
+}
+
 func (s *Schema) ExclusiveMaximum() float64 {
 	return *(s.exclusiveMaximum)
+}
+
+func (s *Schema) HasExclusiveMinimum() bool {
+	return s.exclusiveMinimum != nil
 }
 
 func (s *Schema) ExclusiveMinimum() float64 {
 	return *(s.exclusiveMinimum)
 }
 
+func (s *Schema) HasID() bool {
+	return s.id != nil
+}
+
 func (s *Schema) ID() string {
 	return *(s.id)
+}
+
+func (s *Schema) HasItems() bool {
+	return s.items != nil
 }
 
 func (s *Schema) Items() *Schema {
 	return s.items
 }
 
+func (s *Schema) HasMaxContains() bool {
+	return s.maxContains != nil
+}
+
 func (s *Schema) MaxContains() uint {
 	return *(s.maxContains)
+}
+
+func (s *Schema) HasMaxItems() bool {
+	return s.maxItems != nil
 }
 
 func (s *Schema) MaxItems() uint {
 	return *(s.maxItems)
 }
 
+func (s *Schema) HasMaxLength() bool {
+	return s.maxLength != nil
+}
+
 func (s *Schema) MaxLength() int {
 	return *(s.maxLength)
+}
+
+func (s *Schema) HasMaxProperties() bool {
+	return s.maxProperties != nil
 }
 
 func (s *Schema) MaxProperties() uint {
 	return *(s.maxProperties)
 }
 
+func (s *Schema) HasMaximum() bool {
+	return s.maximum != nil
+}
+
 func (s *Schema) Maximum() float64 {
 	return *(s.maximum)
+}
+
+func (s *Schema) HasMinContains() bool {
+	return s.minContains != nil
 }
 
 func (s *Schema) MinContains() uint {
 	return *(s.minContains)
 }
 
+func (s *Schema) HasMinItems() bool {
+	return s.minItems != nil
+}
+
 func (s *Schema) MinItems() uint {
 	return *(s.minItems)
+}
+
+func (s *Schema) HasMinLength() bool {
+	return s.minLength != nil
 }
 
 func (s *Schema) MinLength() int {
 	return *(s.minLength)
 }
 
+func (s *Schema) HasMinProperties() bool {
+	return s.minProperties != nil
+}
+
 func (s *Schema) MinProperties() uint {
 	return *(s.minProperties)
+}
+
+func (s *Schema) HasMinimum() bool {
+	return s.minimum != nil
 }
 
 func (s *Schema) Minimum() float64 {
 	return *(s.minimum)
 }
 
+func (s *Schema) HasMultipleOf() bool {
+	return s.multipleOf != nil
+}
+
 func (s *Schema) MultipleOf() float64 {
 	return *(s.multipleOf)
+}
+
+func (s *Schema) HasNot() bool {
+	return s.not != nil
 }
 
 func (s *Schema) Not() *Schema {
 	return s.not
 }
 
+func (s *Schema) HasOneOf() bool {
+	return s.oneOf != nil
+}
+
 func (s *Schema) OneOf() []*Schema {
 	return s.oneOf
+}
+
+func (s *Schema) HasPattern() bool {
+	return s.pattern != nil
 }
 
 func (s *Schema) Pattern() string {
 	return *(s.pattern)
 }
 
+func (s *Schema) HasPatternProperties() bool {
+	return s.patternProperties != nil
+}
+
 func (s *Schema) PatternProperties() map[string]*Schema {
 	return s.patternProperties
+}
+
+func (s *Schema) HasProperties() bool {
+	return s.properties != nil
 }
 
 func (s *Schema) Properties() map[string]*Schema {
 	return s.properties
 }
 
+func (s *Schema) HasPropertyNames() bool {
+	return s.propertyNames != nil
+}
+
 func (s *Schema) PropertyNames() map[string]*Schema {
 	return s.propertyNames
 }
 
+func (s *Schema) HasReference() bool {
+	return s.reference != nil
+}
+
 func (s *Schema) Reference() string {
 	return *(s.reference)
+}
+
+func (s *Schema) HasRequired() bool {
+	return s.required != nil
 }
 
 func (s *Schema) Required() bool {
@@ -191,16 +323,32 @@ func (s *Schema) Schema() string {
 	return s.schema
 }
 
+func (s *Schema) HasTypes() bool {
+	return s.types != nil
+}
+
 func (s *Schema) Types() []PrimitiveType {
 	return s.types
+}
+
+func (s *Schema) HasUnevaluatedItems() bool {
+	return s.unevaluatedItems != nil
 }
 
 func (s *Schema) UnevaluatedItems() *Schema {
 	return s.unevaluatedItems
 }
 
+func (s *Schema) HasUnevaluatedProperties() bool {
+	return s.unevaluatedProperties != nil
+}
+
 func (s *Schema) UnevaluatedProperties() *Schema {
 	return s.unevaluatedProperties
+}
+
+func (s *Schema) HasUniqueItems() bool {
+	return s.uniqueItems != nil
 }
 
 func (s *Schema) UniqueItems() bool {

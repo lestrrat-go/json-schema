@@ -1,13 +1,23 @@
 package validator
 
-import schema "github.com/lestrrat-go/json-schema"
+import (
+	"fmt"
 
-type Validator struct{}
+	schema "github.com/lestrrat-go/json-schema"
+)
 
-func Build(s *schema.Schema) (*Validator, error) {
-	return &Validator{}, nil
+func Compile(s *schema.Schema) (Validator, error) {
+	for _, typ := range s.Types() {
+		// This is a placeholder code. In reality we need to
+		// OR all types
+		switch typ {
+		case schema.StringType:
+			return compileStringValidator(s)
+		}
+	}
+	return nil, fmt.Errorf(`unimplemented`)
 }
 
-type Constraint interface {
-	Check(interface{}) error
+type Validator interface {
+	Validate(interface{}) error
 }

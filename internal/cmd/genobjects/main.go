@@ -115,6 +115,11 @@ func genObject(obj *codegen.Object) error {
 	o.L(`}`)
 
 	for _, field := range obj.Fields() {
+		if field.Name(false) != `schema` {
+			o.LL("func (s *Schema) Has%s() bool {", field.Name(true))
+			o.L("return s.%s != nil", field.Name(false))
+			o.L("}")
+		}
 		o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
 		o.L("return ")
 		if !isNilZeroType(field) && !isInterfaceField(field) {

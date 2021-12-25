@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func makeSanityTestFunc(tc *sanityTestCase, c validator.Constraint) func(*testing.T) {
+func makeSanityTestFunc(tc *sanityTestCase, c validator.Validator) func(*testing.T) {
 	return func(t *testing.T) {
 		if tc.Error {
-			if !assert.Error(t, c.Check(tc.Object), `c.check should fail`) {
+			if !assert.Error(t, c.Validate(tc.Object), `c.check should fail`) {
 				return
 			}
 		} else {
-			if !assert.NoError(t, c.Check(tc.Object), `c.Check should succeed`) {
+			if !assert.NoError(t, c.Validate(tc.Object), `c.Validate should succeed`) {
 				return
 			}
 		}
@@ -53,9 +53,12 @@ func TestValidator(t *testing.T) {
 	if !assert.NoError(t, err, `schema.NewBuilder should succeed`) {
 		return
 	}
-	v, err := validator.Build(s)
-	if !assert.NoError(t, err, `validator.Build should succeed`) {
-		return
-	}
-	_ = v
+	_ = s
+	/*
+		v, err := validator.Compile(s)
+		if !assert.NoError(t, err, `validator.Build should succeed`) {
+			return
+		}
+		_ = v
+	*/
 }

@@ -4,24 +4,41 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+
+	schema "github.com/lestrrat-go/json-schema"
 )
 
-type StringConstraint struct {
+func compileStringValidator(s *schema.Schema) (Validator, error) {
+	v := String()
+	if s.HasMaxLength() {
+		v.MaxLength(s.MaxLength())
+	}
+	if s.HasMinLength() {
+		v.MinLength(s.MinLength())
+	}
+	if s.HasPattern() {
+		v.Pattern(s.Pattern())
+	}
+
+	return v.Build()
+}
+
+type StringValidator struct {
 	maxLength *uint
 	minLength *uint
 	pattern   *regexp.Regexp
 }
 
-type StringConstraintBuilder struct {
+type StringValidatorBuilder struct {
 	err error
-	c   *StringConstraint
+	c   *StringValidator
 }
 
-func String() *StringConstraintBuilder {
-	return &StringConstraintBuilder{c: &StringConstraint{}}
+func String() *StringValidatorBuilder {
+	return &StringValidatorBuilder{c: &StringValidator{}}
 }
 
-func (b *StringConstraintBuilder) MaxLength(v int) *StringConstraintBuilder {
+func (b *StringValidatorBuilder) MaxLength(v int) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -36,7 +53,7 @@ func (b *StringConstraintBuilder) MaxLength(v int) *StringConstraintBuilder {
 	return b
 }
 
-func (b *StringConstraintBuilder) MinLength(v int) *StringConstraintBuilder {
+func (b *StringValidatorBuilder) MinLength(v int) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -51,7 +68,7 @@ func (b *StringConstraintBuilder) MinLength(v int) *StringConstraintBuilder {
 	return b
 }
 
-func (b *StringConstraintBuilder) Pattern(s string) *StringConstraintBuilder {
+func (b *StringValidatorBuilder) Pattern(s string) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -68,7 +85,7 @@ func (b *StringConstraintBuilder) Pattern(s string) *StringConstraintBuilder {
 	return b
 }
 
-func (b *StringConstraintBuilder) Build() (*StringConstraint, error) {
+func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -76,13 +93,13 @@ func (b *StringConstraintBuilder) Build() (*StringConstraint, error) {
 	return b.c, nil
 }
 
-func (c *StringConstraint) Check(v interface{}) error {
+func (c *StringValidator) Validate(v interface{}) error {
 	rv := reflect.ValueOf(v)
 
 	switch rv.Kind() {
 	case reflect.String:
 	default:
-		return fmt.Errorf(`invalid value passed to StringConstraint: expected string, got %T`, v)
+		return fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, v)
 	}
 
 	str := rv.String()
@@ -90,19 +107,19 @@ func (c *StringConstraint) Check(v interface{}) error {
 
 	if ml := c.minLength; ml != nil {
 		if l < *ml {
-			return fmt.Errorf(`invalid value passed to StringConstraint: string length (%d) shorter then minLength (%d)`, l, *ml)
+			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
 		}
 	}
 
 	if ml := c.maxLength; ml != nil {
 		if l > *ml {
-			return fmt.Errorf(`invalid value passed to StringConstraint: string length (%d) longer then maxLength (%d)`, l, *ml)
+			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
 		}
 	}
 
 	if pat := c.pattern; pat != nil {
 		if !pat.MatchString(str) {
-			return fmt.Errorf(`invalide value passed to StringConstraint: string did not match pattern %s`, pat.String())
+			return fmt.Errorf(`invalide value passed to StringValidator: string did not match pattern %s`, pat.String())
 		}
 	}
 
