@@ -35,6 +35,26 @@ func isNilZeroType(field codegen.Field) bool {
 		field.Name(false) == "schema"
 }
 
+func hasAccept(field codegen.Field) bool {
+	switch field.Type() {
+	case "*Schema":
+		return true
+	default:
+		return false
+	}
+}
+
+func isInterfaceField(field codegen.Field) bool {
+	v, ok := field.Extra(`is_interface`)
+	if !ok {
+		return false
+	}
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	return false
+}
+
 func main() {
 	if err := _main(); err != nil {
 		fmt.Println(err.Error())
@@ -81,7 +101,7 @@ func genObject(obj *codegen.Object) error {
 	o.L(`isRoot bool`)
 	for _, field := range obj.Fields() {
 		typ := field.Type()
-		if !isNilZeroType(field) {
+		if !isNilZeroType(field) && !isInterfaceField(field) {
 			typ = "*" + typ
 		}
 		o.L("%s %s", field.Name(false), typ)
@@ -97,7 +117,7 @@ func genObject(obj *codegen.Object) error {
 	for _, field := range obj.Fields() {
 		o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
 		o.L("return ")
-		if !isNilZeroType(field) {
+		if !isNilZeroType(field) && !isInterfaceField(field) {
 			o.R("*(s.%s)", field.Name(false))
 		} else {
 			o.R("s.%s", field.Name(false))
@@ -120,7 +140,7 @@ func genObject(obj *codegen.Object) error {
 			o.L(`}`)
 		} else {
 			o.L(`if v := s.%s; v != nil {`, field.Name(false))
-			if !isNilZeroType(field) {
+			if !isNilZeroType(field) && !isInterfaceField(field) {
 				o.L(`fields = append(fields, pair{Name: %q, Value: *v})`, field.JSON())
 			} else {
 				o.L(`fields = append(fields, pair{Name: %q, Value: v})`, field.JSON())
@@ -169,14 +189,32 @@ func genObject(obj *codegen.Object) error {
 		switch field.Type() {
 		default:
 			o.L("case %q:", field.JSON())
-			o.L("var v %s", field.Type())
-			o.L("if err := dec.Decode(&v); err != nil {")
-			o.L("return fmt.Errorf(`failed to decode value for field %q: %%w`, err)", field.JSON())
-			o.L("}")
-			if !isNilZeroType(field) {
-				o.L("s.%s = &v", field.Name(false))
-			} else {
+			if field.Name(false) == "additionalProperties" {
+				// Attempt to decode as *Schema first, then as a boolean
+				o.L("var v *Schema")
+				o.L("var tmp Schema")
+				o.L("if err := dec.Decode(&tmp); err == nil {")
+				o.L("v = &tmp")
+				o.L("} else {")
+				o.L("var b bool")
+				o.L("if err = dec.Decode(&b); err != nil {")
+				o.L("return fmt.Errorf(`failed to decode value for field %q: %%w`, err)", field.JSON())
+				o.L("}")
+				o.L("if b {")
+				o.L("v = &Schema{}")
+				o.L("}")
+				o.L("}")
 				o.L("s.%s = v", field.Name(false))
+			} else {
+				o.L("var v %s", field.Type())
+				o.L("if err := dec.Decode(&v); err != nil {")
+				o.L("return fmt.Errorf(`failed to decode value for field %q: %%w`, err)", field.JSON())
+				o.L("}")
+				if !isNilZeroType(field) {
+					o.L("s.%s = &v", field.Name(false))
+				} else {
+					o.L("s.%s = v", field.Name(false))
+				}
 			}
 		}
 	}
@@ -210,7 +248,7 @@ func genBuilder(obj *codegen.Object) error {
 		case `map[string]*Schema`:
 			o.L("%s []*propPair", field.Name(false))
 		default:
-			if !isNilZeroType(field) {
+			if !isNilZeroType(field) && !isInterfaceField(field) {
 				o.L("%s *%s", field.Name(false), field.Type())
 			} else {
 				o.L("%s %s", field.Name(false), field.Type())
@@ -226,6 +264,21 @@ func genBuilder(obj *codegen.Object) error {
 	o.L("}")
 
 	for _, field := range obj.Fields() {
+		if field.Name(true) == "AdditionalProperties" {
+			o.LL("func (b *Builder) AdditionalProperties(v SchemaOrBool) *Builder {")
+			o.L("if b.err != nil {")
+			o.L("return b")
+			o.L("}")
+			o.L("var tmp Schema")
+			o.L("if err := tmp.Accept(v); err != nil {")
+			o.L("b.err = fmt.Errorf(`failed to accept value for %q: %%w`, err)", field.JSON())
+			o.L("return b")
+			o.L("}")
+			o.L("b.additionalProperties = &tmp")
+			o.L("return b")
+			o.L("}")
+			continue
+		}
 		switch field.Type() {
 		case `[]PrimitiveType`:
 			o.LL("func (b *Builder) Type(v PrimitiveType) *Builder {")
@@ -254,7 +307,7 @@ func genBuilder(obj *codegen.Object) error {
 			o.L("return b")
 			o.L("}")
 
-			if !isNilZeroType(field) {
+			if !isNilZeroType(field) && !isInterfaceField(field) {
 				o.LL("b.%s = &v", field.Name(false))
 			} else {
 				o.LL("b.%s = v", field.Name(false))

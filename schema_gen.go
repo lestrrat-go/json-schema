@@ -369,8 +369,17 @@ LOOP:
 			switch tok {
 			case "additionalProperties":
 				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "additionalProperties": %w`, err)
+				var tmp Schema
+				if err := dec.Decode(&tmp); err == nil {
+					v = &tmp
+				} else {
+					var b bool
+					if err = dec.Decode(&b); err != nil {
+						return fmt.Errorf(`failed to decode value for field "additionalProperties": %w`, err)
+					}
+					if b {
+						v = &Schema{}
+					}
 				}
 				s.additionalProperties = v
 			case "allOf":

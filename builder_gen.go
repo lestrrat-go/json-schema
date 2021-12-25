@@ -50,12 +50,16 @@ func NewBuilder() *Builder {
 	}
 }
 
-func (b *Builder) AdditionalProperties(v *Schema) *Builder {
+func (b *Builder) AdditionalProperties(v SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
 	}
-
-	b.additionalProperties = v
+	var tmp Schema
+	if err := tmp.Accept(v); err != nil {
+		b.err = fmt.Errorf(`failed to accept value for "additionalProperties": %w`, err)
+		return b
+	}
+	b.additionalProperties = &tmp
 	return b
 }
 
