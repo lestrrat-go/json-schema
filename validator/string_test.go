@@ -193,6 +193,35 @@ func TestStringValidator(t *testing.T) {
 				return validator.Compile(s)
 			},
 		},
+		{
+			Name:   "const set, valid value",
+			Object: "Hello, World!",
+			Validator: func() (validator.Validator, error) {
+				s, err := schema.NewBuilder().
+					Type(schema.StringType).
+					Const("Hello, World!").
+					Build()
+				if err != nil {
+					return nil, err
+				}
+				return validator.Compile(s)
+			},
+		},
+		{
+			Name:   "const set, invalid value",
+			Object: "Night, World!",
+			Error:  true,
+			Validator: func() (validator.Validator, error) {
+				s, err := schema.NewBuilder().
+					Type(schema.StringType).
+					Const("Hello, World!").
+					Build()
+				if err != nil {
+					return nil, err
+				}
+				return validator.Compile(s)
+			},
+		},
 	}
 
 	for _, tc := range testcases {

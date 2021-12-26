@@ -10,6 +10,13 @@ import (
 
 func compileStringValidator(s *schema.Schema) (Validator, error) {
 	v := String()
+	if s.HasConst() {
+		c, ok := s.Const().(string)
+		if !ok {
+			return nil, fmt.Errorf(`invalid element in const: expected string element, got %T`, s.Const())
+		}
+		v.Const(c)
+	}
 	if s.HasMaxLength() {
 		v.MaxLength(s.MaxLength())
 	}
@@ -37,10 +44,11 @@ func compileStringValidator(s *schema.Schema) (Validator, error) {
 }
 
 type StringValidator struct {
-	maxLength *uint
-	minLength *uint
-	pattern   *regexp.Regexp
-	enum      []string
+	maxLength     *uint
+	minLength     *uint
+	pattern       *regexp.Regexp
+	enum          []string
+	constantValue *string
 }
 
 type StringValidatorBuilder struct {
@@ -109,6 +117,15 @@ func (b *StringValidatorBuilder) Enum(enums []string) *StringValidatorBuilder {
 	return b
 }
 
+func (b *StringValidatorBuilder) Const(c string) *StringValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	b.c.constantValue = &c
+	return b
+}
+
 func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
 	if b.err != nil {
 		return nil, b.err
@@ -128,6 +145,12 @@ func (c *StringValidator) Validate(v interface{}) error {
 
 	str := rv.String()
 	l := uint(len(str))
+
+	if v := c.constantValue; v != nil {
+		if *v != str {
+			return fmt.Errorf(`invalid value passed to StringValidator: string must of value %q`, *v)
+		}
+	}
 
 	if ml := c.minLength; ml != nil {
 		if l < *ml {
