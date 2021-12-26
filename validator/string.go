@@ -134,43 +134,43 @@ func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
 	return b.c, nil
 }
 
-func (c *StringValidator) Validate(v interface{}) error {
-	rv := reflect.ValueOf(v)
+func (v *StringValidator) Validate(in interface{}) error {
+	rv := reflect.ValueOf(in)
 
 	switch rv.Kind() {
 	case reflect.String:
 	default:
-		return fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, v)
+		return fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, in)
 	}
 
 	str := rv.String()
 	l := uint(len(str))
 
-	if v := c.constantValue; v != nil {
+	if v := v.constantValue; v != nil {
 		if *v != str {
 			return fmt.Errorf(`invalid value passed to StringValidator: string must of value %q`, *v)
 		}
 	}
 
-	if ml := c.minLength; ml != nil {
+	if ml := v.minLength; ml != nil {
 		if l < *ml {
 			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
 		}
 	}
 
-	if ml := c.maxLength; ml != nil {
+	if ml := v.maxLength; ml != nil {
 		if l > *ml {
 			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
 		}
 	}
 
-	if pat := c.pattern; pat != nil {
+	if pat := v.pattern; pat != nil {
 		if !pat.MatchString(str) {
 			return fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
 		}
 	}
 
-	if enums := c.enum; len(enums) > 0 {
+	if enums := v.enum; len(enums) > 0 {
 		var found bool
 		for _, e := range enums {
 			if e == str {

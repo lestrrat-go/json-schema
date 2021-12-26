@@ -1,3 +1,5 @@
+//go:generate ./gen.sh
+
 package validator
 
 import (
@@ -17,6 +19,12 @@ func Compile(s *schema.Schema) (Validator, error) {
 			v, err := compileStringValidator(s)
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile string validator: %w`, err)
+			}
+			validatorsByType = append(validatorsByType, v)
+		case schema.IntegerType:
+			v, err := compileIntegerValidator(s)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile integer validator: %w`, err)
 			}
 			validatorsByType = append(validatorsByType, v)
 		}
