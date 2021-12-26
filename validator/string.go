@@ -19,6 +19,19 @@ func compileStringValidator(s *schema.Schema) (Validator, error) {
 	if s.HasPattern() {
 		v.Pattern(s.Pattern())
 	}
+	if s.HasEnum() {
+		enums := s.Enum()
+		l := make([]string, 0, len(enums))
+		for i, e := range s.Enum() {
+			s, ok := e.(string)
+			if !ok {
+				return nil, fmt.Errorf(`invalid element in enum: expected string element, got %T for element %d`, e, i)
+			}
+			l = append(l, s)
+		}
+
+		v.Enum(l)
+	}
 
 	return v.Build()
 }
@@ -27,6 +40,7 @@ type StringValidator struct {
 	maxLength *uint
 	minLength *uint
 	pattern   *regexp.Regexp
+	enum      []string
 }
 
 type StringValidatorBuilder struct {
@@ -85,6 +99,16 @@ func (b *StringValidatorBuilder) Pattern(s string) *StringValidatorBuilder {
 	return b
 }
 
+func (b *StringValidatorBuilder) Enum(enums []string) *StringValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	b.c.enum = make([]string, len(enums))
+	copy(b.c.enum, enums)
+	return b
+}
+
 func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
 	if b.err != nil {
 		return nil, b.err
@@ -119,7 +143,21 @@ func (c *StringValidator) Validate(v interface{}) error {
 
 	if pat := c.pattern; pat != nil {
 		if !pat.MatchString(str) {
-			return fmt.Errorf(`invalide value passed to StringValidator: string did not match pattern %s`, pat.String())
+			return fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
+		}
+	}
+
+	if enums := c.enum; len(enums) > 0 {
+		var found bool
+		for _, e := range enums {
+			if e == str {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return fmt.Errorf(`invalid value passed to StringValidator: string not found in enum`)
 		}
 	}
 

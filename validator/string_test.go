@@ -164,6 +164,35 @@ func TestStringValidator(t *testing.T) {
 				return validator.Compile(s)
 			},
 		},
+		{
+			Name:   "enum set, valid value",
+			Object: "three",
+			Validator: func() (validator.Validator, error) {
+				s, err := schema.NewBuilder().
+					Type(schema.StringType).
+					Enum([]interface{}{"one", "two", "three"}).
+					Build()
+				if err != nil {
+					return nil, err
+				}
+				return validator.Compile(s)
+			},
+		},
+		{
+			Name:   "enum set, invalid value",
+			Object: "four",
+			Error:  true,
+			Validator: func() (validator.Validator, error) {
+				s, err := schema.NewBuilder().
+					Type(schema.StringType).
+					Enum([]interface{}{"one", "two", "three"}).
+					Build()
+				if err != nil {
+					return nil, err
+				}
+				return validator.Compile(s)
+			},
+		},
 	}
 
 	for _, tc := range testcases {
