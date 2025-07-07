@@ -349,6 +349,14 @@ func genBuilder(obj *codegen.Object) error {
 	o.L("return s, nil")
 	o.L("}")
 
+	o.LL("func (b *Builder) MustBuild() *Schema {")
+	o.L("s, err := b.Build()")
+	o.L("if err != nil {")
+	o.L("panic(fmt.Errorf(`failed to build schema: %%w`, err))")
+	o.L("}")
+	o.L("return s")
+	o.L("}")
+
 	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
 		if cfe, ok := err.(codegen.CodeFormatError); ok {
 			fmt.Fprint(os.Stderr, cfe.Source())

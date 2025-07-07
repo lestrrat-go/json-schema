@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func ExampleSchemaBuilder() {
+func Example_schema_builder() {
 	s, err := schema.NewBuilder().
 		ID(`https://example.com/polygon`).
 		Type(schema.ObjectType).

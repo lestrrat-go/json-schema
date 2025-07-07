@@ -532,3 +532,11 @@ func (b *Builder) Build() (*Schema, error) {
 	}
 	return s, nil
 }
+
+func (b *Builder) MustBuild() *Schema {
+	s, err := b.Build()
+	if err != nil {
+		panic(fmt.Errorf(`failed to build schema: %w`, err))
+	}
+	return s
+}
