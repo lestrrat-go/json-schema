@@ -48,7 +48,7 @@ func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	x, err := NewPrimitiveType(string(data))
+	x, err := NewPrimitiveType(s)
 	if err != nil {
 		return err
 	}

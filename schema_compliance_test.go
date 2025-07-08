@@ -13,7 +13,6 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 		// Test that schemas declare the correct version
 		s := schema.New()
 		require.Equal(t, schema.Version, s.Schema(), "Schema should declare 2020-12 version")
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", s.Schema())
 	})
 
 	t.Run("Schema ID and Identification", func(t *testing.T) {
@@ -41,14 +40,14 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 		// Test all core keywords are supported
 		s, err := schema.NewBuilder().
 			ID("https://example.com/test").
-			Schema("https://json-schema.org/draft/2020-12/schema").
+			Schema(schema.Version).
 			Reference("#/definitions/test").
 			Anchor("test-anchor").
 			Comment("Test comment").
 			Build()
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/test", s.ID())
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", s.Schema())
+		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, "#/definitions/test", s.Reference())
 		require.Equal(t, "test-anchor", s.Anchor())
 		require.Equal(t, "Test comment", s.Comment())

@@ -10,7 +10,7 @@ objects:
       - name: dynamicReference
         json: '$dynamicRef'
       - name: reference
-        json: '$reference'
+        json: '$ref'
       - name: comment
         json: '$comment'
       - name: anchor

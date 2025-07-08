@@ -130,6 +130,18 @@ func genObject(obj *codegen.Object) error {
 		o.L("}")
 	}
 
+	o.LL("func (s *Schema) ContainsType(typ PrimitiveType) bool {")
+	o.L("if s.types == nil {")
+	o.L("return false")
+	o.L("}")
+	o.L("for _, t := range s.types {")
+	o.L("if t == typ {")
+	o.L("return true")
+	o.L("}")
+	o.L("}")
+	o.L("return false")
+	o.L("}")
+
 	o.L(`type pair struct {`)
 	o.L(`Name string`)
 	o.L(`Value interface{}`)
@@ -154,7 +166,7 @@ func genObject(obj *codegen.Object) error {
 		}
 	}
 	o.L(`sort.Slice(fields, func(i, j int) bool {`)
-	o.L(`return fields[i].Name < fields[j].Name`)
+	o.L(`return compareFieldNames(fields[i].Name, fields[j].Name)`)
 	o.L(`})`)
 	o.L(`var buf bytes.Buffer`)
 	o.L(`enc := json.NewEncoder(&buf)`)

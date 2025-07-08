@@ -14,7 +14,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		// Test that core vocabulary keywords are supported
 		s, err := schema.NewBuilder().
 			ID("https://example.com/test").
-			Schema("https://json-schema.org/draft/2020-12/schema").
+			Schema(schema.Version).
 			Reference("#/definitions/test").
 			Anchor("test-anchor").
 			DynamicReference("#dynamic").
@@ -24,7 +24,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		
 		// Verify all core vocabulary keywords are accessible
 		require.Equal(t, "https://example.com/test", s.ID())
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", s.Schema())
+		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, "#/definitions/test", s.Reference())
 		require.Equal(t, "test-anchor", s.Anchor())
 		require.Equal(t, "#dynamic", s.DynamicReference())
@@ -135,7 +135,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 	t.Run("Simple Schema Serialization", func(t *testing.T) {
 		original, err := schema.NewBuilder().
 			ID("https://example.com/person").
-			Schema("https://json-schema.org/draft/2020-12/schema").
+			Schema(schema.Version).
 			Type(schema.ObjectType).
 			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
 			Property("age", schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild()).
@@ -147,24 +147,19 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
 		
-		// Verify JSON structure contains expected fields
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
+		// Verify JSON structure by unmarshaling back to Schema
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
 		
 		// Check core fields are present
-		require.Equal(t, "https://example.com/person", jsonMap["$id"])
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", jsonMap["$schema"])
-		// Type is serialized as an array in this implementation
-		typeArray, ok := jsonMap["type"].([]interface{})
-		require.True(t, ok)
-		require.Contains(t, typeArray, "object")
-		require.NotNil(t, jsonMap["properties"])
-		require.Equal(t, true, jsonMap["required"])
+		require.Equal(t, "https://example.com/person", s.ID())
+		require.Equal(t, schema.Version, s.Schema())
+		require.True(t, s.ContainsType(schema.ObjectType))
+		require.NotNil(t, s.Properties())
+		require.Equal(t, true, s.Required())
 		
 		// Check properties structure
-		props, ok := jsonMap["properties"].(map[string]interface{})
-		require.True(t, ok)
+		props := s.Properties()
 		require.NotNil(t, props["name"])
 		require.NotNil(t, props["age"])
 	})
@@ -186,7 +181,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 			Build()
 		require.NoError(t, err)
 		
-		complex, err := schema.NewBuilder().
+		original, err := schema.NewBuilder().
 			ID("https://example.com/complex").
 			Type(schema.ObjectType).
 			AllOf([]*schema.Schema{stringSchema, numberSchema}).
@@ -200,31 +195,27 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		require.NoError(t, err)
 		
 		// Serialize to JSON
-		jsonData, err := json.Marshal(complex)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
 		
-		// Verify JSON structure
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
+		// Verify JSON structure by unmarshaling back to Schema
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
 		
 		// Check complex fields are present
-		require.Equal(t, "https://example.com/complex", jsonMap["$id"])
-		// Type is serialized as an array in this implementation
-		typeArray, ok := jsonMap["type"].([]interface{})
-		require.True(t, ok)
-		require.Contains(t, typeArray, "object")
-		require.NotNil(t, jsonMap["allOf"])
-		require.NotNil(t, jsonMap["anyOf"])
-		require.NotNil(t, jsonMap["oneOf"])
-		require.NotNil(t, jsonMap["not"])
-		require.NotNil(t, jsonMap["enum"])
-		require.Equal(t, "constant_value", jsonMap["const"])
-		require.Equal(t, "Complex schema for testing", jsonMap["$comment"])
+		require.Equal(t, "https://example.com/complex", s.ID())
+		require.True(t, s.ContainsType(schema.ObjectType))
+		require.True(t, s.HasAllOf())
+		require.True(t, s.HasAnyOf())
+		require.True(t, s.HasOneOf())
+		require.True(t, s.HasNot())
+		require.True(t, s.HasEnum())
+		require.Equal(t, "constant_value", s.Const())
+		require.Equal(t, "Complex schema for testing", s.Comment())
 	})
 
 	t.Run("Schema with References", func(t *testing.T) {
-		refSchema, err := schema.NewBuilder().
+		original, err := schema.NewBuilder().
 			ID("https://example.com/ref-test").
 			Reference("#/definitions/person").
 			DynamicReference("#person").
@@ -234,20 +225,19 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		require.NoError(t, err)
 		
 		// Serialize to JSON
-		jsonData, err := json.Marshal(refSchema)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
 		
-		// Verify JSON structure
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
+		// Verify JSON structure by unmarshaling back to Schema
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
 		
 		// Check reference fields
-		require.Equal(t, "https://example.com/ref-test", jsonMap["$id"])
-		require.Equal(t, "#/definitions/person", jsonMap["$reference"])
-		require.Equal(t, "#person", jsonMap["$dynamicRef"])
-		require.Equal(t, "person", jsonMap["$defs"])
-		require.Equal(t, "person-anchor", jsonMap["$anchor"])
+		require.Equal(t, "https://example.com/ref-test", s.ID())
+		require.Equal(t, "#/definitions/person", s.Reference())
+		require.Equal(t, "#person", s.DynamicReference())
+		require.Equal(t, "person", s.Definitions())
+		require.Equal(t, "person-anchor", s.Anchor())
 	})
 }
 

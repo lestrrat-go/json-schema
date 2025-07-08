@@ -355,6 +355,18 @@ func (s *Schema) UniqueItems() bool {
 	return *(s.uniqueItems)
 }
 
+func (s *Schema) ContainsType(typ PrimitiveType) bool {
+	if s.types == nil {
+		return false
+	}
+	for _, t := range s.types {
+		if t == typ {
+			return true
+		}
+	}
+	return false
+}
+
 type pair struct {
 	Name  string
 	Value interface{}
@@ -458,7 +470,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		fields = append(fields, pair{Name: "propertyNames", Value: v})
 	}
 	if v := s.reference; v != nil {
-		fields = append(fields, pair{Name: "$reference", Value: *v})
+		fields = append(fields, pair{Name: "$ref", Value: *v})
 	}
 	if v := s.required; v != nil {
 		fields = append(fields, pair{Name: "required", Value: *v})
@@ -479,7 +491,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		fields = append(fields, pair{Name: "uniqueItems", Value: *v})
 	}
 	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Name < fields[j].Name
+		return compareFieldNames(fields[i].Name, fields[j].Name)
 	})
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -710,10 +722,10 @@ LOOP:
 					return fmt.Errorf(`failed to decode value for field "propertyNames": %w`, err)
 				}
 				s.propertyNames = v
-			case "$reference":
+			case "$ref":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$reference": %w`, err)
+					return fmt.Errorf(`failed to decode value for field "$ref": %w`, err)
 				}
 				s.reference = &v
 			case "required":

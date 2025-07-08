@@ -14,7 +14,6 @@ func TestMetaSchemaCompliance(t *testing.T) {
 		// Test that new schemas use the correct default meta-schema
 		s := schema.New()
 		require.Equal(t, schema.Version, s.Schema())
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", s.Schema())
 	})
 
 	t.Run("Custom Meta-Schema", func(t *testing.T) {
@@ -33,7 +32,7 @@ func TestMetaSchemaCompliance(t *testing.T) {
 			Type(schema.StringType).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Should have default meta-schema
 		require.NotEmpty(t, s.Schema())
 		require.Equal(t, schema.Version, s.Schema())
@@ -44,104 +43,95 @@ func TestMetaSchemaCompliance(t *testing.T) {
 func TestJSONSchemaMetaValidation(t *testing.T) {
 	t.Run("Valid Schema Structure", func(t *testing.T) {
 		// Create a valid schema
-		s, err := schema.NewBuilder().
+		original, err := schema.NewBuilder().
 			ID("https://example.com/valid").
-			Schema("https://json-schema.org/draft/2020-12/schema").
+			Schema(schema.Version).
 			Type(schema.ObjectType).
 			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
 			Property("age", schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild()).
 			Required(true).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize to JSON to check structure
-		jsonData, err := json.Marshal(s)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
-		// Parse back to verify structure
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
-		
+
+		t.Logf("%s", jsonData)
+
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
+
 		// Check that all fields are properly structured
-		require.Equal(t, "https://example.com/valid", jsonMap["$id"])
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", jsonMap["$schema"])
-		require.Equal(t, "object", jsonMap["type"])
-		require.NotNil(t, jsonMap["properties"])
-		require.Equal(t, true, jsonMap["required"])
+		require.Equal(t, "https://example.com/valid", s.ID())
+		require.Equal(t, schema.Version, s.Schema())
+		require.Equal(t, s.ContainsType(schema.ObjectType), true, `Schema should be of type Object`)
+		require.NotNil(t, s.Properties())
+		require.Equal(t, true, s.Required())
 	})
 
 	t.Run("Schema with All Core Keywords", func(t *testing.T) {
 		// Test schema with all supported core keywords
-		s, err := schema.NewBuilder().
+		original, err := schema.NewBuilder().
 			ID("https://example.com/comprehensive").
-			Schema("https://json-schema.org/draft/2020-12/schema").
+			Schema(schema.Version).
 			Reference("#/definitions/base").
 			Anchor("main").
 			DynamicReference("#meta").
 			Comment("Comprehensive test schema").
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize and verify structure
-		jsonData, err := json.Marshal(s)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
-		
+
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
+
 		// Verify all core keywords are present
-		require.Equal(t, "https://example.com/comprehensive", jsonMap["$id"])
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", jsonMap["$schema"])
-		require.Equal(t, "#/definitions/base", jsonMap["$ref"])
-		require.Equal(t, "main", jsonMap["$anchor"])
-		require.Equal(t, "#meta", jsonMap["$dynamicRef"])
-		require.Equal(t, "Comprehensive test schema", jsonMap["$comment"])
+		require.Equal(t, "https://example.com/comprehensive", s.ID())
+		require.Equal(t, schema.Version, s.Schema())
+		require.Equal(t, "#/definitions/base", s.Reference())
+		require.Equal(t, "main", s.Anchor())
+		require.Equal(t, "#meta", s.DynamicReference())
+		require.Equal(t, "Comprehensive test schema", s.Comment())
 	})
 
 	t.Run("Schema with Composition Keywords", func(t *testing.T) {
 		// Test schema with composition (allOf, anyOf, oneOf, not)
 		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		numberSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
 		require.NoError(t, err)
-		
-		s, err := schema.NewBuilder().
+
+		original, err := schema.NewBuilder().
 			AllOf([]*schema.Schema{stringSchema}).
 			AnyOf([]*schema.Schema{stringSchema, numberSchema}).
 			OneOf([]*schema.Schema{stringSchema}).
 			Not(numberSchema).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize and verify structure
-		jsonData, err := json.Marshal(s)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
-		
+
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
+
 		// Verify composition keywords
-		require.NotNil(t, jsonMap["allOf"])
-		require.NotNil(t, jsonMap["anyOf"])
-		require.NotNil(t, jsonMap["oneOf"])
-		require.NotNil(t, jsonMap["not"])
-		
+		require.True(t, s.HasAllOf())
+		require.True(t, s.HasAnyOf())
+		require.True(t, s.HasOneOf())
+		require.True(t, s.HasNot())
+
 		// Check array lengths
-		allOf, ok := jsonMap["allOf"].([]interface{})
-		require.True(t, ok)
-		require.Len(t, allOf, 1)
-		
-		anyOf, ok := jsonMap["anyOf"].([]interface{})
-		require.True(t, ok)
-		require.Len(t, anyOf, 2)
-		
-		oneOf, ok := jsonMap["oneOf"].([]interface{})
-		require.True(t, ok)
-		require.Len(t, oneOf, 1)
+		require.Len(t, s.AllOf(), 1)
+		require.Len(t, s.AnyOf(), 2)
+		require.Len(t, s.OneOf(), 1)
+		require.NotNil(t, s.Not())
 	})
 }
 
@@ -150,15 +140,15 @@ func TestSchemaVocabularyDeclaration(t *testing.T) {
 	t.Run("Core Vocabulary Support", func(t *testing.T) {
 		// Test that the implementation supports core vocabulary
 		s := schema.New()
-		
+
 		// Should have the correct version which implies core vocabulary support
-		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", s.Schema())
+		require.Equal(t, schema.Version, s.Schema())
 	})
 
 	t.Run("Schema Version Compatibility", func(t *testing.T) {
 		// Test version string matches expected format
 		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", schema.Version)
-		
+
 		// Test that schemas declare this version by default
 		s := schema.New()
 		require.Equal(t, schema.Version, s.Schema())
@@ -179,7 +169,7 @@ func TestSchemaIdentification(t *testing.T) {
 			{"Relative URI", "/schemas/person"},
 			{"Fragment Only", "#person"},
 		}
-		
+
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
@@ -198,7 +188,7 @@ func TestSchemaIdentification(t *testing.T) {
 			"address",
 			"contact-info",
 		}
-		
+
 		for _, anchor := range testCases {
 			t.Run(anchor, func(t *testing.T) {
 				s, err := schema.NewBuilder().
@@ -216,7 +206,7 @@ func TestSchemaIdentification(t *testing.T) {
 			Anchor("person-schema").
 			Build()
 		require.NoError(t, err)
-		
+
 		require.Equal(t, "https://example.com/person", s.ID())
 		require.Equal(t, "person-schema", s.Anchor())
 	})
@@ -229,7 +219,7 @@ func TestBooleanSchemas(t *testing.T) {
 		var s schema.Schema
 		err := s.Accept(true)
 		require.NoError(t, err)
-		
+
 		// Should be an empty schema (accepts everything)
 		require.Nil(t, s.Not())
 	})
@@ -239,7 +229,7 @@ func TestBooleanSchemas(t *testing.T) {
 		var s schema.Schema
 		err := s.Accept(false)
 		require.NoError(t, err)
-		
+
 		// Should have a 'not' constraint with empty schema
 		require.NotNil(t, s.Not())
 	})

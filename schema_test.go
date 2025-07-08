@@ -28,6 +28,8 @@ func Example_schema_builder() {
 	}
 	fmt.Printf("%s\n", buf)
 	// OUTPUT:
+	// https://example.com/polygon
+	// {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":{},"properties":{"validProp":{"$schema":"https://json-schema.org/draft/2020-12/schema"}},"type":["object"]}
 }
 
 func TestPrimitiveType(t *testing.T) {

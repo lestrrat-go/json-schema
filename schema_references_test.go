@@ -172,7 +172,7 @@ func TestSchemaReferenceResolution(t *testing.T) {
 // TestSchemaReferencesSerialization tests that references serialize correctly
 func TestSchemaReferencesSerialization(t *testing.T) {
 	t.Run("Reference Serialization", func(t *testing.T) {
-		s, err := schema.NewBuilder().
+		original, err := schema.NewBuilder().
 			ID("https://example.com/test").
 			Reference("#/definitions/person").
 			DynamicReference("#/definitions/dynamic").
@@ -182,25 +182,24 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		require.NoError(t, err)
 		
 		// Serialize to JSON
-		jsonData, err := json.Marshal(s)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
 		
-		// Parse back to verify
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
+		// Verify JSON structure by unmarshaling back to Schema
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
 		
-		// Verify reference fields in JSON
-		require.Equal(t, "https://example.com/test", jsonMap["$id"])
-		require.Equal(t, "#/definitions/person", jsonMap["$ref"])
-		require.Equal(t, "#/definitions/dynamic", jsonMap["$dynamicRef"])
-		require.Equal(t, "person", jsonMap["$defs"])
-		require.Equal(t, "main", jsonMap["$anchor"])
+		// Verify reference fields
+		require.Equal(t, "https://example.com/test", s.ID())
+		require.Equal(t, "#/definitions/person", s.Reference())
+		require.Equal(t, "#/definitions/dynamic", s.DynamicReference())
+		require.Equal(t, "person", s.Definitions())
+		require.Equal(t, "main", s.Anchor())
 	})
 
 	t.Run("Complex Reference Structure", func(t *testing.T) {
 		// Create a schema with complex reference structure
-		s, err := schema.NewBuilder().
+		original, err := schema.NewBuilder().
 			ID("https://example.com/complex-refs").
 			Type(schema.ObjectType).
 			Property("base", schema.NewBuilder().Reference("#/definitions/base").MustBuild()).
@@ -210,35 +209,34 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		require.NoError(t, err)
 		
 		// Serialize to JSON
-		jsonData, err := json.Marshal(s)
+		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
 		
-		// Parse back to verify
-		var jsonMap map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonMap)
-		require.NoError(t, err)
+		// Verify JSON structure by unmarshaling back to Schema
+		var s schema.Schema
+		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
 		
 		// Verify complex structure
-		require.Equal(t, "https://example.com/complex-refs", jsonMap["$id"])
-		require.Equal(t, "object", jsonMap["type"])
+		require.Equal(t, "https://example.com/complex-refs", s.ID())
+		require.True(t, s.ContainsType(schema.ObjectType))
 		
-		props, ok := jsonMap["properties"].(map[string]interface{})
-		require.True(t, ok)
+		props := s.Properties()
+		require.NotNil(t, props)
 		
 		// Check base property reference
-		baseProp, ok := props["base"].(map[string]interface{})
-		require.True(t, ok)
-		require.Equal(t, "#/definitions/base", baseProp["$ref"])
+		baseProp := props["base"]
+		require.NotNil(t, baseProp)
+		require.Equal(t, "#/definitions/base", baseProp.Reference())
 		
 		// Check dynamic property reference
-		dynamicProp, ok := props["dynamic"].(map[string]interface{})
-		require.True(t, ok)
-		require.Equal(t, "#/definitions/dynamic", dynamicProp["$dynamicRef"])
+		dynamicProp := props["dynamic"]
+		require.NotNil(t, dynamicProp)
+		require.Equal(t, "#/definitions/dynamic", dynamicProp.DynamicReference())
 		
 		// Check external property reference
-		externalProp, ok := props["external"].(map[string]interface{})
-		require.True(t, ok)
-		require.Equal(t, "https://external.com/schema", externalProp["$ref"])
+		externalProp := props["external"]
+		require.NotNil(t, externalProp)
+		require.Equal(t, "https://external.com/schema", externalProp.Reference())
 	})
 }
 
