@@ -61,7 +61,7 @@ func TestEnumValidationComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
@@ -144,7 +144,7 @@ func TestEnumValidationComprehensive(t *testing.T) {
 				
 				s, err := schema.NewBuilder().
 					Type(schemaType).
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
@@ -203,7 +203,7 @@ func TestEnumValidationComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
 					Type(schema.BooleanType).
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
@@ -274,7 +274,7 @@ func TestEnumValidationComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// For mixed type enums, don't specify a type constraint
 				s, err := schema.NewBuilder().
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
@@ -353,7 +353,7 @@ func TestEnumValidationComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
@@ -721,7 +721,7 @@ func TestConstValidationComprehensive(t *testing.T) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Const(tc.constVal).
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 

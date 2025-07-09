@@ -443,7 +443,7 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				builder := schema.NewBuilder().Type(schema.IntegerType)
 				if tc.enum != nil {
-					builder = builder.Enum(tc.enum)
+					builder = builder.Enum(tc.enum...)
 				}
 				if tc.constVal != nil {
 					builder = builder.Const(tc.constVal)

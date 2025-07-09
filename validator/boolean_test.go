@@ -203,7 +203,7 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
 					Type(schema.BooleanType).
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 

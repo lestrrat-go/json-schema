@@ -3,7 +3,13 @@ package validator
 import (
 	"fmt"
 	"reflect"
+
+	schema "github.com/lestrrat-go/json-schema"
 )
+
+func compileObjectValidator(s *schema.Schema) (Validator, error) {
+	return &ObjectValidator{}, nil
+}
 
 type ObjectValidator struct {
 }

@@ -27,7 +27,36 @@ func Compile(s *schema.Schema) (Validator, error) {
 				return nil, fmt.Errorf(`failed to compile integer validator: %w`, err)
 			}
 			validatorsByType = append(validatorsByType, v)
+		case schema.NumberType:
+			v, err := compileNumberValidator(s)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile number validator: %w`, err)
+			}
+			validatorsByType = append(validatorsByType, v)
+		case schema.BooleanType:
+			v, err := compileBooleanValidator(s)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile boolean validator: %w`, err)
+			}
+			validatorsByType = append(validatorsByType, v)
+		case schema.ArrayType:
+			v, err := compileArrayValidator(s)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile array validator: %w`, err)
+			}
+			validatorsByType = append(validatorsByType, v)
+		case schema.ObjectType:
+			v, err := compileObjectValidator(s)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile object validator: %w`, err)
+			}
+			validatorsByType = append(validatorsByType, v)
 		}
+	}
+
+	if len(validatorsByType) == 0 {
+		// Empty schema - allows anything
+		return &EmptyValidator{}, nil
 	}
 
 	if len(validatorsByType) == 1 {
@@ -44,6 +73,13 @@ func Compile(s *schema.Schema) (Validator, error) {
 
 type Validator interface {
 	Validate(interface{}) error
+}
+
+type EmptyValidator struct{}
+
+func (e *EmptyValidator) Validate(v interface{}) error {
+	// Empty schema allows anything
+	return nil
 }
 
 type MultiValidator struct {
