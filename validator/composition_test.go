@@ -88,7 +88,7 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					AllOf(tc.schemas).
+					AllOf(tc.schemas...).
 					Build()
 				require.NoError(t, err)
 
@@ -188,7 +188,7 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					AnyOf(tc.schemas).
+					AnyOf(tc.schemas...).
 					Build()
 				require.NoError(t, err)
 
@@ -295,7 +295,7 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					OneOf(tc.schemas).
+					OneOf(tc.schemas...).
 					Build()
 				require.NoError(t, err)
 
@@ -415,16 +415,16 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				schema: func() *schema.Schema {
 					// Must be string AND (minLength 3 OR maxLength 10)
 					anyOfSchema := schema.NewBuilder().
-						AnyOf([]*schema.Schema{
+						AnyOf(
 							schema.NewBuilder().MinLength(3).MustBuild(),
 							schema.NewBuilder().MaxLength(10).MustBuild(),
-						}).MustBuild()
+						).MustBuild()
 
 					return schema.NewBuilder().
-						AllOf([]*schema.Schema{
+						AllOf(
 							schema.NewBuilder().Type(schema.StringType).MustBuild(),
 							anyOfSchema,
-						}).MustBuild()
+						).MustBuild()
 				},
 				wantErr: false,
 			},
@@ -434,19 +434,19 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				schema: func() *schema.Schema {
 					// Either (string AND minLength 5) OR (integer AND minimum 0)
 					stringConstraints := schema.NewBuilder().
-						AllOf([]*schema.Schema{
+						AllOf(
 							schema.NewBuilder().Type(schema.StringType).MustBuild(),
 							schema.NewBuilder().MinLength(5).MustBuild(),
-						}).MustBuild()
+						).MustBuild()
 
 					integerConstraints := schema.NewBuilder().
-						AllOf([]*schema.Schema{
+						AllOf(
 							schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
 							schema.NewBuilder().Minimum(0).MustBuild(),
-						}).MustBuild()
+						).MustBuild()
 
 					return schema.NewBuilder().
-						OneOf([]*schema.Schema{stringConstraints, integerConstraints}).
+						OneOf(stringConstraints, integerConstraints).
 						MustBuild()
 				},
 				wantErr: false,
@@ -457,16 +457,16 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				schema: func() *schema.Schema {
 					// Not (short string OR long string) = medium length strings
 					oneOfSchema := schema.NewBuilder().
-						OneOf([]*schema.Schema{
+						OneOf(
 							schema.NewBuilder().Type(schema.StringType).MaxLength(3).MustBuild(),  // short
 							schema.NewBuilder().Type(schema.StringType).MinLength(10).MustBuild(), // long
-						}).MustBuild()
+						).MustBuild()
 
 					return schema.NewBuilder().
-						AllOf([]*schema.Schema{
+						AllOf(
 							schema.NewBuilder().Type(schema.StringType).MustBuild(),
 							schema.NewBuilder().Not(oneOfSchema).MustBuild(),
-						}).MustBuild()
+						).MustBuild()
 				},
 				wantErr: false,
 			},
@@ -475,16 +475,16 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				value: "hi", // too short
 				schema: func() *schema.Schema {
 					oneOfSchema := schema.NewBuilder().
-						OneOf([]*schema.Schema{
+						OneOf(
 							schema.NewBuilder().Type(schema.StringType).MaxLength(3).MustBuild(),  // short
 							schema.NewBuilder().Type(schema.StringType).MinLength(10).MustBuild(), // long
-						}).MustBuild()
+						).MustBuild()
 
 					return schema.NewBuilder().
-						AllOf([]*schema.Schema{
+						AllOf(
 							schema.NewBuilder().Type(schema.StringType).MustBuild(),
 							schema.NewBuilder().Not(oneOfSchema).MustBuild(), // should NOT be short or long
-						}).MustBuild()
+						).MustBuild()
 				},
 				wantErr: true, // "hi" is short, so it matches oneOf, so not(oneOf) fails
 			},
@@ -522,10 +522,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				schema: func() *schema.Schema {
 					return schema.NewBuilder().
 						Type(schema.StringType).
-						AllOf([]*schema.Schema{
+						AllOf(
 							schema.NewBuilder().MinLength(5).MustBuild(),
 							schema.NewBuilder().Pattern("^hello").MustBuild(),
-						}).MustBuild()
+						).MustBuild()
 				},
 				wantErr: false,
 			},
@@ -534,11 +534,11 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				value: 42,
 				schema: func() *schema.Schema {
 					return schema.NewBuilder().
-						AnyOf([]*schema.Schema{
+						AnyOf(
 							schema.NewBuilder().Type(schema.StringType).MinLength(5).MustBuild(),
 							schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild(),
 							schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
-						}).MustBuild()
+						).MustBuild()
 				},
 				wantErr: false,
 			},
@@ -559,7 +559,7 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 						MustBuild()
 
 					return schema.NewBuilder().
-						OneOf([]*schema.Schema{userSchema, adminSchema}).
+						OneOf(userSchema, adminSchema).
 						MustBuild()
 				},
 				wantErr: false,

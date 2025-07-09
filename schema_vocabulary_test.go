@@ -40,9 +40,9 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			AllOf([]*schema.Schema{itemSchema}).
-			AnyOf([]*schema.Schema{itemSchema}).
-			OneOf([]*schema.Schema{itemSchema}).
+			AllOf(itemSchema).
+			AnyOf(itemSchema).
+			OneOf(itemSchema).
 			Not(itemSchema).
 			Items(itemSchema).
 			Property("test", propSchema).
@@ -68,7 +68,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		// Test validation vocabulary keywords
 		s, err := schema.NewBuilder().
 			Type(schema.StringType).
-			Enum([]interface{}{"red", "green", "blue"}).
+			Enum("red", "green", "blue").
 			Const("constant").
 			MultipleOf(2.5).
 			Maximum(100.0).
@@ -153,7 +153,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		require.Equal(t, schema.Version, s.Schema())
 		require.True(t, s.ContainsType(schema.ObjectType))
 		require.NotNil(t, s.Properties())
-		require.Equal(t, true, s.Required())
+		require.Len(t, s.Required(), 0)
 
 		// Check properties structure
 		props := s.Properties()
@@ -181,11 +181,11 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		original, err := schema.NewBuilder().
 			ID("https://example.com/complex").
 			Type(schema.ObjectType).
-			AllOf([]*schema.Schema{stringSchema, numberSchema}).
-			AnyOf([]*schema.Schema{stringSchema}).
-			OneOf([]*schema.Schema{numberSchema}).
+			AllOf(stringSchema, numberSchema).
+			AnyOf(stringSchema).
+			OneOf(numberSchema).
 			Not(stringSchema).
-			Enum([]interface{}{"option1", "option2", "option3"}).
+			Enum("option1", "option2", "option3").
 			Const("constant_value").
 			Comment("Complex schema for testing").
 			Build()

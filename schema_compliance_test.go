@@ -109,7 +109,7 @@ func TestSchemaComposition(t *testing.T) {
 		require.NoError(t, err)
 
 		composedSchema, err := schema.NewBuilder().
-			AllOf([]*schema.Schema{stringSchema, minLengthSchema}).
+			AllOf(stringSchema, minLengthSchema).
 			Build()
 		require.NoError(t, err)
 		require.Len(t, composedSchema.AllOf(), 2)
@@ -123,7 +123,7 @@ func TestSchemaComposition(t *testing.T) {
 		require.NoError(t, err)
 
 		composedSchema, err := schema.NewBuilder().
-			AnyOf([]*schema.Schema{stringSchema, numberSchema}).
+			AnyOf(stringSchema, numberSchema).
 			Build()
 		require.NoError(t, err)
 		require.Len(t, composedSchema.AnyOf(), 2)
@@ -137,7 +137,7 @@ func TestSchemaComposition(t *testing.T) {
 		require.NoError(t, err)
 
 		composedSchema, err := schema.NewBuilder().
-			OneOf([]*schema.Schema{stringSchema, numberSchema}).
+			OneOf(stringSchema, numberSchema).
 			Build()
 		require.NoError(t, err)
 		require.Len(t, composedSchema.OneOf(), 2)
@@ -226,7 +226,7 @@ func TestEnumAndConst(t *testing.T) {
 		enumValues := []interface{}{"red", "green", "blue"}
 		s, err := schema.NewBuilder().
 			Type(schema.StringType).
-			Enum(enumValues).
+			Enum(enumValues...).
 			Build()
 		require.NoError(t, err)
 		require.Equal(t, enumValues, s.Enum())

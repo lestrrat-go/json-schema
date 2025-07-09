@@ -35,6 +35,30 @@ func isNilZeroType(field codegen.Field) bool {
 		field.Name(false) == "schema"
 }
 
+func isVariadicSliceType(field codegen.Field) bool {
+	typ := field.Type()
+	switch typ {
+	case "[]*Schema", "[]interface{}", "[]string":
+		return true
+	default:
+		return false
+	}
+}
+
+func getVariadicElementType(field codegen.Field) string {
+	typ := field.Type()
+	switch typ {
+	case "[]*Schema":
+		return "*Schema"
+	case "[]interface{}":
+		return "interface{}"
+	case "[]string":
+		return "string"
+	default:
+		return ""
+	}
+}
+
 func hasAccept(field codegen.Field) bool {
 	switch field.Type() {
 	case "*Schema":
@@ -316,18 +340,29 @@ func genBuilder(obj *codegen.Object) error {
 			o.L("return b")
 			o.L("}")
 		default:
-			o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), field.Type())
-			o.L("if b.err != nil {")
-			o.L("return b")
-			o.L("}")
-
-			if !isNilZeroType(field) && !isInterfaceField(field) {
-				o.LL("b.%s = &v", field.Name(false))
-			} else {
+			if isVariadicSliceType(field) {
+				elementType := getVariadicElementType(field)
+				o.LL("func (b *Builder) %s(v ...%s) *Builder {", field.Name(true), elementType)
+				o.L("if b.err != nil {")
+				o.L("return b")
+				o.L("}")
 				o.LL("b.%s = v", field.Name(false))
+				o.L("return b")
+				o.L("}")
+			} else {
+				o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), field.Type())
+				o.L("if b.err != nil {")
+				o.L("return b")
+				o.L("}")
+
+				if !isNilZeroType(field) && !isInterfaceField(field) {
+					o.LL("b.%s = &v", field.Name(false))
+				} else {
+					o.LL("b.%s = v", field.Name(false))
+				}
+				o.L("return b")
+				o.L("}")
 			}
-			o.L("return b")
-			o.L("}")
 		}
 	}
 

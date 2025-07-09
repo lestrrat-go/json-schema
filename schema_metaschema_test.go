@@ -105,9 +105,9 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		original, err := schema.NewBuilder().
-			AllOf([]*schema.Schema{stringSchema}).
-			AnyOf([]*schema.Schema{stringSchema, numberSchema}).
-			OneOf([]*schema.Schema{stringSchema}).
+			AllOf(stringSchema).
+			AnyOf(stringSchema, numberSchema).
+			OneOf(stringSchema).
 			Not(numberSchema).
 			Build()
 		require.NoError(t, err)

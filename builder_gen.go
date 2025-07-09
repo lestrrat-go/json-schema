@@ -64,7 +64,7 @@ func (b *Builder) AdditionalProperties(v SchemaOrBool) *Builder {
 	return b
 }
 
-func (b *Builder) AllOf(v []*Schema) *Builder {
+func (b *Builder) AllOf(v ...*Schema) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -82,7 +82,7 @@ func (b *Builder) Anchor(v string) *Builder {
 	return b
 }
 
-func (b *Builder) AnyOf(v []*Schema) *Builder {
+func (b *Builder) AnyOf(v ...*Schema) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -136,7 +136,7 @@ func (b *Builder) DynamicReference(v string) *Builder {
 	return b
 }
 
-func (b *Builder) Enum(v []interface{}) *Builder {
+func (b *Builder) Enum(v ...interface{}) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -298,7 +298,7 @@ func (b *Builder) Not(v *Schema) *Builder {
 	return b
 }
 
-func (b *Builder) OneOf(v []*Schema) *Builder {
+func (b *Builder) OneOf(v ...*Schema) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -352,7 +352,7 @@ func (b *Builder) Reference(v string) *Builder {
 	return b
 }
 
-func (b *Builder) Required(v []string) *Builder {
+func (b *Builder) Required(v ...string) *Builder {
 	if b.err != nil {
 		return b
 	}

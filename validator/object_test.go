@@ -271,7 +271,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ObjectType).Required(tc.required)
+				builder := schema.NewBuilder().Type(schema.ObjectType).Required(tc.required...)
 				s, err := builder.Build()
 				require.NoError(t, err)
 
@@ -723,7 +723,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					s, _ := schema.NewBuilder().
 						Type(schema.ObjectType).
 						Property("required_prop", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						Required([]string{"required_prop"}).
+						Required("required_prop").
 						PatternProperty("^str_", schema.NewBuilder().Type(schema.StringType).MustBuild()).
 						PatternProperty("^num_", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
 						MinProperties(1).

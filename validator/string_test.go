@@ -171,7 +171,7 @@ func TestStringValidator(t *testing.T) {
 			Validator: func() (validator.Validator, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
-					Enum([]interface{}{"one", "two", "three"}).
+					Enum("one", "two", "three").
 					Build()
 				if err != nil {
 					return nil, err
@@ -186,7 +186,7 @@ func TestStringValidator(t *testing.T) {
 			Validator: func() (validator.Validator, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
-					Enum([]interface{}{"one", "two", "three"}).
+					Enum("one", "two", "three").
 					Build()
 				if err != nil {
 					return nil, err
@@ -591,7 +591,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
-					Enum(tc.enum).
+					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
@@ -733,7 +733,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 					s, _ := schema.NewBuilder().
 						Type(schema.StringType).
 						Pattern("^option[0-9]$").
-						Enum([]any{"option1", "option2", "option3"}).
+						Enum("option1", "option2", "option3").
 						Build()
 					return s
 				},
@@ -746,7 +746,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 					s, _ := schema.NewBuilder().
 						Type(schema.StringType).
 						Pattern("^choice[0-9]$").
-						Enum([]any{"option1", "option2", "option3"}).
+						Enum("option1", "option2", "option3").
 						Build()
 					return s
 				},

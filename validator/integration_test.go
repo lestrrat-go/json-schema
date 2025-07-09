@@ -33,7 +33,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				Type(schema.ArrayType).
 				Items(schema.NewBuilder().
 					Type(schema.StringType).
-					Enum([]any{"admin", "user", "moderator", "guest"}).MustBuild()).
+					Enum("admin", "user", "moderator", "guest").MustBuild()).
 				MinItems(1).
 				UniqueItems(true).MustBuild()).
 			Property("active", schema.NewBuilder().
@@ -42,11 +42,11 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				Type(schema.ObjectType).
 				Property("theme", schema.NewBuilder().
 					Type(schema.StringType).
-					Enum([]any{"light", "dark", "auto"}).MustBuild()).
+					Enum("light", "dark", "auto").MustBuild()).
 				Property("notifications", schema.NewBuilder().
 					Type(schema.BooleanType).MustBuild()).
 				AdditionalProperties(false).MustBuild()).
-			Required([]string{"id", "username", "email"}).
+			Required("id", "username", "email").
 			AdditionalProperties(false).
 			Build()
 		require.NoError(t, err)
@@ -209,10 +209,10 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				MultipleOf(0.01).MustBuild()).
 			Property("currency", schema.NewBuilder().
 				Type(schema.StringType).
-				Enum([]any{"USD", "EUR", "GBP", "JPY"}).MustBuild()).
+				Enum("USD", "EUR", "GBP", "JPY").MustBuild()).
 			Property("category", schema.NewBuilder().
 				Type(schema.StringType).
-				Enum([]any{"electronics", "clothing", "books", "home", "sports"}).MustBuild()).
+				Enum("electronics", "clothing", "books", "home", "sports").MustBuild()).
 			Property("tags", schema.NewBuilder().
 				Type(schema.ArrayType).
 				Items(schema.NewBuilder().
@@ -229,10 +229,10 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				Property("warehouse", schema.NewBuilder().
 					Type(schema.StringType).
 					MinLength(1).MustBuild()).
-				Required([]string{"quantity"}).MustBuild()).
+				Required("quantity").MustBuild()).
 			Property("active", schema.NewBuilder().
 				Type(schema.BooleanType).MustBuild()).
-			Required([]string{"id", "name", "price", "currency", "category"}).
+			Required("id", "name", "price", "currency", "category").
 			Build()
 		require.NoError(t, err)
 
@@ -374,7 +374,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				Const("success").MustBuild()).
 			Property("data", schema.NewBuilder().
 				Type(schema.ObjectType).MustBuild()).
-			Required([]string{"status", "data"}).
+			Required("status", "data").
 			Build()
 		require.NoError(t, err)
 
@@ -389,13 +389,13 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Type(schema.IntegerType).MustBuild()).
 				Property("message", schema.NewBuilder().
 					Type(schema.StringType).MustBuild()).
-				Required([]string{"code", "message"}).MustBuild()).
-			Required([]string{"status", "error"}).
+				Required("code", "message").MustBuild()).
+			Required("status", "error").
 			Build()
 		require.NoError(t, err)
 
 		responseSchema, err := schema.NewBuilder().
-			OneOf([]*schema.Schema{successSchema, errorSchema}).
+			OneOf(successSchema, errorSchema).
 			Build()
 		require.NoError(t, err)
 
@@ -488,7 +488,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 			Property("version", schema.NewBuilder().
 				Type(schema.StringType).
 				Pattern(`^\d+\.\d+\.\d+$`).MustBuild()).
-			Required([]string{"appName", "version"}).
+			Required("appName", "version").
 			Build()
 		require.NoError(t, err)
 
@@ -506,7 +506,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				Property("name", schema.NewBuilder().
 					Type(schema.StringType).
 					MinLength(1).MustBuild()).
-				Required([]string{"host", "port", "name"}).MustBuild()).
+				Required("host", "port", "name").MustBuild()).
 			Build()
 		require.NoError(t, err)
 
@@ -520,17 +520,17 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Maximum(65535).MustBuild()).
 				Property("host", schema.NewBuilder().
 					Type(schema.StringType).
-					Enum([]any{"localhost", "0.0.0.0"}).MustBuild()).
-				Required([]string{"port"}).MustBuild()).
+					Enum("localhost", "0.0.0.0").MustBuild()).
+				Required("port").MustBuild()).
 			Build()
 		require.NoError(t, err)
 
 		configSchema, err := schema.NewBuilder().
-			AllOf([]*schema.Schema{
+			AllOf(
 				baseConfigSchema,
 				databaseConfigSchema,
 				serverConfigSchema,
-			}).
+			).
 			Build()
 		require.NoError(t, err)
 
@@ -636,7 +636,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				MinLength(1).MustBuild()).
 			Property("type", schema.NewBuilder().
 				Type(schema.StringType).
-				Enum([]any{"file", "directory"}).MustBuild()).
+				Enum("file", "directory").MustBuild()).
 			Property("size", schema.NewBuilder().
 				Type(schema.IntegerType).
 				Minimum(0).MustBuild()).
@@ -644,7 +644,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 				Type(schema.ArrayType).
 				Items(schema.NewBuilder().
 					Type(schema.ObjectType).MustBuild()).MustBuild()). // Simplified - would be recursive reference
-			Required([]string{"name", "type"}).
+			Required("name", "type").
 			Build()
 		require.NoError(t, err)
 
@@ -726,7 +726,7 @@ func TestValidatorErrorMessages(t *testing.T) {
 				Type(schema.IntegerType).
 				Minimum(0).
 				Maximum(150).MustBuild()).
-			Required([]string{"name"}).
+			Required("name").
 			Build()
 		require.NoError(t, err)
 
