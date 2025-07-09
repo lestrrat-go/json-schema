@@ -23,6 +23,8 @@ objects:
         type: '[]*Schema'
       - name: not
         type: '*Schema'
+      - name: format
+        type: string
       # if/then/else WTF are these
       - name: items
         type: '*Schema'
@@ -35,7 +37,7 @@ objects:
       - name: additionalProperties
         type: '*Schema'
       - name: propertyNames
-        type: 'map[string]*Schema'
+        type: '*Schema'
       - name: unevaluatedItems
         type: '*Schema'
       - name: unevaluatedProperties
@@ -79,6 +81,6 @@ objects:
       - name: minProperties
         type: uint
       - name: required
-        type: bool
+        type: '[]string'
         #      - name: dependentRequired
 

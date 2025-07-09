@@ -49,7 +49,6 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 			Type(schema.ObjectType).
 			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
 			Property("age", schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild()).
-			Required(true).
 			Build()
 		require.NoError(t, err)
 
@@ -67,7 +66,6 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, s.ContainsType(schema.ObjectType), true, `Schema should be of type Object`)
 		require.NotNil(t, s.Properties())
-		require.Equal(t, true, s.Required())
 	})
 
 	t.Run("Schema with All Core Keywords", func(t *testing.T) {

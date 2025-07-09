@@ -21,7 +21,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 			Comment("Test comment").
 			Build()
 		require.NoError(t, err)
-		
+
 		// Verify all core vocabulary keywords are accessible
 		require.Equal(t, "https://example.com/test", s.ID())
 		require.Equal(t, schema.Version, s.Schema())
@@ -35,10 +35,10 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		// Test applicator vocabulary keywords
 		itemSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		propSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
 		require.NoError(t, err)
-		
+
 		s, err := schema.NewBuilder().
 			AllOf([]*schema.Schema{itemSchema}).
 			AnyOf([]*schema.Schema{itemSchema}).
@@ -51,7 +51,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 			Contains(itemSchema).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Verify applicator keywords work
 		require.Len(t, s.AllOf(), 1)
 		require.Len(t, s.AnyOf(), 1)
@@ -85,10 +85,9 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 			MinContains(1).
 			MaxProperties(20).
 			MinProperties(2).
-			Required(true).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Verify validation keywords
 		require.Equal(t, []schema.PrimitiveType{schema.StringType}, s.Types())
 		require.Equal(t, []interface{}{"red", "green", "blue"}, s.Enum())
@@ -108,23 +107,22 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		require.Equal(t, uint(1), s.MinContains())
 		require.Equal(t, uint(20), s.MaxProperties())
 		require.Equal(t, uint(2), s.MinProperties())
-		require.True(t, s.Required())
 	})
 
 	t.Run("Unevaluated Vocabulary Keywords", func(t *testing.T) {
 		// Test unevaluated vocabulary keywords
 		propSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		itemSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
 		require.NoError(t, err)
-		
+
 		s, err := schema.NewBuilder().
 			UnevaluatedItems(itemSchema).
 			UnevaluatedProperties(propSchema).
 			Build()
 		require.NoError(t, err)
-		
+
 		require.NotNil(t, s.UnevaluatedItems())
 		require.NotNil(t, s.UnevaluatedProperties())
 	})
@@ -139,25 +137,24 @@ func TestSchemaJSONSerialization(t *testing.T) {
 			Type(schema.ObjectType).
 			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
 			Property("age", schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild()).
-			Required(true).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize to JSON
 		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
+
 		// Verify JSON structure by unmarshaling back to Schema
 		var s schema.Schema
 		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
-		
+
 		// Check core fields are present
 		require.Equal(t, "https://example.com/person", s.ID())
 		require.Equal(t, schema.Version, s.Schema())
 		require.True(t, s.ContainsType(schema.ObjectType))
 		require.NotNil(t, s.Properties())
 		require.Equal(t, true, s.Required())
-		
+
 		// Check properties structure
 		props := s.Properties()
 		require.NotNil(t, props["name"])
@@ -172,7 +169,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 			Pattern("^[a-zA-Z ]+$").
 			Build()
 		require.NoError(t, err)
-		
+
 		numberSchema, err := schema.NewBuilder().
 			Type(schema.NumberType).
 			Minimum(0.0).
@@ -180,7 +177,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 			MultipleOf(0.01).
 			Build()
 		require.NoError(t, err)
-		
+
 		original, err := schema.NewBuilder().
 			ID("https://example.com/complex").
 			Type(schema.ObjectType).
@@ -193,15 +190,15 @@ func TestSchemaJSONSerialization(t *testing.T) {
 			Comment("Complex schema for testing").
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize to JSON
 		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
+
 		// Verify JSON structure by unmarshaling back to Schema
 		var s schema.Schema
 		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
-		
+
 		// Check complex fields are present
 		require.Equal(t, "https://example.com/complex", s.ID())
 		require.True(t, s.ContainsType(schema.ObjectType))
@@ -223,15 +220,15 @@ func TestSchemaJSONSerialization(t *testing.T) {
 			Anchor("person-anchor").
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize to JSON
 		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
+
 		// Verify JSON structure by unmarshaling back to Schema
 		var s schema.Schema
 		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
-		
+
 		// Check reference fields
 		require.Equal(t, "https://example.com/ref-test", s.ID())
 		require.Equal(t, "#/definitions/person", s.Reference())
@@ -257,7 +254,7 @@ func TestSchemaBuilderErrorHandling(t *testing.T) {
 	t.Run("Duplicate Properties", func(t *testing.T) {
 		propSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		// Adding duplicate properties should result in error
 		_, err = schema.NewBuilder().
 			Type(schema.ObjectType).
@@ -286,7 +283,7 @@ func TestMultipleTypes(t *testing.T) {
 			Type(schema.BooleanType).
 			Build()
 		require.NoError(t, err)
-		
+
 		types := s.Types()
 		require.Len(t, types, 3)
 		require.Contains(t, types, schema.StringType)

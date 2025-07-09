@@ -57,14 +57,14 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 		// Test that schemas can be boolean values (true/false)
 		trueSchema := schema.New()
 		falseSchema := schema.New()
-		
+
 		// Test schema acceptance of boolean values
 		err := trueSchema.Accept(true)
 		require.NoError(t, err)
-		
+
 		err = falseSchema.Accept(false)
 		require.NoError(t, err)
-		
+
 		// false schema should have a 'not' constraint
 		require.NotNil(t, falseSchema.Not())
 	})
@@ -104,10 +104,10 @@ func TestSchemaComposition(t *testing.T) {
 	t.Run("AllOf Composition", func(t *testing.T) {
 		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		minLengthSchema, err := schema.NewBuilder().MinLength(5).Build()
 		require.NoError(t, err)
-		
+
 		composedSchema, err := schema.NewBuilder().
 			AllOf([]*schema.Schema{stringSchema, minLengthSchema}).
 			Build()
@@ -118,10 +118,10 @@ func TestSchemaComposition(t *testing.T) {
 	t.Run("AnyOf Composition", func(t *testing.T) {
 		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		numberSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
 		require.NoError(t, err)
-		
+
 		composedSchema, err := schema.NewBuilder().
 			AnyOf([]*schema.Schema{stringSchema, numberSchema}).
 			Build()
@@ -132,10 +132,10 @@ func TestSchemaComposition(t *testing.T) {
 	t.Run("OneOf Composition", func(t *testing.T) {
 		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		numberSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
 		require.NoError(t, err)
-		
+
 		composedSchema, err := schema.NewBuilder().
 			OneOf([]*schema.Schema{stringSchema, numberSchema}).
 			Build()
@@ -146,7 +146,7 @@ func TestSchemaComposition(t *testing.T) {
 	t.Run("Not Composition", func(t *testing.T) {
 		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		notSchema, err := schema.NewBuilder().
 			Not(stringSchema).
 			Build()
@@ -213,13 +213,11 @@ func TestSchemaConstraints(t *testing.T) {
 			Property("name", propSchema).
 			MinProperties(1).
 			MaxProperties(10).
-			Required(true).
 			Build()
 		require.NoError(t, err)
 		require.NotNil(t, s.Properties()["name"])
 		require.Equal(t, uint(1), s.MinProperties())
 		require.Equal(t, uint(10), s.MaxProperties())
-		require.True(t, s.Required())
 	})
 }
 

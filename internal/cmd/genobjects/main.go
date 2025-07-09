@@ -307,9 +307,6 @@ func genBuilder(obj *codegen.Object) error {
 			o.L("}")
 		case `map[string]*Schema`:
 			name := strings.Replace(field.Name(true), `Properties`, `Property`, 1)
-			if name == "PropertyNames" {
-				name = "PropertyName"
-			}
 			o.LL("func (b *Builder) %s(n string, v %s) *Builder {", name, `*Schema`)
 			o.L("if b.err != nil {")
 			o.L("return b")

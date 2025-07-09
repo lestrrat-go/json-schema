@@ -21,6 +21,7 @@ type Schema struct {
 	enum                  []interface{}
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
+	format                *string
 	id                    *string
 	items                 *Schema
 	maxContains           *uint
@@ -39,9 +40,9 @@ type Schema struct {
 	pattern               *string
 	patternProperties     map[string]*Schema
 	properties            map[string]*Schema
-	propertyNames         map[string]*Schema
+	propertyNames         *Schema
 	reference             *string
-	required              *bool
+	required              []string
 	schema                string
 	types                 []PrimitiveType
 	unevaluatedItems      *Schema
@@ -149,6 +150,14 @@ func (s *Schema) HasExclusiveMinimum() bool {
 
 func (s *Schema) ExclusiveMinimum() float64 {
 	return *(s.exclusiveMinimum)
+}
+
+func (s *Schema) HasFormat() bool {
+	return s.format != nil
+}
+
+func (s *Schema) Format() string {
+	return *(s.format)
 }
 
 func (s *Schema) HasID() bool {
@@ -299,7 +308,7 @@ func (s *Schema) HasPropertyNames() bool {
 	return s.propertyNames != nil
 }
 
-func (s *Schema) PropertyNames() map[string]*Schema {
+func (s *Schema) PropertyNames() *Schema {
 	return s.propertyNames
 }
 
@@ -315,8 +324,8 @@ func (s *Schema) HasRequired() bool {
 	return s.required != nil
 }
 
-func (s *Schema) Required() bool {
-	return *(s.required)
+func (s *Schema) Required() []string {
+	return s.required
 }
 
 func (s *Schema) Schema() string {
@@ -375,7 +384,7 @@ type pair struct {
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	s.isRoot = true
 	defer func() { s.isRoot = false }()
-	fields := make([]pair, 0, 38)
+	fields := make([]pair, 0, 39)
 	if v := s.additionalProperties; v != nil {
 		fields = append(fields, pair{Name: "additionalProperties", Value: v})
 	}
@@ -411,6 +420,9 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 	if v := s.exclusiveMinimum; v != nil {
 		fields = append(fields, pair{Name: "exclusiveMinimum", Value: *v})
+	}
+	if v := s.format; v != nil {
+		fields = append(fields, pair{Name: "format", Value: *v})
 	}
 	if v := s.id; v != nil {
 		fields = append(fields, pair{Name: "$id", Value: *v})
@@ -473,7 +485,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		fields = append(fields, pair{Name: "$ref", Value: *v})
 	}
 	if v := s.required; v != nil {
-		fields = append(fields, pair{Name: "required", Value: *v})
+		fields = append(fields, pair{Name: "required", Value: v})
 	}
 	if v := s.schema; s.isRoot && v != "" {
 		fields = append(fields, pair{Name: "$schema", Value: v})
@@ -608,6 +620,12 @@ LOOP:
 					return fmt.Errorf(`failed to decode value for field "exclusiveMinimum": %w`, err)
 				}
 				s.exclusiveMinimum = &v
+			case "format":
+				var v string
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "format": %w`, err)
+				}
+				s.format = &v
 			case "$id":
 				var v string
 				if err := dec.Decode(&v); err != nil {
@@ -717,7 +735,7 @@ LOOP:
 				}
 				s.properties = v
 			case "propertyNames":
-				var v map[string]*Schema
+				var v *Schema
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`failed to decode value for field "propertyNames": %w`, err)
 				}
@@ -729,11 +747,11 @@ LOOP:
 				}
 				s.reference = &v
 			case "required":
-				var v bool
+				var v []string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`failed to decode value for field "required": %w`, err)
 				}
-				s.required = &v
+				s.required = v
 			case "$schema":
 				var v string
 				if err := dec.Decode(&v); err != nil {

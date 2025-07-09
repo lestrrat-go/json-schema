@@ -16,6 +16,7 @@ type Builder struct {
 	enum                  []interface{}
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
+	format                *string
 	id                    *string
 	items                 *Schema
 	maxContains           *uint
@@ -34,9 +35,9 @@ type Builder struct {
 	pattern               *string
 	patternProperties     []*propPair
 	properties            []*propPair
-	propertyNames         []*propPair
+	propertyNames         *Schema
 	reference             *string
-	required              *bool
+	required              []string
 	schema                string
 	types                 []PrimitiveType
 	unevaluatedItems      *Schema
@@ -159,6 +160,15 @@ func (b *Builder) ExclusiveMinimum(v float64) *Builder {
 	}
 
 	b.exclusiveMinimum = &v
+	return b
+}
+
+func (b *Builder) Format(v string) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.format = &v
 	return b
 }
 
@@ -324,12 +334,12 @@ func (b *Builder) Property(n string, v *Schema) *Builder {
 	return b
 }
 
-func (b *Builder) PropertyName(n string, v *Schema) *Builder {
+func (b *Builder) PropertyNames(v *Schema) *Builder {
 	if b.err != nil {
 		return b
 	}
 
-	b.propertyNames = append(b.propertyNames, &propPair{Name: n, Schema: v})
+	b.propertyNames = v
 	return b
 }
 
@@ -342,12 +352,12 @@ func (b *Builder) Reference(v string) *Builder {
 	return b
 }
 
-func (b *Builder) Required(v bool) *Builder {
+func (b *Builder) Required(v []string) *Builder {
 	if b.err != nil {
 		return b
 	}
 
-	b.required = &v
+	b.required = v
 	return b
 }
 
@@ -433,6 +443,9 @@ func (b *Builder) Build() (*Schema, error) {
 	if b.exclusiveMinimum != nil {
 		s.exclusiveMinimum = b.exclusiveMinimum
 	}
+	if b.format != nil {
+		s.format = b.format
+	}
 	if b.id != nil {
 		s.id = b.id
 	}
@@ -501,15 +514,8 @@ func (b *Builder) Build() (*Schema, error) {
 			s.properties[pair.Name] = pair.Schema
 		}
 	}
-
 	if b.propertyNames != nil {
-		s.propertyNames = make(map[string]*Schema)
-		for _, pair := range b.propertyNames {
-			if _, ok := s.propertyNames[pair.Name]; ok {
-				return nil, fmt.Errorf(`duplicate key %q in "propertyNames"`, pair.Name)
-			}
-			s.propertyNames[pair.Name] = pair.Schema
-		}
+		s.propertyNames = b.propertyNames
 	}
 	if b.reference != nil {
 		s.reference = b.reference
