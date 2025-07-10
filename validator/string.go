@@ -8,7 +8,77 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-func compileStringValidator(s *schema.Schema) (Validator, error) {
+var _ Builder = (*StringValidatorBuilder)(nil)
+var _ Interface = (*stringValidator)(nil)
+
+// String creates a new StringValidatorBuilder instance that can be used to build a
+// Validator for string values according to the JSON Schema specification.
+func String() *StringValidatorBuilder {
+	return (&StringValidatorBuilder{}).Reset()
+}
+
+type stringValidator struct {
+	maxLength     *uint
+	minLength     *uint
+	pattern       *regexp.Regexp
+	enum          []string
+	constantValue *string
+}
+
+func (v *stringValidator) Validate(in any) error {
+	rv := reflect.ValueOf(in)
+
+	switch rv.Kind() {
+	case reflect.String:
+	default:
+		return fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, in)
+	}
+
+	str := rv.String()
+	l := uint(len(str))
+
+	if v := v.constantValue; v != nil {
+		if *v != str {
+			return fmt.Errorf(`invalid value passed to StringValidator: string must of value %q`, *v)
+		}
+	}
+
+	if ml := v.minLength; ml != nil {
+		if l < *ml {
+			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
+		}
+	}
+
+	if ml := v.maxLength; ml != nil {
+		if l > *ml {
+			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
+		}
+	}
+
+	if pat := v.pattern; pat != nil {
+		if !pat.MatchString(str) {
+			return fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
+		}
+	}
+
+	if enums := v.enum; len(enums) > 0 {
+		var found bool
+		for _, e := range enums {
+			if e == str {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return fmt.Errorf(`invalid value passed to StringValidator: string not found in enum`)
+		}
+	}
+
+	return nil
+}
+
+func compileStringValidator(s *schema.Schema) (Interface, error) {
 	v := String()
 	if s.HasConst() {
 		c, ok := s.Const().(string)
@@ -43,21 +113,9 @@ func compileStringValidator(s *schema.Schema) (Validator, error) {
 	return v.Build()
 }
 
-type StringValidator struct {
-	maxLength     *uint
-	minLength     *uint
-	pattern       *regexp.Regexp
-	enum          []string
-	constantValue *string
-}
-
 type StringValidatorBuilder struct {
 	err error
-	c   *StringValidator
-}
-
-func String() *StringValidatorBuilder {
-	return &StringValidatorBuilder{c: &StringValidator{}}
+	c   *stringValidator
 }
 
 func (b *StringValidatorBuilder) MaxLength(v int) *StringValidatorBuilder {
@@ -126,7 +184,7 @@ func (b *StringValidatorBuilder) Const(c string) *StringValidatorBuilder {
 	return b
 }
 
-func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
+func (b *StringValidatorBuilder) Build() (Interface, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -134,55 +192,15 @@ func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
 	return b.c, nil
 }
 
-func (v *StringValidator) Validate(in interface{}) error {
-	rv := reflect.ValueOf(in)
-
-	switch rv.Kind() {
-	case reflect.String:
-	default:
-		return fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, in)
+func (b *StringValidatorBuilder) MustBuild() Interface {
+	if b.err != nil {
+		panic(b.err)
 	}
+	return b.c
+}
 
-	str := rv.String()
-	l := uint(len(str))
-
-	if v := v.constantValue; v != nil {
-		if *v != str {
-			return fmt.Errorf(`invalid value passed to StringValidator: string must of value %q`, *v)
-		}
-	}
-
-	if ml := v.minLength; ml != nil {
-		if l < *ml {
-			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
-		}
-	}
-
-	if ml := v.maxLength; ml != nil {
-		if l > *ml {
-			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
-		}
-	}
-
-	if pat := v.pattern; pat != nil {
-		if !pat.MatchString(str) {
-			return fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
-		}
-	}
-
-	if enums := v.enum; len(enums) > 0 {
-		var found bool
-		for _, e := range enums {
-			if e == str {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf(`invalid value passed to StringValidator: string not found in enum`)
-		}
-	}
-
-	return nil
+func (b *StringValidatorBuilder) Reset() *StringValidatorBuilder {
+	b.err = nil
+	b.c = &stringValidator{}
+	return b
 }

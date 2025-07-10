@@ -18,9 +18,9 @@ func TestIntegerConstrainctSanity(t *testing.T) {
 		}
 	}
 
-	var c validator.IntegerValidator
+	c := validator.Integer().MustBuild()
 	for _, tc := range testcases {
-		t.Run(tc.Name, makeSanityTestFunc(tc, &c))
+		t.Run(tc.Name, makeSanityTestFunc(tc, c))
 	}
 }
 
@@ -28,13 +28,13 @@ func TestIntegerValidator(t *testing.T) {
 	testcases := []struct {
 		Name      string
 		Object    interface{}
-		Validator func() (validator.Validator, error)
+		Validator func() (validator.Interface, error)
 		Error     bool
 	}{
 		{
 			Name:   "multipleOf set, valid value",
 			Object: 36,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					MultipleOf(6).
@@ -49,7 +49,7 @@ func TestIntegerValidator(t *testing.T) {
 			Name:   "multipleOf set, invalid value",
 			Object: 36,
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					MultipleOf(5).
@@ -63,7 +63,7 @@ func TestIntegerValidator(t *testing.T) {
 		{
 			Name:   "maximum set, no minimum set, valid value",
 			Object: 36,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					Maximum(40).
@@ -78,7 +78,7 @@ func TestIntegerValidator(t *testing.T) {
 			Name:   "maximum set, no minimum set, invalid value",
 			Object: 36,
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					Maximum(30).
@@ -92,7 +92,7 @@ func TestIntegerValidator(t *testing.T) {
 		{
 			Name:   "no maximum set, minimum set, valid value",
 			Object: 36,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					Minimum(30).
@@ -107,7 +107,7 @@ func TestIntegerValidator(t *testing.T) {
 			Name:   "no maximum set, minimum set, invalid value",
 			Object: 36,
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					Minimum(40).
@@ -121,7 +121,7 @@ func TestIntegerValidator(t *testing.T) {
 		{
 			Name:   "maximum set, minimum set, valid value",
 			Object: 36,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					Minimum(30).
@@ -137,7 +137,7 @@ func TestIntegerValidator(t *testing.T) {
 			Name:   "maximum set, minimum set, invalid value",
 			Object: 36,
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.IntegerType).
 					Minimum(39).

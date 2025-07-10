@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func makeSanityTestFunc(tc *sanityTestCase, c validator.Validator) func(*testing.T) {
+func makeSanityTestFunc(tc *sanityTestCase, c validator.Interface) func(*testing.T) {
 	return func(t *testing.T) {
 		if tc.Error {
 			if !assert.Error(t, c.Validate(tc.Object), `c.check should fail`) {

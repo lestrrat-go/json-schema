@@ -7,7 +7,10 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-func compileBooleanValidator(s *schema.Schema) (Validator, error) {
+var _ Builder = (*BooleanValidatorBuilder)(nil)
+var _ Interface = (*booleanValidator)(nil)
+
+func compileBooleanValidator(s *schema.Schema) (Interface, error) {
 	v := Boolean()
 	if s.HasConst() {
 		c, ok := s.Const().(bool)
@@ -31,20 +34,18 @@ func compileBooleanValidator(s *schema.Schema) (Validator, error) {
 	return v.Build()
 }
 
-type BooleanValidator struct {
+type booleanValidator struct {
 	enum          []bool
 	constantValue *bool
 }
 
 type BooleanValidatorBuilder struct {
 	err error
-	c   *BooleanValidator
+	c   *booleanValidator
 }
 
 func Boolean() *BooleanValidatorBuilder {
-	return &BooleanValidatorBuilder{
-		c: &BooleanValidator{},
-	}
+	return (&BooleanValidatorBuilder{}).Reset()
 }
 
 func (b *BooleanValidatorBuilder) Const(v bool) *BooleanValidatorBuilder {
@@ -63,14 +64,27 @@ func (b *BooleanValidatorBuilder) Enum(v []bool) *BooleanValidatorBuilder {
 	return b
 }
 
-func (b *BooleanValidatorBuilder) Build() (Validator, error) {
+func (b *BooleanValidatorBuilder) Build() (Interface, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
 	return b.c, nil
 }
 
-func (c *BooleanValidator) Validate(v interface{}) error {
+func (b *BooleanValidatorBuilder) MustBuild() Interface {
+	if b.err != nil {
+		panic(b.err)
+	}
+	return b.c
+}
+
+func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
+	b.err = nil
+	b.c = &booleanValidator{}
+	return b
+}
+
+func (c *booleanValidator) Validate(v any) error {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr, reflect.Interface:
@@ -80,14 +94,14 @@ func (c *BooleanValidator) Validate(v interface{}) error {
 	switch rv.Kind() {
 	case reflect.Bool:
 		boolVal := rv.Bool()
-		
+
 		// Check const constraint
 		if c.constantValue != nil {
 			if boolVal != *c.constantValue {
 				return fmt.Errorf(`invalid value passed to BooleanValidator: must be const value %t, got %t`, *c.constantValue, boolVal)
 			}
 		}
-		
+
 		// Check enum constraint
 		if len(c.enum) > 0 {
 			found := false
@@ -101,7 +115,7 @@ func (c *BooleanValidator) Validate(v interface{}) error {
 				return fmt.Errorf(`invalid value passed to BooleanValidator: %t not found in enum`, boolVal)
 			}
 		}
-		
+
 		return nil
 	default:
 		return fmt.Errorf(`invalid value passed to BooleanValidator: expected boolean, got %T`, v)

@@ -8,7 +8,10 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-func compileIntegerValidator(s *schema.Schema) (Validator, error) {
+var _ Builder = (*IntegerValidatorBuilder)(nil)
+var _ Interface = (*integerValidator)(nil)
+
+func compileIntegerValidator(s *schema.Schema) (Interface, error) {
 	b := Integer()
 
 	if s.HasMultipleOf() {
@@ -94,25 +97,45 @@ func compileIntegerValidator(s *schema.Schema) (Validator, error) {
 		}
 		b.Const(tmp)
 	}
+
+	if s.HasEnum() {
+		enums := s.Enum()
+		l := make([]int, 0, len(enums))
+		for i, e := range s.Enum() {
+			rv := reflect.ValueOf(e)
+			var tmp int
+			switch rv.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				tmp = int(rv.Int())
+			case reflect.Float32, reflect.Float64:
+				tmp = int(rv.Float())
+			default:
+				return nil, fmt.Errorf(`invalid element in enum: expected numeric element, got %T for element %d`, e, i)
+			}
+			l = append(l, tmp)
+		}
+		b.Enum(l)
+	}
 	return b.Build()
 }
 
-type IntegerValidator struct {
+type integerValidator struct {
 	multipleOf       *int
 	maximum          *int
 	exclusiveMaximum *int
 	minimum          *int
 	exclusiveMinimum *int
 	constantValue    *int
+	enum             []int
 }
 
 type IntegerValidatorBuilder struct {
 	err error
-	c   *IntegerValidator
+	c   *integerValidator
 }
 
 func Integer() *IntegerValidatorBuilder {
-	return &IntegerValidatorBuilder{c: &IntegerValidator{}}
+	return (&IntegerValidatorBuilder{}).Reset()
 }
 
 func (b *IntegerValidatorBuilder) MultipleOf(v int) *IntegerValidatorBuilder {
@@ -163,14 +186,36 @@ func (b *IntegerValidatorBuilder) Const(v int) *IntegerValidatorBuilder {
 	return b
 }
 
-func (b *IntegerValidatorBuilder) Build() (*IntegerValidator, error) {
+func (b *IntegerValidatorBuilder) Enum(v []int) *IntegerValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.c.enum = make([]int, len(v))
+	copy(b.c.enum, v)
+	return b
+}
+
+func (b *IntegerValidatorBuilder) Build() (Interface, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
 	return b.c, nil
 }
 
-func (v *IntegerValidator) Validate(in interface{}) error {
+func (b *IntegerValidatorBuilder) MustBuild() Interface {
+	if b.err != nil {
+		panic(b.err)
+	}
+	return b.c
+}
+
+func (b *IntegerValidatorBuilder) Reset() *IntegerValidatorBuilder {
+	b.err = nil
+	b.c = &integerValidator{}
+	return b
+}
+
+func (v *integerValidator) Validate(in any) error {
 	rv := reflect.ValueOf(in)
 
 	var n int
@@ -184,32 +229,51 @@ func (v *IntegerValidator) Validate(in interface{}) error {
 	}
 
 	if m := v.maximum; m != nil {
-		if *m <= n {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than %d`, *m)
+		if n > *m {
+			return fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than maximum %d`, *m)
 		}
 	}
 
 	if em := v.exclusiveMaximum; em != nil {
-		if *em < n {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than or equal to %d`, *em)
+		if n >= *em {
+			return fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than or equal to exclusiveMaximum %d`, *em)
 		}
 	}
 
 	if m := v.minimum; m != nil {
-		if *m >= n {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is less than %d`, *m)
+		if n < *m {
+			return fmt.Errorf(`invalid value passed to IntegerValidator: value is less than minimum %d`, *m)
 		}
 	}
 
 	if em := v.exclusiveMinimum; em != nil {
-		if *em > n {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is less than or equal to %d`, *em)
+		if n <= *em {
+			return fmt.Errorf(`invalid value passed to IntegerValidator: value is less than or equal to exclusiveMinimum %d`, *em)
 		}
 	}
 
 	if mo := v.multipleOf; mo != nil {
 		if math.Mod(float64(n), float64(*mo)) != 0 {
 			return fmt.Errorf(`invalid value passed to IntegerValidator: value is not multiple of %d`, *mo)
+		}
+	}
+
+	if c := v.constantValue; c != nil {
+		if *c != n {
+			return fmt.Errorf(`invalid value passed to IntegerValidator: value must be const value %d`, *c)
+		}
+	}
+
+	if enums := v.enum; len(enums) > 0 {
+		var found bool
+		for _, e := range enums {
+			if e == n {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf(`invalid value passed to IntegerValidator: value not found in enum`)
 		}
 	}
 	return nil

@@ -18,9 +18,9 @@ func TestObjectConstrainctSanity(t *testing.T) {
 		}
 	}
 
-	var c validator.ObjectValidator
+	c := validator.Object().MustBuild()
 	for _, tc := range testcases {
-		t.Run(tc.Name, makeSanityTestFunc(tc, &c))
+		t.Run(tc.Name, makeSanityTestFunc(tc, c))
 	}
 }
 

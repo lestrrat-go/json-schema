@@ -19,9 +19,9 @@ func TestStringConstrainctSanity(t *testing.T) {
 		}
 	}
 
-	var c validator.StringValidator
+	var c validator.Interface = validator.String().MustBuild()
 	for _, tc := range testcases {
-		t.Run(tc.Name, makeSanityTestFunc(tc, &c))
+		t.Run(tc.Name, makeSanityTestFunc(tc, c))
 	}
 }
 
@@ -29,13 +29,13 @@ func TestStringValidator(t *testing.T) {
 	testcases := []struct {
 		Name      string
 		Object    interface{}
-		Validator func() (validator.Validator, error)
+		Validator func() (validator.Interface, error)
 		Error     bool
 	}{
 		{
 			Name:   "no maxLength set, no minLength set, value within range",
 			Object: "Hello, World!",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Build()
@@ -48,7 +48,7 @@ func TestStringValidator(t *testing.T) {
 		{
 			Name:   "maxLength set, no minLength set, value within range",
 			Object: "Hello, World!",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					MaxLength(20).
@@ -62,7 +62,7 @@ func TestStringValidator(t *testing.T) {
 		{
 			Name:   "maxLength set, minLength set, value within range",
 			Object: "Hello, World!",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					MinLength(1).
@@ -77,7 +77,7 @@ func TestStringValidator(t *testing.T) {
 		{
 			Name:   "maxLength set, minLength set, value within range",
 			Object: "Hello, World!",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					MinLength(5).
@@ -93,7 +93,7 @@ func TestStringValidator(t *testing.T) {
 			Name:   "maxLength set, no minLength set, value outside range (l > max)",
 			Object: "Hello, World!",
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					MaxLength(5).
@@ -108,7 +108,7 @@ func TestStringValidator(t *testing.T) {
 			Name:   "maxLength set, minLength set, value outside range (l > max)",
 			Object: "Hello, World!",
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					MinLength(1).
@@ -124,7 +124,7 @@ func TestStringValidator(t *testing.T) {
 			Name:   "maxLength set, minLength set, value outside range (l < min)",
 			Object: "Hello, World!",
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					MinLength(14).
@@ -139,7 +139,7 @@ func TestStringValidator(t *testing.T) {
 		{
 			Name:   "pattern set, valid value",
 			Object: "Hello, World!",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Pattern(`^Hello, .+$`).
@@ -154,7 +154,7 @@ func TestStringValidator(t *testing.T) {
 			Name:   "pattern set, invalid value",
 			Object: "Hello, World!",
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Pattern(`^Night, .+$`).
@@ -168,7 +168,7 @@ func TestStringValidator(t *testing.T) {
 		{
 			Name:   "enum set, valid value",
 			Object: "three",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Enum("one", "two", "three").
@@ -183,7 +183,7 @@ func TestStringValidator(t *testing.T) {
 			Name:   "enum set, invalid value",
 			Object: "four",
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Enum("one", "two", "three").
@@ -197,7 +197,7 @@ func TestStringValidator(t *testing.T) {
 		{
 			Name:   "const set, valid value",
 			Object: "Hello, World!",
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Const("Hello, World!").
@@ -212,7 +212,7 @@ func TestStringValidator(t *testing.T) {
 			Name:   "const set, invalid value",
 			Object: "Night, World!",
 			Error:  true,
-			Validator: func() (validator.Validator, error) {
+			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
 					Type(schema.StringType).
 					Const("Hello, World!").
@@ -251,11 +251,11 @@ func TestStringValidator(t *testing.T) {
 func TestStringValidatorComprehensive(t *testing.T) {
 	t.Run("Basic String Validation", func(t *testing.T) {
 		testCases := []struct {
-			name     string
-			value    any
-			schema   func() *schema.Schema
-			wantErr  bool
-			errMsg   string
+			name    string
+			value   any
+			schema  func() *schema.Schema
+			wantErr bool
+			errMsg  string
 		}{
 			{
 				name:  "valid string",
@@ -613,11 +613,11 @@ func TestStringValidatorComprehensive(t *testing.T) {
 
 	t.Run("Const Validation", func(t *testing.T) {
 		testCases := []struct {
-			name      string
-			value     string
-			constVal  any
-			wantErr   bool
-			errMsg    string
+			name     string
+			value    string
+			constVal any
+			wantErr  bool
+			errMsg   string
 		}{
 			{
 				name:     "valid const value",
@@ -773,7 +773,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 	})
 
 	t.Run("Format Validation", func(t *testing.T) {
-		// Note: Format validation might not be implemented yet, 
+		// Note: Format validation might not be implemented yet,
 		// but adding tests as if it exists
 		testCases := []struct {
 			name    string
@@ -831,7 +831,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 					Type(schema.StringType).
 					Format(tc.format).
 					Build()
-				
+
 				// If Format() method doesn't exist yet, skip this test
 				if err != nil && err.Error() == "Format method not implemented" {
 					t.Skip("Format validation not implemented yet")
