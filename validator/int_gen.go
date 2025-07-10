@@ -225,7 +225,7 @@ func (v *integerValidator) Validate(in any) error {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		n = int(rv.Uint())
 	default:
-		return fmt.Errorf(`invalid value passed to IntegerValidator: value is not an integer type (%T)`, in)
+		return fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T`, in)
 	}
 
 	if m := v.maximum; m != nil {

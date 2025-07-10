@@ -375,6 +375,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 			Property("data", schema.NewBuilder().
 				Type(schema.ObjectType).MustBuild()).
 			Required("status", "data").
+			AdditionalProperties(false).
 			Build()
 		require.NoError(t, err)
 
@@ -391,6 +392,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Type(schema.StringType).MustBuild()).
 				Required("code", "message").MustBuild()).
 			Required("status", "error").
+			AdditionalProperties(false).
 			Build()
 		require.NoError(t, err)
 
@@ -507,6 +509,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Type(schema.StringType).
 					MinLength(1).MustBuild()).
 				Required("host", "port", "name").MustBuild()).
+			Required("database").
 			Build()
 		require.NoError(t, err)
 
@@ -522,6 +525,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Type(schema.StringType).
 					Enum("localhost", "0.0.0.0").MustBuild()).
 				Required("port").MustBuild()).
+			Required("server").
 			Build()
 		require.NoError(t, err)
 
@@ -800,7 +804,7 @@ func TestValidatorPerformance(t *testing.T) {
 
 		// Create a large array for testing
 		largeArray := make([]any, 100)
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			largeArray[i] = map[string]any{
 				"id":    i,
 				"name":  "Item " + string(rune(i)),

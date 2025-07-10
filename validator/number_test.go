@@ -149,10 +149,17 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 				errMsg:  "maximum",
 			},
 			{
-				name:    "negative maximum",
+				name:    "negative maximum - valid",
 				value:   -15,
 				maximum: float64Ptr(-10),
+				wantErr: false,
+			},
+			{
+				name:    "negative maximum - invalid",
+				value:   -5,
+				maximum: float64Ptr(-10),
 				wantErr: true,
+				errMsg:  "maximum",
 			},
 			// Combined tests
 			{

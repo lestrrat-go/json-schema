@@ -227,7 +227,12 @@ func (v *numberValidator) Validate(in any) error {
 	case reflect.Float32, reflect.Float64:
 		n = rv.Float()
 	default:
-		return fmt.Errorf(`invalid value passed to NumberValidator: value is not a number type (%T)`, in)
+		return fmt.Errorf(`invalid value passed to NumberValidator: expected number, got %T`, in)
+	}
+
+	// Reject NaN but allow infinity
+	if math.IsNaN(n) {
+		return fmt.Errorf(`invalid value passed to NumberValidator: value is not a valid number (NaN)`)
 	}
 
 	if m := v.maximum; m != nil {
@@ -255,7 +260,8 @@ func (v *numberValidator) Validate(in any) error {
 	}
 
 	if mo := v.multipleOf; mo != nil {
-		if math.Mod(n, *mo) != 0 {
+		remainder := math.Mod(n, *mo)
+		if math.Abs(remainder) > 1e-9 && math.Abs(remainder-*mo) > 1e-9 {
 			return fmt.Errorf(`invalid value passed to NumberValidator: value is not multiple of %f`, *mo)
 		}
 	}

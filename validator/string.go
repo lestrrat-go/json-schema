@@ -2,8 +2,12 @@ package validator
 
 import (
 	"fmt"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
+	"time"
 
 	schema "github.com/lestrrat-go/json-schema"
 )
@@ -21,6 +25,7 @@ type stringValidator struct {
 	maxLength     *uint
 	minLength     *uint
 	pattern       *regexp.Regexp
+	format        *string
 	enum          []string
 	constantValue *string
 }
@@ -39,7 +44,7 @@ func (v *stringValidator) Validate(in any) error {
 
 	if v := v.constantValue; v != nil {
 		if *v != str {
-			return fmt.Errorf(`invalid value passed to StringValidator: string must of value %q`, *v)
+			return fmt.Errorf(`invalid value passed to StringValidator: string must be const value %q`, *v)
 		}
 	}
 
@@ -62,19 +67,58 @@ func (v *stringValidator) Validate(in any) error {
 	}
 
 	if enums := v.enum; len(enums) > 0 {
-		var found bool
-		for _, e := range enums {
-			if e == str {
-				found = true
-				break
-			}
-		}
-
-		if !found {
+		if !slices.Contains(enums, str) {
 			return fmt.Errorf(`invalid value passed to StringValidator: string not found in enum`)
 		}
 	}
 
+	if format := v.format; format != nil {
+		if err := validateFormat(str, *format); err != nil {
+			return fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
+		}
+	}
+
+	return nil
+}
+
+// validateFormat validates a string against the specified format
+func validateFormat(value, format string) error {
+	switch format {
+	case "email":
+		_, err := mail.ParseAddress(value)
+		if err != nil {
+			return fmt.Errorf("invalid email format")
+		}
+	case "date":
+		_, err := time.Parse("2006-01-02", value)
+		if err != nil {
+			return fmt.Errorf("invalid date format")
+		}
+	case "date-time":
+		// Try RFC3339 format first (with timezone)
+		_, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			// Try ISO 8601 format without timezone
+			_, err = time.Parse("2006-01-02T15:04:05", value)
+			if err != nil {
+				return fmt.Errorf("invalid date-time format")
+			}
+		}
+	case "uri":
+		_, err := url.ParseRequestURI(value)
+		if err != nil {
+			return fmt.Errorf("invalid URI format")
+		}
+	case "uuid":
+		// UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+		uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+		if !uuidRegex.MatchString(value) {
+			return fmt.Errorf("invalid UUID format")
+		}
+	default:
+		// Unknown format - just allow it (format validation is optional in JSON Schema)
+		return nil
+	}
 	return nil
 }
 
@@ -95,6 +139,9 @@ func compileStringValidator(s *schema.Schema) (Interface, error) {
 	}
 	if s.HasPattern() {
 		v.Pattern(s.Pattern())
+	}
+	if s.HasFormat() {
+		v.Format(s.Format())
 	}
 	if s.HasEnum() {
 		enums := s.Enum()
@@ -162,6 +209,15 @@ func (b *StringValidatorBuilder) Pattern(s string) *StringValidatorBuilder {
 	}
 
 	b.c.pattern = re
+	return b
+}
+
+func (b *StringValidatorBuilder) Format(format string) *StringValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	b.c.format = &format
 	return b
 }
 

@@ -219,7 +219,7 @@ func generateValidator(def definition) error {
 		o.L("case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:")
 		o.L("n = int(rv.Uint())")
 		o.L("default:")
-		o.L("return fmt.Errorf(`invalid value passed to IntegerValidator: value is not an integer type (%%T)`, in)")
+		o.L("return fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %%T`, in)")
 		o.L("}")
 	} else {
 		o.LL("var n float64")
@@ -231,7 +231,12 @@ func generateValidator(def definition) error {
 		o.L("case reflect.Float32, reflect.Float64:")
 		o.L("n = rv.Float()")
 		o.L("default:")
-		o.L("return fmt.Errorf(`invalid value passed to NumberValidator: value is not a number type (%%T)`, in)")
+		o.L("return fmt.Errorf(`invalid value passed to NumberValidator: expected number, got %%T`, in)")
+		o.L("}")
+		o.L("")
+		o.L("// Reject NaN but allow infinity")
+		o.L("if math.IsNaN(n) {")
+		o.L("return fmt.Errorf(`invalid value passed to NumberValidator: value is not a valid number (NaN)`)")
 		o.L("}")
 	}
 	o.LL("if m := v.maximum; m != nil {")
@@ -258,7 +263,8 @@ func generateValidator(def definition) error {
 	if def.typ == "int" {
 		o.L("if math.Mod(float64(n), float64(*mo)) != 0 {")
 	} else {
-		o.L("if math.Mod(n, *mo) != 0 {")
+		o.L("remainder := math.Mod(n, *mo)")
+		o.L("if math.Abs(remainder) > 1e-9 && math.Abs(remainder - *mo) > 1e-9 {")
 	}
 	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value is not multiple of %%%s`, *mo)", def.class, template)
 	o.L("}")

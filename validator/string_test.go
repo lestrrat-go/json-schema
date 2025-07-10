@@ -505,7 +505,25 @@ func TestStringValidatorComprehensive(t *testing.T) {
 			{
 				name:    "multiline pattern",
 				value:   "line1\nline2",
+				pattern: "(?s)line1.*line2",
+				wantErr: false,
+			},
+			{
+				name:    "multiline pattern without flag should fail",
+				value:   "line1\nline2",
 				pattern: "line1.*line2",
+				wantErr: true,
+			},
+			{
+				name:    "multiline pattern with \\s\\S alternative",
+				value:   "line1\nline2",
+				pattern: "line1[\\s\\S]*line2",
+				wantErr: false,
+			},
+			{
+				name:    "multiline with CRLF",
+				value:   "line1\r\nline2",
+				pattern: "(?s)line1.*line2",
 				wantErr: false,
 			},
 		}
@@ -630,7 +648,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				value:    "variable",
 				constVal: "constant",
 				wantErr:  true,
-				errMsg:   "must of value",
+				errMsg:   "must be const value",
 			},
 			{
 				name:     "empty string const",
