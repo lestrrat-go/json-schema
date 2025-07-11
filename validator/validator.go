@@ -93,7 +93,12 @@ func Compile(s *schema.Schema) (Interface, error) {
 			types = append(types, schema.NumberType)
 		}
 		if s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() {
-			types = append(types, schema.ArrayType)
+			// For inferred array types, create a non-strict array validator
+			v, err := compileArrayValidator(s, false)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile inferred array validator: %w`, err)
+			}
+			allValidators = append(allValidators, v)
 		}
 		if s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() {
 			types = append(types, schema.ObjectType)
@@ -138,7 +143,7 @@ func Compile(s *schema.Schema) (Interface, error) {
 			}
 			validatorsByType = append(validatorsByType, v)
 		case schema.ArrayType:
-			v, err := compileArrayValidator(s)
+			v, err := compileArrayValidator(s, true)
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile array validator: %w`, err)
 			}
