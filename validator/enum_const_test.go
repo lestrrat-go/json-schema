@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -60,15 +61,15 @@ func TestEnumValidationComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -141,17 +142,17 @@ func TestEnumValidationComprehensive(t *testing.T) {
 				if _, ok := tc.value.(float64); ok {
 					schemaType = schema.NumberType
 				}
-				
+
 				s, err := schema.NewBuilder().
-					Type(schemaType).
+					Types(schemaType).
 					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -202,15 +203,15 @@ func TestEnumValidationComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.BooleanType).
+					Types(schema.BooleanType).
 					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -278,10 +279,10 @@ func TestEnumValidationComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -357,10 +358,10 @@ func TestEnumValidationComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -426,15 +427,15 @@ func TestConstValidationComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Const(tc.constVal).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -513,17 +514,17 @@ func TestConstValidationComprehensive(t *testing.T) {
 				if _, ok := tc.value.(float64); ok {
 					schemaType = schema.NumberType
 				}
-				
+
 				s, err := schema.NewBuilder().
-					Type(schemaType).
+					Types(schemaType).
 					Const(tc.constVal).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -575,15 +576,15 @@ func TestConstValidationComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.BooleanType).
+					Types(schema.BooleanType).
 					Const(tc.constVal).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -668,10 +669,10 @@ func TestConstValidationComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -719,16 +720,16 @@ func TestConstValidationComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Const(tc.constVal).
 					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {

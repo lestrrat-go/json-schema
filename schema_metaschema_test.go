@@ -29,7 +29,7 @@ func TestMetaSchemaCompliance(t *testing.T) {
 	t.Run("Meta-Schema Declaration Required", func(t *testing.T) {
 		// Every schema should declare its meta-schema
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			Build()
 		require.NoError(t, err)
 
@@ -46,9 +46,9 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 		original, err := schema.NewBuilder().
 			ID("https://example.com/valid").
 			Schema(schema.Version).
-			Type(schema.ObjectType).
-			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-			Property("age", schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild()).
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("age", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
 			Build()
 		require.NoError(t, err)
 
@@ -98,10 +98,10 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 
 	t.Run("Schema with Composition Keywords", func(t *testing.T) {
 		// Test schema with composition (allOf, anyOf, oneOf, not)
-		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		numberSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
+		numberSchema, err := schema.NewBuilder().Types(schema.NumberType).Build()
 		require.NoError(t, err)
 
 		original, err := schema.NewBuilder().

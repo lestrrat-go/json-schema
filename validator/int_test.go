@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -36,13 +37,13 @@ func TestIntegerValidator(t *testing.T) {
 			Object: 36,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					MultipleOf(6).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -51,13 +52,13 @@ func TestIntegerValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					MultipleOf(5).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -65,13 +66,13 @@ func TestIntegerValidator(t *testing.T) {
 			Object: 36,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Maximum(40).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -80,13 +81,13 @@ func TestIntegerValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Maximum(30).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -94,13 +95,13 @@ func TestIntegerValidator(t *testing.T) {
 			Object: 36,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(30).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -109,13 +110,13 @@ func TestIntegerValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(40).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -123,14 +124,14 @@ func TestIntegerValidator(t *testing.T) {
 			Object: 36,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(30).
 					Maximum(40).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -139,14 +140,14 @@ func TestIntegerValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(39).
 					Maximum(40).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 	}
@@ -158,7 +159,7 @@ func TestIntegerValidator(t *testing.T) {
 			if !assert.NoError(t, err, `tc.Validator() should succeed`) {
 				return
 			}
-			err = c.Validate(tc.Object)
+			_, err = c.Validate(context.Background(), tc.Object)
 
 			if tc.Error {
 				if !assert.Error(t, err, `c.Validate should fail`) {

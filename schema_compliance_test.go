@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -109,7 +110,7 @@ func TestPrimitiveTypes(t *testing.T) {
 
 func TestSchemaComposition(t *testing.T) {
 	t.Run("AllOf Composition", func(t *testing.T) {
-		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		minLengthSchema, err := schema.NewBuilder().MinLength(5).Build()
@@ -123,10 +124,10 @@ func TestSchemaComposition(t *testing.T) {
 	})
 
 	t.Run("AnyOf Composition", func(t *testing.T) {
-		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		numberSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
+		numberSchema, err := schema.NewBuilder().Types(schema.NumberType).Build()
 		require.NoError(t, err)
 
 		composedSchema, err := schema.NewBuilder().
@@ -137,10 +138,10 @@ func TestSchemaComposition(t *testing.T) {
 	})
 
 	t.Run("OneOf Composition", func(t *testing.T) {
-		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		numberSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
+		numberSchema, err := schema.NewBuilder().Types(schema.NumberType).Build()
 		require.NoError(t, err)
 
 		composedSchema, err := schema.NewBuilder().
@@ -151,7 +152,7 @@ func TestSchemaComposition(t *testing.T) {
 	})
 
 	t.Run("Not Composition", func(t *testing.T) {
-		stringSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		notSchema, err := schema.NewBuilder().
@@ -165,7 +166,7 @@ func TestSchemaComposition(t *testing.T) {
 func TestSchemaConstraints(t *testing.T) {
 	t.Run("String Constraints", func(t *testing.T) {
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			MinLength(1).
 			MaxLength(100).
 			Pattern("^[a-zA-Z]+$").
@@ -178,7 +179,7 @@ func TestSchemaConstraints(t *testing.T) {
 
 	t.Run("Numeric Constraints", func(t *testing.T) {
 		s, err := schema.NewBuilder().
-			Type(schema.NumberType).
+			Types(schema.NumberType).
 			Minimum(0.0).
 			Maximum(100.0).
 			ExclusiveMinimum(0.0).
@@ -194,11 +195,11 @@ func TestSchemaConstraints(t *testing.T) {
 	})
 
 	t.Run("Array Constraints", func(t *testing.T) {
-		itemSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		itemSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			Type(schema.ArrayType).
+			Types(schema.ArrayType).
 			Items(itemSchema).
 			MinItems(1).
 			MaxItems(10).
@@ -212,11 +213,11 @@ func TestSchemaConstraints(t *testing.T) {
 	})
 
 	t.Run("Object Constraints", func(t *testing.T) {
-		propSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		propSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("name", propSchema).
 			MinProperties(1).
 			MaxProperties(10).
@@ -232,7 +233,7 @@ func TestEnumAndConst(t *testing.T) {
 	t.Run("Enum Values", func(t *testing.T) {
 		enumValues := []any{"red", "green", "blue"}
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			Enum(enumValues...).
 			Build()
 		require.NoError(t, err)
@@ -242,7 +243,7 @@ func TestEnumAndConst(t *testing.T) {
 	t.Run("Const Value", func(t *testing.T) {
 		constValue := "constant"
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			Const(constValue).
 			Build()
 		require.NoError(t, err)
@@ -252,11 +253,11 @@ func TestEnumAndConst(t *testing.T) {
 
 func TestAdvancedFeatures(t *testing.T) {
 	t.Run("Pattern Properties", func(t *testing.T) {
-		propSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		propSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			PatternProperty("^[a-z]+$", propSchema).
 			Build()
 		require.NoError(t, err)
@@ -264,11 +265,11 @@ func TestAdvancedFeatures(t *testing.T) {
 	})
 
 	t.Run("Additional Properties", func(t *testing.T) {
-		additionalPropSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		additionalPropSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			AdditionalProperties(additionalPropSchema).
 			Build()
 		require.NoError(t, err)
@@ -276,11 +277,11 @@ func TestAdvancedFeatures(t *testing.T) {
 	})
 
 	t.Run("Contains", func(t *testing.T) {
-		containsSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		containsSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			Type(schema.ArrayType).
+			Types(schema.ArrayType).
 			Contains(containsSchema).
 			MinContains(1).
 			MaxContains(5).
@@ -292,14 +293,14 @@ func TestAdvancedFeatures(t *testing.T) {
 	})
 
 	t.Run("Unevaluated Properties and Items", func(t *testing.T) {
-		unevalPropSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		unevalPropSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		unevalItemSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
+		unevalItemSchema, err := schema.NewBuilder().Types(schema.NumberType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			UnevaluatedProperties(unevalPropSchema).
 			UnevaluatedItems(unevalItemSchema).
 			Build()
@@ -327,11 +328,16 @@ func TestSchemaBasicReferences(t *testing.T) {
 	})
 
 	t.Run("Definitions", func(t *testing.T) {
+		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
+		require.NoError(t, err)
+		
 		s, err := schema.NewBuilder().
-			Definitions("person").
+			Definitions("person", personSchema).
 			Build()
 		require.NoError(t, err)
-		require.Equal(t, "person", s.Definitions())
+		defs := s.Definitions()
+		require.Contains(t, defs, "person")
+		require.Equal(t, personSchema, defs["person"])
 	})
 }
 
@@ -500,7 +506,7 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 	}
 	
 	// Compile the schema to a validator
-	v, err := validator.Compile(s)
+	v, err := validator.Compile(context.Background(), s)
 	if err != nil {
 		t.Skipf("Failed to compile schema: %v", err)
 		return
@@ -509,7 +515,7 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 	// Run each test case
 	for _, testCase := range testSuite.Tests {
 		t.Run(testCase.Description, func(t *testing.T) {
-			err := v.Validate(testCase.Data)
+			_, err := v.Validate(context.Background(), testCase.Data)
 			if testCase.Valid {
 				require.NoError(t, err, "Expected validation to pass but got error: %v", err)
 			} else {

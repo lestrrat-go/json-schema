@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -11,11 +12,13 @@ import (
 func makeSanityTestFunc(tc *sanityTestCase, c validator.Interface) func(*testing.T) {
 	return func(t *testing.T) {
 		if tc.Error {
-			if !assert.Error(t, c.Validate(tc.Object), `c.check should fail`) {
+			_, err := c.Validate(context.Background(), tc.Object)
+			if !assert.Error(t, err, `c.check should fail`) {
 				return
 			}
 		} else {
-			if !assert.NoError(t, c.Validate(tc.Object), `c.Validate should succeed`) {
+			_, err := c.Validate(context.Background(), tc.Object)
+			if !assert.NoError(t, err, `c.Validate should succeed`) {
 				return
 			}
 		}
@@ -48,14 +51,14 @@ func makeSanityTestCases() []*sanityTestCase {
 
 func TestValidator(t *testing.T) {
 	s, err := schema.NewBuilder().
-		Type(schema.ObjectType).
+		Types(schema.ObjectType).
 		Build()
 	if !assert.NoError(t, err, `schema.NewBuilder should succeed`) {
 		return
 	}
 	_ = s
 	/*
-		v, err := validator.Compile(s)
+		v, err := validator.Compile(context.Background(), s)
 		if !assert.NoError(t, err, `validator.Build should succeed`) {
 			return
 		}

@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -74,13 +75,13 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				s, err := schema.NewBuilder().Type(schema.ArrayType).Build()
+				s, err := schema.NewBuilder().Types(schema.ArrayType).Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -180,7 +181,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ArrayType)
+				builder := schema.NewBuilder().Types(schema.ArrayType)
 				if tc.minItems != nil {
 					builder = builder.MinItems(*tc.minItems)
 				}
@@ -190,10 +191,10 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -217,26 +218,26 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:        "all items match string schema",
 				value:       []any{"a", "b", "c"},
-				itemsSchema: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				itemsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:     false,
 			},
 			{
 				name:        "all items match integer schema",
 				value:       []any{1, 2, 3},
-				itemsSchema: schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+				itemsSchema: schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				wantErr:     false,
 			},
 			{
 				name:        "mixed types with string schema",
 				value:       []any{"a", 1, "c"},
-				itemsSchema: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				itemsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:     true,
 				errMsg:      "item validation failed",
 			},
 			{
 				name:        "empty array with items schema",
 				value:       []any{},
-				itemsSchema: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				itemsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:     false,
 			},
 			{
@@ -246,9 +247,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 					map[string]any{"name": "Jane", "age": 25},
 				},
 				itemsSchema: schema.NewBuilder().
-					Type(schema.ObjectType).
-					Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-					Property("age", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
+					Types(schema.ObjectType).
+					Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+					Property("age", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 					MustBuild(),
 				wantErr: false,
 			},
@@ -259,8 +260,8 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 					[]any{4, 5, 6},
 				},
 				itemsSchema: schema.NewBuilder().
-					Type(schema.ArrayType).
-					Items(schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
+					Types(schema.ArrayType).
+					Items(schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 					MustBuild(),
 				wantErr: false,
 			},
@@ -269,15 +270,15 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.ArrayType).
+					Types(schema.ArrayType).
 					Items(tc.itemsSchema).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -304,9 +305,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				name:  "exact tuple match",
 				value: []any{"John", 30, true},
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -314,9 +315,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				name:  "tuple with fewer items",
 				value: []any{"John", 30},
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -324,9 +325,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				name:  "tuple type mismatch",
 				value: []any{123, 30, true}, // first should be string
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
 				wantErr: true,
 				errMsg:  "item validation failed",
@@ -335,9 +336,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				name:  "additional items allowed",
 				value: []any{"John", 30, true, "extra", 42},
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
 				additionalItems: true,
 				wantErr:         false,
@@ -346,9 +347,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				name:  "additional items forbidden",
 				value: []any{"John", 30, true, "extra"},
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
 				additionalItems: false,
 				wantErr:         true,
@@ -358,22 +359,22 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				name:  "additional items with schema",
 				value: []any{"John", 30, true, "extra1", "extra2"},
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
-				additionalItems: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				additionalItems: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:         false,
 			},
 			{
 				name:  "additional items violate schema",
 				value: []any{"John", 30, true, 123}, // additional should be string
 				prefixItems: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
-				additionalItems: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				additionalItems: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:         true,
 				errMsg:          "additional item validation failed",
 			},
@@ -381,13 +382,13 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ArrayType)
-				
+				builder := schema.NewBuilder().Types(schema.ArrayType)
+
 				// Set prefix items (tuple validation)
 				for i, itemSchema := range tc.prefixItems {
 					builder = builder.PrefixItem(i, itemSchema)
 				}
-				
+
 				// Set additional items policy
 				switch ai := tc.additionalItems.(type) {
 				case bool:
@@ -395,14 +396,14 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				case *schema.Schema:
 					builder = builder.AdditionalItemsSchema(ai)
 				}
-				
+
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -492,15 +493,15 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.ArrayType).
+					Types(schema.ArrayType).
 					UniqueItems(tc.uniqueItems).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -515,38 +516,38 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 
 	t.Run("Contains Validation", func(t *testing.T) {
 		testCases := []struct {
-			name           string
-			value          []any
-			contains       *schema.Schema
-			minContains    *uint
-			maxContains    *uint
-			wantErr        bool
-			errMsg         string
+			name        string
+			value       []any
+			contains    *schema.Schema
+			minContains *uint
+			maxContains *uint
+			wantErr     bool
+			errMsg      string
 		}{
 			{
 				name:     "contains string - found",
 				value:    []any{1, "hello", 3, "world"},
-				contains: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:  false,
 			},
 			{
 				name:     "contains string - not found",
 				value:    []any{1, 2, 3, 4},
-				contains: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:  true,
 				errMsg:   "does not contain required item",
 			},
 			{
 				name:        "minContains satisfied",
 				value:       []any{"a", "b", 1, "c"},
-				contains:    schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains:    schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				minContains: uintPtr(2),
 				wantErr:     false,
 			},
 			{
 				name:        "minContains not satisfied",
 				value:       []any{"a", 1, 2, 3},
-				contains:    schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains:    schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				minContains: uintPtr(2),
 				wantErr:     true,
 				errMsg:      "minimum contains",
@@ -554,14 +555,14 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:        "maxContains satisfied",
 				value:       []any{"a", "b", 1, 2},
-				contains:    schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains:    schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				maxContains: uintPtr(3),
 				wantErr:     false,
 			},
 			{
 				name:        "maxContains exceeded",
 				value:       []any{"a", "b", "c", "d", 1},
-				contains:    schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains:    schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				maxContains: uintPtr(2),
 				wantErr:     true,
 				errMsg:      "maximum contains",
@@ -569,7 +570,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:        "contains range satisfied",
 				value:       []any{"a", "b", "c", 1, 2},
-				contains:    schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				contains:    schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				minContains: uintPtr(2),
 				maxContains: uintPtr(4),
 				wantErr:     false,
@@ -582,9 +583,9 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 					123,
 				},
 				contains: schema.NewBuilder().
-					Type(schema.ObjectType).
+					Types(schema.ObjectType).
 					Property("type", schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						Const("admin").
 						MustBuild()).
 					MustBuild(),
@@ -594,7 +595,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ArrayType)
+				builder := schema.NewBuilder().Types(schema.ArrayType)
 				if tc.contains != nil {
 					builder = builder.Contains(tc.contains)
 				}
@@ -607,10 +608,10 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -636,8 +637,8 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				value: []any{"hello", "world", "unique"},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						MinItems(2).
 						MaxItems(5).
 						UniqueItems(true).
@@ -651,8 +652,8 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				value: []any{"hello", "world", "hello"},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						MinItems(2).
 						MaxItems(5).
 						UniqueItems(true).
@@ -667,8 +668,8 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				value: []any{"hello", 123, "world"},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						MinItems(2).
 						MaxItems(5).
 						UniqueItems(true).
@@ -683,8 +684,8 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				value: []any{"hello"},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						MinItems(2).
 						MaxItems(5).
 						UniqueItems(true).
@@ -698,10 +699,10 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {

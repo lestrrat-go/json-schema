@@ -56,6 +56,8 @@ func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// NewPrimitiveType creates a PrimitiveType from its string representation.
+// It accepts standard JSON Schema type names such as "null", "integer", "string", "object", "array", "boolean", and "number".
 func NewPrimitiveType(s string) (PrimitiveType, error) {
 	switch s {
 	case "null":
@@ -111,7 +113,8 @@ func (t PrimitiveType) MarshalJSON() ([]byte, error) {
 	}
 }
 
-/*
+type PrimitiveTypes []PrimitiveType
+
 // UnmarshalJSON initializes the list of primitive types
 func (pt *PrimitiveTypes) UnmarshalJSON(data []byte) error {
 	if data[0] != '[' {
@@ -132,7 +135,14 @@ func (pt *PrimitiveTypes) UnmarshalJSON(data []byte) error {
 	*pt = PrimitiveTypes(list)
 	return nil
 }
-*/
+
+// MarshalJSON serializes the list of primitive types
+func (pt PrimitiveTypes) MarshalJSON() ([]byte, error) {
+	if len(pt) == 1 {
+		return json.Marshal(pt[0])
+	}
+	return json.Marshal([]PrimitiveType(pt))
+}
 
 // Bool returns the underlying boolean value for the
 // primitive boolean type
@@ -143,7 +153,6 @@ func (b Bool) Bool() bool {
 	return b.defaultValue
 }
 
-/*
 // Contains returns true if the list of primitive types
 // contains `p`
 func (pt PrimitiveTypes) Contains(p PrimitiveType) bool {
@@ -154,4 +163,3 @@ func (pt PrimitiveTypes) Contains(p PrimitiveType) bool {
 	}
 	return false
 }
-*/

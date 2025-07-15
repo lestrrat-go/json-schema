@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"reflect"
@@ -11,7 +12,7 @@ import (
 var _ Builder = (*IntegerValidatorBuilder)(nil)
 var _ Interface = (*integerValidator)(nil)
 
-func compileIntegerValidator(s *schema.Schema) (Interface, error) {
+func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	b := Integer()
 
 	if s.HasMultipleOf() {
@@ -215,7 +216,7 @@ func (b *IntegerValidatorBuilder) Reset() *IntegerValidatorBuilder {
 	return b
 }
 
-func (v *integerValidator) Validate(in any) error {
+func (v *integerValidator) Validate(ctx context.Context, in any) (Result, error) {
 	rv := reflect.ValueOf(in)
 
 	var n int
@@ -224,43 +225,50 @@ func (v *integerValidator) Validate(in any) error {
 		n = int(rv.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		n = int(rv.Uint())
+	case reflect.Float32, reflect.Float64:
+		f := rv.Float()
+		// Check if the float represents a whole number
+		if f != math.Trunc(f) {
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T with non-integer value %g`, in, f)
+		}
+		n = int(f)
 	default:
-		return fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T`, in)
+		return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T`, in)
 	}
 
 	if m := v.maximum; m != nil {
 		if n > *m {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than maximum %d`, *m)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than maximum %d`, *m)
 		}
 	}
 
 	if em := v.exclusiveMaximum; em != nil {
 		if n >= *em {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than or equal to exclusiveMaximum %d`, *em)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is greater than or equal to exclusiveMaximum %d`, *em)
 		}
 	}
 
 	if m := v.minimum; m != nil {
 		if n < *m {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is less than minimum %d`, *m)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is less than minimum %d`, *m)
 		}
 	}
 
 	if em := v.exclusiveMinimum; em != nil {
 		if n <= *em {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is less than or equal to exclusiveMinimum %d`, *em)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is less than or equal to exclusiveMinimum %d`, *em)
 		}
 	}
 
 	if mo := v.multipleOf; mo != nil {
 		if math.Mod(float64(n), float64(*mo)) != 0 {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value is not multiple of %d`, *mo)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is not multiple of %d`, *mo)
 		}
 	}
 
 	if c := v.constantValue; c != nil {
 		if *c != n {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value must be const value %d`, *c)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value must be const value %d`, *c)
 		}
 	}
 
@@ -273,8 +281,8 @@ func (v *integerValidator) Validate(in any) error {
 			}
 		}
 		if !found {
-			return fmt.Errorf(`invalid value passed to IntegerValidator: value not found in enum`)
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value not found in enum`)
 		}
 	}
-	return nil
+	return nil, nil
 }

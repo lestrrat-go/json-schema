@@ -5,6 +5,7 @@ objects:
         json: '$id'
       - name: definitions
         json: '$defs'
+        type: 'map[string]*Schema'
       - name: schema
         json: '$schema'
       - name: dynamicReference
@@ -16,18 +17,27 @@ objects:
       - name: anchor
         json: '$anchor'
       - name: allOf
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: anyOf
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: oneOf
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: not
         type: '*Schema'
       - name: format
         type: string
-      # if/then/else WTF are these
-      - name: items
+      # if/then/else conditional validation
+      - name: ifSchema
+        json: 'if'
         type: '*Schema'
+      - name: thenSchema
+        json: 'then'
+        type: '*Schema'
+      - name: elseSchema
+        json: 'else'
+        type: '*Schema'
+      - name: items
+        type: 'SchemaOrBool'
       - name: contains
         type: '*Schema'
       - name: properties
@@ -35,16 +45,16 @@ objects:
       - name: patternProperties
         type: 'map[string]*Schema'
       - name: additionalProperties
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: propertyNames
         type: '*Schema'
       - name: unevaluatedItems
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: unevaluatedProperties
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: types
         json: 'type'
-        type: '[]PrimitiveType'
+        type: 'PrimitiveTypes'
       - name: enum
         type: '[]interface{}'
       - name: constantValue
@@ -82,5 +92,13 @@ objects:
         type: uint
       - name: required
         type: '[]string'
+      - name: dependentSchemas
+        type: 'map[string]*Schema'
         #      - name: dependentRequired
+      - name: contentEncoding
+        type: string
+      - name: contentMediaType  
+        type: string
+      - name: contentSchema
+        type: '*Schema'
 

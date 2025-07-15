@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -18,7 +19,12 @@ func TestObjectConstrainctSanity(t *testing.T) {
 		}
 	}
 
-	c := validator.Object().MustBuild()
+	// Use proper schema builder with strict object type validation
+	s, err := schema.NewBuilder().Types(schema.ObjectType).Build()
+	require.NoError(t, err)
+	c, err := validator.Compile(context.Background(), s)
+	require.NoError(t, err)
+	
 	for _, tc := range testcases {
 		t.Run(tc.Name, makeSanityTestFunc(tc, c))
 	}
@@ -91,13 +97,13 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				s, err := schema.NewBuilder().Type(schema.ObjectType).Build()
+				s, err := schema.NewBuilder().Types(schema.ObjectType).Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -125,8 +131,8 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"age":  30,
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					"age":  schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					"age":  schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -136,8 +142,8 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"name": "John",
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					"age":  schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					"age":  schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -148,7 +154,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"extra": "value",
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -159,8 +165,8 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"age":  30,
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					"age":  schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					"age":  schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: true,
 				errMsg:  "property validation failed",
@@ -175,9 +181,9 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				},
 				properties: map[string]*schema.Schema{
 					"person": schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						Property("age", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+						Property("age", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 						MustBuild(),
 				},
 				wantErr: false,
@@ -186,17 +192,17 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ObjectType)
+				builder := schema.NewBuilder().Types(schema.ObjectType)
 				for propName, propSchema := range tc.properties {
 					builder = builder.Property(propName, propSchema)
 				}
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -242,8 +248,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"age":  nil,
 				},
 				required: []string{"name", "age"},
-				wantErr:  true,
-				errMsg:   "required property",
+				wantErr:  false, // null is a valid value for required property unless type is specified
 			},
 			{
 				name: "extra properties with required",
@@ -271,14 +276,14 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ObjectType).Required(tc.required...)
+				builder := schema.NewBuilder().Types(schema.ObjectType).Required(tc.required...)
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -367,7 +372,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ObjectType)
+				builder := schema.NewBuilder().Types(schema.ObjectType)
 				if tc.minProperties != nil {
 					builder = builder.MinProperties(*tc.minProperties)
 				}
@@ -377,10 +382,10 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -409,9 +414,9 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"extra": "value",
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: true,
+				additionalProperties: schema.SchemaTrue(),
 				wantErr:              false,
 			},
 			{
@@ -421,9 +426,9 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"extra": "value",
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: false,
+				additionalProperties: schema.SchemaFalse(),
 				wantErr:              true,
 				errMsg:               "additional property not allowed",
 			},
@@ -433,9 +438,9 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"name": "John",
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: false,
+				additionalProperties: schema.SchemaFalse(),
 				wantErr:              false,
 			},
 			{
@@ -445,9 +450,9 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"extra": "string_value", // must be string
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				additionalProperties: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:              false,
 			},
 			{
@@ -457,9 +462,9 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"extra": 123, // should be string
 				},
 				properties: map[string]*schema.Schema{
-					"name": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				additionalProperties: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:              true,
 				errMsg:               "additional property validation failed",
 			},
@@ -467,20 +472,33 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ObjectType)
+				builder := schema.NewBuilder().Types(schema.ObjectType)
 				for propName, propSchema := range tc.properties {
 					builder = builder.Property(propName, propSchema)
 				}
 
-				builder = builder.AdditionalProperties(tc.additionalProperties)
+				// Convert additionalProperties to proper SchemaOrBool type
+				var addProps schema.SchemaOrBool
+				switch v := tc.additionalProperties.(type) {
+				case schema.SchemaBool:
+					addProps = v
+				case *schema.Schema:
+					addProps = v
+				case schema.SchemaOrBool:
+					addProps = v
+				default:
+					// This shouldn't happen with our test data
+					t.Fatalf("unexpected additionalProperties type: %T", tc.additionalProperties)
+				}
+				builder = builder.AdditionalProperties(addProps)
 
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -510,8 +528,8 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"num_id":   12345,
 				},
 				patternProperties: map[string]*schema.Schema{
-					"^str_": schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					"^num_": schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+					"^str_": schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					"^num_": schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -522,8 +540,8 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"num_age":  30,
 				},
 				patternProperties: map[string]*schema.Schema{
-					"^str_": schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					"^num_": schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+					"^str_": schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					"^num_": schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: true,
 				errMsg:  "pattern property validation failed",
@@ -534,8 +552,8 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"prefix_suffix": "value",
 				},
 				patternProperties: map[string]*schema.Schema{
-					"^prefix_": schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					"_suffix$": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"^prefix_": schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					"_suffix$": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -546,7 +564,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"other":       123,
 				},
 				patternProperties: map[string]*schema.Schema{
-					"^specific_": schema.NewBuilder().Type(schema.StringType).MustBuild(),
+					"^specific_": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -554,17 +572,17 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.ObjectType)
+				builder := schema.NewBuilder().Types(schema.ObjectType)
 				for pattern, patternSchema := range tc.patternProperties {
 					builder = builder.PatternProperty(pattern, patternSchema)
 				}
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -592,7 +610,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"valid_name_2": "value2",
 				},
 				propertyNames: schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Pattern("^valid_name_[0-9]+$").
 					MustBuild(),
 				wantErr: false,
@@ -604,7 +622,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"invalid_name": "value2",
 				},
 				propertyNames: schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Pattern("^valid_name_[0-9]+$").
 					MustBuild(),
 				wantErr: true,
@@ -617,7 +635,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"a":     "value2",
 				},
 				propertyNames: schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(2).
 					MaxLength(10).
 					MustBuild(),
@@ -631,7 +649,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					"name2": "value2",
 				},
 				propertyNames: schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(2).
 					MaxLength(10).
 					MustBuild(),
@@ -642,15 +660,15 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.ObjectType).
+					Types(schema.ObjectType).
 					PropertyNames(tc.propertyNames).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -687,25 +705,25 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				},
 				schema: func() *schema.Schema {
 					profileSchema, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						Property("age", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+						Property("age", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 						Build()
 
 					settingsSchema, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("theme", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						Property("notifications", schema.NewBuilder().Type(schema.BooleanType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("theme", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+						Property("notifications", schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
 						Build()
 
 					userSchema, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
+						Types(schema.ObjectType).
 						Property("profile", profileSchema).
 						Property("settings", settingsSchema).
 						Build()
 
 					s, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
+						Types(schema.ObjectType).
 						Property("user", userSchema).
 						Build()
 					return s
@@ -721,14 +739,14 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("required_prop", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("required_prop", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						Required("required_prop").
-						PatternProperty("^str_", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						PatternProperty("^num_", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
+						PatternProperty("^str_", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+						PatternProperty("^num_", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 						MinProperties(1).
 						MaxProperties(10).
-						AdditionalProperties(false).
+						AdditionalProperties(schema.SchemaFalse()).
 						Build()
 					return s
 				},
@@ -738,10 +756,10 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {

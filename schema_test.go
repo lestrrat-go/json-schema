@@ -12,9 +12,9 @@ import (
 func Example_schema_builder() {
 	s, err := schema.NewBuilder().
 		ID(`https://example.com/polygon`).
-		Type(schema.ObjectType).
+		Types(schema.ObjectType).
 		Property("validProp", schema.New()).
-		AdditionalProperties(true).
+		AdditionalProperties(schema.SchemaTrue()).
 		Build()
 	if err != nil {
 		fmt.Println(err)
@@ -29,7 +29,7 @@ func Example_schema_builder() {
 	fmt.Printf("%s\n", buf)
 	// OUTPUT:
 	// https://example.com/polygon
-	// {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":{},"properties":{"validProp":{"$schema":"https://json-schema.org/draft/2020-12/schema"}},"type":["object"]}
+	// {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"validProp":{"$schema":"https://json-schema.org/draft/2020-12/schema"}},"type":"object"}
 }
 
 func TestPrimitiveType(t *testing.T) {

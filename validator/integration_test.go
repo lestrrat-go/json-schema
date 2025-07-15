@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -13,45 +14,45 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 	t.Run("User Profile Schema", func(t *testing.T) {
 		// Comprehensive user profile schema with multiple constraints
 		userSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("id", schema.NewBuilder().
-				Type(schema.IntegerType).
+				Types(schema.IntegerType).
 				Minimum(1).MustBuild()).
 			Property("username", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				MinLength(3).
 				MaxLength(20).
 				Pattern("^[a-zA-Z0-9_]+$").MustBuild()).
 			Property("email", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Pattern(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`).MustBuild()).
 			Property("age", schema.NewBuilder().
-				Type(schema.IntegerType).
+				Types(schema.IntegerType).
 				Minimum(13).
 				Maximum(120).MustBuild()).
 			Property("roles", schema.NewBuilder().
-				Type(schema.ArrayType).
+				Types(schema.ArrayType).
 				Items(schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum("admin", "user", "moderator", "guest").MustBuild()).
 				MinItems(1).
 				UniqueItems(true).MustBuild()).
 			Property("active", schema.NewBuilder().
-				Type(schema.BooleanType).MustBuild()).
+				Types(schema.BooleanType).MustBuild()).
 			Property("preferences", schema.NewBuilder().
-				Type(schema.ObjectType).
+				Types(schema.ObjectType).
 				Property("theme", schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum("light", "dark", "auto").MustBuild()).
 				Property("notifications", schema.NewBuilder().
-					Type(schema.BooleanType).MustBuild()).
-				AdditionalProperties(false).MustBuild()).
+					Types(schema.BooleanType).MustBuild()).
+				AdditionalProperties(schema.SchemaFalse()).MustBuild()).
 			Required("id", "username", "email").
-			AdditionalProperties(false).
+			AdditionalProperties(schema.SchemaFalse()).
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(userSchema)
+		v, err := validator.Compile(context.Background(), userSchema)
 		require.NoError(t, err)
 
 		testCases := []struct {
@@ -176,7 +177,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := v.Validate(tc.user)
+				_, err := v.Validate(context.Background(), tc.user)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -192,51 +193,51 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 	t.Run("Product Catalog Schema", func(t *testing.T) {
 		// Complex e-commerce product schema
 		productSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("id", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Pattern("^PRD-[0-9]{6}$").MustBuild()).
 			Property("name", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				MinLength(1).
 				MaxLength(100).MustBuild()).
 			Property("description", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				MaxLength(1000).MustBuild()).
 			Property("price", schema.NewBuilder().
-				Type(schema.NumberType).
+				Types(schema.NumberType).
 				Minimum(0).
 				MultipleOf(0.01).MustBuild()).
 			Property("currency", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Enum("USD", "EUR", "GBP", "JPY").MustBuild()).
 			Property("category", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Enum("electronics", "clothing", "books", "home", "sports").MustBuild()).
 			Property("tags", schema.NewBuilder().
-				Type(schema.ArrayType).
+				Types(schema.ArrayType).
 				Items(schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(1).
 					MaxLength(50).MustBuild()).
 				MaxItems(10).
 				UniqueItems(true).MustBuild()).
 			Property("inventory", schema.NewBuilder().
-				Type(schema.ObjectType).
+				Types(schema.ObjectType).
 				Property("quantity", schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(0).MustBuild()).
 				Property("warehouse", schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(1).MustBuild()).
 				Required("quantity").MustBuild()).
 			Property("active", schema.NewBuilder().
-				Type(schema.BooleanType).MustBuild()).
+				Types(schema.BooleanType).MustBuild()).
 			Required("id", "name", "price", "currency", "category").
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(productSchema)
+		v, err := validator.Compile(context.Background(), productSchema)
 		require.NoError(t, err)
 
 		testCases := []struct {
@@ -352,7 +353,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := v.Validate(tc.product)
+				_, err := v.Validate(context.Background(), tc.product)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -368,31 +369,31 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 	t.Run("API Response Schema with OneOf", func(t *testing.T) {
 		// API response that can be either success or error
 		successSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("status", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Const("success").MustBuild()).
 			Property("data", schema.NewBuilder().
-				Type(schema.ObjectType).MustBuild()).
+				Types(schema.ObjectType).MustBuild()).
 			Required("status", "data").
-			AdditionalProperties(false).
+			AdditionalProperties(schema.SchemaFalse()).
 			Build()
 		require.NoError(t, err)
 
 		errorSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("status", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Const("error").MustBuild()).
 			Property("error", schema.NewBuilder().
-				Type(schema.ObjectType).
+				Types(schema.ObjectType).
 				Property("code", schema.NewBuilder().
-					Type(schema.IntegerType).MustBuild()).
+					Types(schema.IntegerType).MustBuild()).
 				Property("message", schema.NewBuilder().
-					Type(schema.StringType).MustBuild()).
+					Types(schema.StringType).MustBuild()).
 				Required("code", "message").MustBuild()).
 			Required("status", "error").
-			AdditionalProperties(false).
+			AdditionalProperties(schema.SchemaFalse()).
 			Build()
 		require.NoError(t, err)
 
@@ -401,7 +402,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(responseSchema)
+		v, err := validator.Compile(context.Background(), responseSchema)
 		require.NoError(t, err)
 
 		testCases := []struct {
@@ -467,7 +468,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := v.Validate(tc.response)
+				_, err := v.Validate(context.Background(), tc.response)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -483,30 +484,30 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 	t.Run("Configuration Schema with AllOf", func(t *testing.T) {
 		// Configuration that must satisfy base requirements AND specific feature requirements
 		baseConfigSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("appName", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				MinLength(1).MustBuild()).
 			Property("version", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Pattern(`^\d+\.\d+\.\d+$`).MustBuild()).
 			Required("appName", "version").
 			Build()
 		require.NoError(t, err)
 
 		databaseConfigSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("database", schema.NewBuilder().
-				Type(schema.ObjectType).
+				Types(schema.ObjectType).
 				Property("host", schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(1).MustBuild()).
 				Property("port", schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(1).
 					Maximum(65535).MustBuild()).
 				Property("name", schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(1).MustBuild()).
 				Required("host", "port", "name").MustBuild()).
 			Required("database").
@@ -514,15 +515,15 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 		require.NoError(t, err)
 
 		serverConfigSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("server", schema.NewBuilder().
-				Type(schema.ObjectType).
+				Types(schema.ObjectType).
 				Property("port", schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					Minimum(1024).
 					Maximum(65535).MustBuild()).
 				Property("host", schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum("localhost", "0.0.0.0").MustBuild()).
 				Required("port").MustBuild()).
 			Required("server").
@@ -538,7 +539,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(configSchema)
+		v, err := validator.Compile(context.Background(), configSchema)
 		require.NoError(t, err)
 
 		testCases := []struct {
@@ -615,7 +616,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := v.Validate(tc.config)
+				_, err := v.Validate(context.Background(), tc.config)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -634,25 +635,25 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 
 		// This would typically use $ref for recursion in a real implementation
 		simpleTreeSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("name", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				MinLength(1).MustBuild()).
 			Property("type", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				Enum("file", "directory").MustBuild()).
 			Property("size", schema.NewBuilder().
-				Type(schema.IntegerType).
+				Types(schema.IntegerType).
 				Minimum(0).MustBuild()).
 			Property("children", schema.NewBuilder().
-				Type(schema.ArrayType).
+				Types(schema.ArrayType).
 				Items(schema.NewBuilder().
-					Type(schema.ObjectType).MustBuild()).MustBuild()). // Simplified - would be recursive reference
+					Types(schema.ObjectType).MustBuild()).MustBuild()). // Simplified - would be recursive reference
 			Required("name", "type").
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(simpleTreeSchema)
+		v, err := validator.Compile(context.Background(), simpleTreeSchema)
 		require.NoError(t, err)
 
 		testCases := []struct {
@@ -703,7 +704,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := v.Validate(tc.tree)
+				_, err := v.Validate(context.Background(), tc.tree)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -721,20 +722,20 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 func TestValidatorErrorMessages(t *testing.T) {
 	t.Run("Detailed Error Messages", func(t *testing.T) {
 		userSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("name", schema.NewBuilder().
-				Type(schema.StringType).
+				Types(schema.StringType).
 				MinLength(2).
 				MaxLength(50).MustBuild()).
 			Property("age", schema.NewBuilder().
-				Type(schema.IntegerType).
+				Types(schema.IntegerType).
 				Minimum(0).
 				Maximum(150).MustBuild()).
 			Required("name").
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(userSchema)
+		v, err := validator.Compile(context.Background(), userSchema)
 		require.NoError(t, err)
 
 		testCases := []struct {
@@ -766,7 +767,7 @@ func TestValidatorErrorMessages(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := v.Validate(tc.value)
+				_, err := v.Validate(context.Background(), tc.value)
 				require.Error(t, err)
 
 				errMsg := err.Error()
@@ -784,22 +785,22 @@ func TestValidatorPerformance(t *testing.T) {
 	t.Run("Large Object Validation", func(t *testing.T) {
 		// Create a schema for validating large objects
 		itemSchema, err := schema.NewBuilder().
-			Type(schema.ObjectType).
-			Property("id", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).
-			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-			Property("value", schema.NewBuilder().Type(schema.NumberType).MustBuild()).
+			Types(schema.ObjectType).
+			Property("id", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("value", schema.NewBuilder().Types(schema.NumberType).MustBuild()).
 			Build()
 		require.NoError(t, err)
 
 		listSchema, err := schema.NewBuilder().
-			Type(schema.ArrayType).
+			Types(schema.ArrayType).
 			Items(itemSchema).
 			MinItems(1).
 			MaxItems(1000).
 			Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(listSchema)
+		v, err := validator.Compile(context.Background(), listSchema)
 		require.NoError(t, err)
 
 		// Create a large array for testing
@@ -813,7 +814,7 @@ func TestValidatorPerformance(t *testing.T) {
 		}
 
 		// Test that validation completes without timing out
-		err = v.Validate(largeArray)
+		_, err = v.Validate(context.Background(), largeArray)
 		require.NoError(t, err)
 	})
 }
@@ -824,7 +825,7 @@ func TestValidatorEdgeCases(t *testing.T) {
 		s, err := schema.NewBuilder().Build() // No constraints
 		require.NoError(t, err)
 
-		v, err := validator.Compile(s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Empty schema should allow anything
@@ -838,26 +839,26 @@ func TestValidatorEdgeCases(t *testing.T) {
 		}
 
 		for _, value := range testValues {
-			err = v.Validate(value)
+			_, err = v.Validate(context.Background(), value)
 			require.NoError(t, err, "Empty schema should allow value: %v", value)
 		}
 	})
 
 	t.Run("Schema with Only Type", func(t *testing.T) {
-		s, err := schema.NewBuilder().Type(schema.StringType).Build()
+		s, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		v, err := validator.Compile(s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Should allow any string
-		require.NoError(t, v.Validate(""))
-		require.NoError(t, v.Validate("any string"))
-		require.NoError(t, v.Validate("very long string with lots of content"))
+		_, err = v.Validate(context.Background(), ""); require.NoError(t, err)
+		_, err = v.Validate(context.Background(), "any string"); require.NoError(t, err)
+		_, err = v.Validate(context.Background(), "very long string with lots of content"); require.NoError(t, err)
 
 		// Should reject non-strings
-		require.Error(t, v.Validate(123))
-		require.Error(t, v.Validate(true))
-		require.Error(t, v.Validate([]any{}))
+		_, err = v.Validate(context.Background(), 123); require.Error(t, err)
+		_, err = v.Validate(context.Background(), true); require.Error(t, err)
+		_, err = v.Validate(context.Background(), []any{}); require.Error(t, err)
 	})
 }

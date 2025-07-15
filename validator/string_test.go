@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -37,12 +38,12 @@ func TestStringValidator(t *testing.T) {
 			Object: "Hello, World!",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -50,13 +51,13 @@ func TestStringValidator(t *testing.T) {
 			Object: "Hello, World!",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MaxLength(20).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -64,14 +65,14 @@ func TestStringValidator(t *testing.T) {
 			Object: "Hello, World!",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(1).
 					MaxLength(20).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -79,14 +80,14 @@ func TestStringValidator(t *testing.T) {
 			Object: "Hello, World!",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(5).
 					MaxLength(20).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -95,13 +96,13 @@ func TestStringValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MaxLength(5).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -110,14 +111,14 @@ func TestStringValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(1).
 					MaxLength(5).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -126,14 +127,14 @@ func TestStringValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					MinLength(14).
 					MaxLength(20).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -141,13 +142,13 @@ func TestStringValidator(t *testing.T) {
 			Object: "Hello, World!",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Pattern(`^Hello, .+$`).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -156,13 +157,13 @@ func TestStringValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Pattern(`^Night, .+$`).
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -170,13 +171,13 @@ func TestStringValidator(t *testing.T) {
 			Object: "three",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum("one", "two", "three").
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -185,13 +186,13 @@ func TestStringValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum("one", "two", "three").
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -199,13 +200,13 @@ func TestStringValidator(t *testing.T) {
 			Object: "Hello, World!",
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Const("Hello, World!").
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 		{
@@ -214,13 +215,13 @@ func TestStringValidator(t *testing.T) {
 			Error:  true,
 			Validator: func() (validator.Interface, error) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Const("Hello, World!").
 					Build()
 				if err != nil {
 					return nil, err
 				}
-				return validator.Compile(s)
+				return validator.Compile(context.Background(), s)
 			},
 		},
 	}
@@ -232,7 +233,7 @@ func TestStringValidator(t *testing.T) {
 			if !assert.NoError(t, err, `tc.Validator() should succeed`) {
 				return
 			}
-			err = c.Validate(tc.Object)
+			_, err = c.Validate(context.Background(), tc.Object)
 
 			if tc.Error {
 				if !assert.Error(t, err, `c.Validate should fail`) {
@@ -261,7 +262,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				name:  "valid string",
 				value: "hello",
 				schema: func() *schema.Schema {
-					s, _ := schema.NewBuilder().Type(schema.StringType).Build()
+					s, _ := schema.NewBuilder().Types(schema.StringType).Build()
 					return s
 				},
 				wantErr: false,
@@ -270,7 +271,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				name:  "non-string value",
 				value: 123,
 				schema: func() *schema.Schema {
-					s, _ := schema.NewBuilder().Type(schema.StringType).Build()
+					s, _ := schema.NewBuilder().Types(schema.StringType).Build()
 					return s
 				},
 				wantErr: true,
@@ -280,7 +281,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				name:  "nil value",
 				value: nil,
 				schema: func() *schema.Schema {
-					s, _ := schema.NewBuilder().Type(schema.StringType).Build()
+					s, _ := schema.NewBuilder().Types(schema.StringType).Build()
 					return s
 				},
 				wantErr: true,
@@ -289,10 +290,10 @@ func TestStringValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -407,7 +408,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.StringType)
+				builder := schema.NewBuilder().Types(schema.StringType)
 				if tc.minLength != nil {
 					builder = builder.MinLength(*tc.minLength)
 				}
@@ -417,10 +418,10 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -531,15 +532,15 @@ func TestStringValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Pattern(tc.pattern).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -608,15 +609,15 @@ func TestStringValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -673,15 +674,15 @@ func TestStringValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Const(tc.constVal).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -707,7 +708,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				value: "hello123",
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						Pattern("^[a-z]+[0-9]+$").
 						MinLength(5).
 						MaxLength(10).
@@ -721,7 +722,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				value: "hello123456789",
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						Pattern("^[a-z]+[0-9]+$").
 						MinLength(5).
 						MaxLength(10).
@@ -735,7 +736,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				value: "HELLO123",
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						Pattern("^[a-z]+[0-9]+$").
 						MinLength(5).
 						MaxLength(10).
@@ -749,7 +750,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				value: "option1",
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						Pattern("^option[0-9]$").
 						Enum("option1", "option2", "option3").
 						Build()
@@ -762,7 +763,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				value: "option1",
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						Pattern("^choice[0-9]$").
 						Enum("option1", "option2", "option3").
 						Build()
@@ -774,10 +775,10 @@ func TestStringValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -846,7 +847,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.StringType).
+					Types(schema.StringType).
 					Format(tc.format).
 					Build()
 
@@ -856,10 +857,10 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				}
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err, "Expected validation to fail for format %s with value %s", tc.format, tc.value)
 				} else {

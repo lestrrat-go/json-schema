@@ -33,10 +33,10 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 
 	t.Run("Applicator Vocabulary Keywords", func(t *testing.T) {
 		// Test applicator vocabulary keywords
-		itemSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		itemSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		propSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
+		propSchema, err := schema.NewBuilder().Types(schema.NumberType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
@@ -67,7 +67,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 	t.Run("Validation Vocabulary Keywords", func(t *testing.T) {
 		// Test validation vocabulary keywords
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			Enum("red", "green", "blue").
 			Const("constant").
 			MultipleOf(2.5).
@@ -89,7 +89,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify validation keywords
-		require.Equal(t, []schema.PrimitiveType{schema.StringType}, s.Types())
+		require.Equal(t, schema.PrimitiveTypes{schema.StringType}, s.Types())
 		require.Equal(t, []interface{}{"red", "green", "blue"}, s.Enum())
 		require.Equal(t, "constant", s.Const())
 		require.Equal(t, 2.5, s.MultipleOf())
@@ -111,10 +111,10 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 
 	t.Run("Unevaluated Vocabulary Keywords", func(t *testing.T) {
 		// Test unevaluated vocabulary keywords
-		propSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		propSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
-		itemSchema, err := schema.NewBuilder().Type(schema.NumberType).Build()
+		itemSchema, err := schema.NewBuilder().Types(schema.NumberType).Build()
 		require.NoError(t, err)
 
 		s, err := schema.NewBuilder().
@@ -134,9 +134,9 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		original, err := schema.NewBuilder().
 			ID("https://example.com/person").
 			Schema(schema.Version).
-			Type(schema.ObjectType).
-			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-			Property("age", schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild()).
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("age", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
 			Build()
 		require.NoError(t, err)
 
@@ -163,7 +163,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 	t.Run("Complex Schema Serialization", func(t *testing.T) {
 		stringSchema, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			MinLength(1).
 			MaxLength(100).
 			Pattern("^[a-zA-Z ]+$").
@@ -171,7 +171,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		require.NoError(t, err)
 
 		numberSchema, err := schema.NewBuilder().
-			Type(schema.NumberType).
+			Types(schema.NumberType).
 			Minimum(0.0).
 			Maximum(1000.0).
 			MultipleOf(0.01).
@@ -180,7 +180,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		original, err := schema.NewBuilder().
 			ID("https://example.com/complex").
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			AllOf(stringSchema, numberSchema).
 			AnyOf(stringSchema).
 			OneOf(numberSchema).
@@ -212,11 +212,14 @@ func TestSchemaJSONSerialization(t *testing.T) {
 	})
 
 	t.Run("Schema with References", func(t *testing.T) {
+		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
+		require.NoError(t, err)
+		
 		original, err := schema.NewBuilder().
 			ID("https://example.com/ref-test").
-			Reference("#/definitions/person").
+			Reference("#/$defs/person").
 			DynamicReference("#person").
-			Definitions("person").
+			Definitions("person", personSchema).
 			Anchor("person-anchor").
 			Build()
 		require.NoError(t, err)
@@ -231,9 +234,11 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		// Check reference fields
 		require.Equal(t, "https://example.com/ref-test", s.ID())
-		require.Equal(t, "#/definitions/person", s.Reference())
+		require.Equal(t, "#/$defs/person", s.Reference())
 		require.Equal(t, "#person", s.DynamicReference())
-		require.Equal(t, "person", s.Definitions())
+		defs := s.Definitions()
+		require.Contains(t, defs, "person")
+		require.Equal(t, personSchema, defs["person"])
 		require.Equal(t, "person-anchor", s.Anchor())
 	})
 }
@@ -244,7 +249,7 @@ func TestSchemaBuilderErrorHandling(t *testing.T) {
 		// This should not cause an error at build time since pattern validation
 		// is done at validation time, not build time
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
+			Types(schema.StringType).
 			Pattern("[invalid").
 			Build()
 		require.NoError(t, err)
@@ -252,12 +257,12 @@ func TestSchemaBuilderErrorHandling(t *testing.T) {
 	})
 
 	t.Run("Duplicate Properties", func(t *testing.T) {
-		propSchema, err := schema.NewBuilder().Type(schema.StringType).Build()
+		propSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
 		// Adding duplicate properties should result in error
 		_, err = schema.NewBuilder().
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("name", propSchema).
 			Property("name", propSchema).
 			Build()
@@ -278,9 +283,7 @@ func TestSchemaBuilderErrorHandling(t *testing.T) {
 func TestMultipleTypes(t *testing.T) {
 	t.Run("Multiple Types", func(t *testing.T) {
 		s, err := schema.NewBuilder().
-			Type(schema.StringType).
-			Type(schema.NumberType).
-			Type(schema.BooleanType).
+			Types(schema.StringType, schema.NumberType, schema.BooleanType).
 			Build()
 		require.NoError(t, err)
 

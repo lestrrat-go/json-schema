@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"math"
 	"testing"
 
@@ -74,13 +75,13 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				s, err := schema.NewBuilder().Type(schema.IntegerType).Build()
+				s, err := schema.NewBuilder().Types(schema.IntegerType).Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -95,12 +96,12 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 
 	t.Run("Range Constraints", func(t *testing.T) {
 		testCases := []struct {
-			name      string
-			value     int
-			minimum   *float64
-			maximum   *float64
-			wantErr   bool
-			errMsg    string
+			name    string
+			value   int
+			minimum *float64
+			maximum *float64
+			wantErr bool
+			errMsg  string
 		}{
 			// Minimum tests
 			{
@@ -187,7 +188,7 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.IntegerType)
+				builder := schema.NewBuilder().Types(schema.IntegerType)
 				if tc.minimum != nil {
 					builder = builder.Minimum(*tc.minimum)
 				}
@@ -197,10 +198,10 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -288,7 +289,7 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.IntegerType)
+				builder := schema.NewBuilder().Types(schema.IntegerType)
 				if tc.exclusiveMinimum != nil {
 					builder = builder.ExclusiveMinimum(*tc.exclusiveMinimum)
 				}
@@ -298,10 +299,10 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -376,15 +377,15 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.IntegerType).
+					Types(schema.IntegerType).
 					MultipleOf(tc.multipleOf).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -448,7 +449,7 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.IntegerType)
+				builder := schema.NewBuilder().Types(schema.IntegerType)
 				if tc.enum != nil {
 					builder = builder.Enum(tc.enum...)
 				}
@@ -458,10 +459,10 @@ func TestIntegerValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -555,13 +556,13 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				s, err := schema.NewBuilder().Type(schema.NumberType).Build()
+				s, err := schema.NewBuilder().Types(schema.NumberType).Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -576,12 +577,12 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 
 	t.Run("Number Range Constraints", func(t *testing.T) {
 		testCases := []struct {
-			name      string
-			value     float64
-			minimum   *float64
-			maximum   *float64
-			wantErr   bool
-			errMsg    string
+			name    string
+			value   float64
+			minimum *float64
+			maximum *float64
+			wantErr bool
+			errMsg  string
 		}{
 			// Float range tests
 			{
@@ -636,7 +637,7 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				builder := schema.NewBuilder().Type(schema.NumberType)
+				builder := schema.NewBuilder().Types(schema.NumberType)
 				if tc.minimum != nil {
 					builder = builder.Minimum(*tc.minimum)
 				}
@@ -646,10 +647,10 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 				s, err := builder.Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -706,15 +707,15 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.NumberType).
+					Types(schema.NumberType).
 					MultipleOf(tc.multipleOf).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -729,9 +730,9 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 
 	t.Run("Combined Number Constraints", func(t *testing.T) {
 		testCases := []struct {
-			name   string
-			value  float64
-			schema func() *schema.Schema
+			name    string
+			value   float64
+			schema  func() *schema.Schema
 			wantErr bool
 			errMsg  string
 		}{
@@ -740,7 +741,7 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 				value: 10.0,
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.NumberType).
+						Types(schema.NumberType).
 						Minimum(5.0).
 						Maximum(15.0).
 						MultipleOf(2.5).
@@ -754,7 +755,7 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 				value: 11.0,
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.NumberType).
+						Types(schema.NumberType).
 						Minimum(5.0).
 						Maximum(15.0).
 						MultipleOf(2.5).
@@ -768,7 +769,7 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 				value: 20.0,
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.NumberType).
+						Types(schema.NumberType).
 						Minimum(5.0).
 						Maximum(15.0).
 						MultipleOf(2.5).
@@ -781,10 +782,10 @@ func TestNumberValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {

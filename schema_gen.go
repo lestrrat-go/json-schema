@@ -9,21 +9,27 @@ import (
 
 type Schema struct {
 	isRoot                bool
-	additionalProperties  *Schema
-	allOf                 []*Schema
+	additionalProperties  SchemaOrBool
+	allOf                 []SchemaOrBool
 	anchor                *string
-	anyOf                 []*Schema
+	anyOf                 []SchemaOrBool
 	comment               *string
 	constantValue         *interface{}
 	contains              *Schema
-	definitions           *string
+	contentEncoding       *string
+	contentMediaType      *string
+	contentSchema         *Schema
+	definitions           map[string]*Schema
+	dependentSchemas      map[string]*Schema
 	dynamicReference      *string
+	elseSchema            *Schema
 	enum                  []interface{}
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
 	format                *string
 	id                    *string
-	items                 *Schema
+	ifSchema              *Schema
+	items                 SchemaOrBool
 	maxContains           *uint
 	maxItems              *uint
 	maxLength             *int
@@ -36,7 +42,7 @@ type Schema struct {
 	minimum               *float64
 	multipleOf            *float64
 	not                   *Schema
-	oneOf                 []*Schema
+	oneOf                 []SchemaOrBool
 	pattern               *string
 	patternProperties     map[string]*Schema
 	properties            map[string]*Schema
@@ -44,9 +50,10 @@ type Schema struct {
 	reference             *string
 	required              []string
 	schema                string
-	types                 []PrimitiveType
-	unevaluatedItems      *Schema
-	unevaluatedProperties *Schema
+	thenSchema            *Schema
+	types                 PrimitiveTypes
+	unevaluatedItems      SchemaOrBool
+	unevaluatedProperties SchemaOrBool
 	uniqueItems           *bool
 }
 
@@ -60,7 +67,7 @@ func (s *Schema) HasAdditionalProperties() bool {
 	return s.additionalProperties != nil
 }
 
-func (s *Schema) AdditionalProperties() *Schema {
+func (s *Schema) AdditionalProperties() SchemaOrBool {
 	return s.additionalProperties
 }
 
@@ -68,7 +75,7 @@ func (s *Schema) HasAllOf() bool {
 	return s.allOf != nil
 }
 
-func (s *Schema) AllOf() []*Schema {
+func (s *Schema) AllOf() []SchemaOrBool {
 	return s.allOf
 }
 
@@ -84,7 +91,7 @@ func (s *Schema) HasAnyOf() bool {
 	return s.anyOf != nil
 }
 
-func (s *Schema) AnyOf() []*Schema {
+func (s *Schema) AnyOf() []SchemaOrBool {
 	return s.anyOf
 }
 
@@ -112,12 +119,44 @@ func (s *Schema) Contains() *Schema {
 	return s.contains
 }
 
+func (s *Schema) HasContentEncoding() bool {
+	return s.contentEncoding != nil
+}
+
+func (s *Schema) ContentEncoding() string {
+	return *(s.contentEncoding)
+}
+
+func (s *Schema) HasContentMediaType() bool {
+	return s.contentMediaType != nil
+}
+
+func (s *Schema) ContentMediaType() string {
+	return *(s.contentMediaType)
+}
+
+func (s *Schema) HasContentSchema() bool {
+	return s.contentSchema != nil
+}
+
+func (s *Schema) ContentSchema() *Schema {
+	return s.contentSchema
+}
+
 func (s *Schema) HasDefinitions() bool {
 	return s.definitions != nil
 }
 
-func (s *Schema) Definitions() string {
-	return *(s.definitions)
+func (s *Schema) Definitions() map[string]*Schema {
+	return s.definitions
+}
+
+func (s *Schema) HasDependentSchemas() bool {
+	return s.dependentSchemas != nil
+}
+
+func (s *Schema) DependentSchemas() map[string]*Schema {
+	return s.dependentSchemas
 }
 
 func (s *Schema) HasDynamicReference() bool {
@@ -126,6 +165,14 @@ func (s *Schema) HasDynamicReference() bool {
 
 func (s *Schema) DynamicReference() string {
 	return *(s.dynamicReference)
+}
+
+func (s *Schema) HasElseSchema() bool {
+	return s.elseSchema != nil
+}
+
+func (s *Schema) ElseSchema() *Schema {
+	return s.elseSchema
 }
 
 func (s *Schema) HasEnum() bool {
@@ -168,11 +215,19 @@ func (s *Schema) ID() string {
 	return *(s.id)
 }
 
+func (s *Schema) HasIfSchema() bool {
+	return s.ifSchema != nil
+}
+
+func (s *Schema) IfSchema() *Schema {
+	return s.ifSchema
+}
+
 func (s *Schema) HasItems() bool {
 	return s.items != nil
 }
 
-func (s *Schema) Items() *Schema {
+func (s *Schema) Items() SchemaOrBool {
 	return s.items
 }
 
@@ -276,7 +331,7 @@ func (s *Schema) HasOneOf() bool {
 	return s.oneOf != nil
 }
 
-func (s *Schema) OneOf() []*Schema {
+func (s *Schema) OneOf() []SchemaOrBool {
 	return s.oneOf
 }
 
@@ -332,11 +387,19 @@ func (s *Schema) Schema() string {
 	return s.schema
 }
 
+func (s *Schema) HasThenSchema() bool {
+	return s.thenSchema != nil
+}
+
+func (s *Schema) ThenSchema() *Schema {
+	return s.thenSchema
+}
+
 func (s *Schema) HasTypes() bool {
 	return s.types != nil
 }
 
-func (s *Schema) Types() []PrimitiveType {
+func (s *Schema) Types() PrimitiveTypes {
 	return s.types
 }
 
@@ -344,7 +407,7 @@ func (s *Schema) HasUnevaluatedItems() bool {
 	return s.unevaluatedItems != nil
 }
 
-func (s *Schema) UnevaluatedItems() *Schema {
+func (s *Schema) UnevaluatedItems() SchemaOrBool {
 	return s.unevaluatedItems
 }
 
@@ -352,7 +415,7 @@ func (s *Schema) HasUnevaluatedProperties() bool {
 	return s.unevaluatedProperties != nil
 }
 
-func (s *Schema) UnevaluatedProperties() *Schema {
+func (s *Schema) UnevaluatedProperties() SchemaOrBool {
 	return s.unevaluatedProperties
 }
 
@@ -384,7 +447,7 @@ type pair struct {
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	s.isRoot = true
 	defer func() { s.isRoot = false }()
-	fields := make([]pair, 0, 39)
+	fields := make([]pair, 0, 46)
 	if v := s.additionalProperties; v != nil {
 		fields = append(fields, pair{Name: "additionalProperties", Value: v})
 	}
@@ -406,11 +469,26 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	if v := s.contains; v != nil {
 		fields = append(fields, pair{Name: "contains", Value: v})
 	}
+	if v := s.contentEncoding; v != nil {
+		fields = append(fields, pair{Name: "contentEncoding", Value: *v})
+	}
+	if v := s.contentMediaType; v != nil {
+		fields = append(fields, pair{Name: "contentMediaType", Value: *v})
+	}
+	if v := s.contentSchema; v != nil {
+		fields = append(fields, pair{Name: "contentSchema", Value: v})
+	}
 	if v := s.definitions; v != nil {
-		fields = append(fields, pair{Name: "$defs", Value: *v})
+		fields = append(fields, pair{Name: "$defs", Value: v})
+	}
+	if v := s.dependentSchemas; v != nil {
+		fields = append(fields, pair{Name: "dependentSchemas", Value: v})
 	}
 	if v := s.dynamicReference; v != nil {
 		fields = append(fields, pair{Name: "$dynamicRef", Value: *v})
+	}
+	if v := s.elseSchema; v != nil {
+		fields = append(fields, pair{Name: "else", Value: v})
 	}
 	if v := s.enum; v != nil {
 		fields = append(fields, pair{Name: "enum", Value: v})
@@ -426,6 +504,9 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 	if v := s.id; v != nil {
 		fields = append(fields, pair{Name: "$id", Value: *v})
+	}
+	if v := s.ifSchema; v != nil {
+		fields = append(fields, pair{Name: "if", Value: v})
 	}
 	if v := s.items; v != nil {
 		fields = append(fields, pair{Name: "items", Value: v})
@@ -490,6 +571,9 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	if v := s.schema; s.isRoot && v != "" {
 		fields = append(fields, pair{Name: "$schema", Value: v})
 	}
+	if v := s.thenSchema; v != nil {
+		fields = append(fields, pair{Name: "then", Value: v})
+	}
 	if v := s.types; v != nil {
 		fields = append(fields, pair{Name: "type", Value: v})
 	}
@@ -540,23 +624,26 @@ LOOP:
 		case string: // Objects can only have string keys
 			switch tok {
 			case "additionalProperties":
-				var v *Schema
-				var tmp Schema
-				if err := dec.Decode(&tmp); err == nil {
-					v = &tmp
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`failed to decode raw data for field "additionalProperties": %w`, err)
+				}
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					s.additionalProperties = SchemaBool(b)
 				} else {
-					var b bool
-					if err = dec.Decode(&b); err != nil {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.additionalProperties = &schema
+					} else {
 						return fmt.Errorf(`failed to decode value for field "additionalProperties": %w`, err)
 					}
-					if b {
-						v = &Schema{}
-					}
 				}
-				s.additionalProperties = v
 			case "allOf":
-				var v []*Schema
-				if err := dec.Decode(&v); err != nil {
+				v, err := unmarshalSchemaOrBoolSlice(dec)
+				if err != nil {
 					return fmt.Errorf(`failed to decode value for field "allOf": %w`, err)
 				}
 				s.allOf = v
@@ -567,8 +654,8 @@ LOOP:
 				}
 				s.anchor = &v
 			case "anyOf":
-				var v []*Schema
-				if err := dec.Decode(&v); err != nil {
+				v, err := unmarshalSchemaOrBoolSlice(dec)
+				if err != nil {
 					return fmt.Errorf(`failed to decode value for field "anyOf": %w`, err)
 				}
 				s.anyOf = v
@@ -590,18 +677,48 @@ LOOP:
 					return fmt.Errorf(`failed to decode value for field "contains": %w`, err)
 				}
 				s.contains = v
-			case "$defs":
+			case "contentEncoding":
 				var v string
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "contentEncoding": %w`, err)
+				}
+				s.contentEncoding = &v
+			case "contentMediaType":
+				var v string
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "contentMediaType": %w`, err)
+				}
+				s.contentMediaType = &v
+			case "contentSchema":
+				var v *Schema
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "contentSchema": %w`, err)
+				}
+				s.contentSchema = v
+			case "$defs":
+				var v map[string]*Schema
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`failed to decode value for field "$defs": %w`, err)
 				}
-				s.definitions = &v
+				s.definitions = v
+			case "dependentSchemas":
+				var v map[string]*Schema
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "dependentSchemas": %w`, err)
+				}
+				s.dependentSchemas = v
 			case "$dynamicRef":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`failed to decode value for field "$dynamicRef": %w`, err)
 				}
 				s.dynamicReference = &v
+			case "else":
+				var v *Schema
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "else": %w`, err)
+				}
+				s.elseSchema = v
 			case "enum":
 				var v []interface{}
 				if err := dec.Decode(&v); err != nil {
@@ -632,12 +749,30 @@ LOOP:
 					return fmt.Errorf(`failed to decode value for field "$id": %w`, err)
 				}
 				s.id = &v
-			case "items":
+			case "if":
 				var v *Schema
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "items": %w`, err)
+					return fmt.Errorf(`failed to decode value for field "if": %w`, err)
 				}
-				s.items = v
+				s.ifSchema = v
+			case "items":
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`failed to decode raw data for field "items": %w`, err)
+				}
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					s.items = SchemaBool(b)
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.items = &schema
+					} else {
+						return fmt.Errorf(`failed to decode value for field "items": %w`, err)
+					}
+				}
 			case "maxContains":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
@@ -711,8 +846,8 @@ LOOP:
 				}
 				s.not = v
 			case "oneOf":
-				var v []*Schema
-				if err := dec.Decode(&v); err != nil {
+				v, err := unmarshalSchemaOrBoolSlice(dec)
+				if err != nil {
 					return fmt.Errorf(`failed to decode value for field "oneOf": %w`, err)
 				}
 				s.oneOf = v
@@ -758,24 +893,54 @@ LOOP:
 					return fmt.Errorf(`failed to decode value for field "$schema": %w`, err)
 				}
 				s.schema = v
+			case "then":
+				var v *Schema
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`failed to decode value for field "then": %w`, err)
+				}
+				s.thenSchema = v
 			case "type":
-				var v []PrimitiveType
+				var v PrimitiveTypes
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`failed to decode value for field "type": %w`, err)
 				}
 				s.types = v
 			case "unevaluatedItems":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "unevaluatedItems": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`failed to decode raw data for field "unevaluatedItems": %w`, err)
 				}
-				s.unevaluatedItems = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					s.unevaluatedItems = SchemaBool(b)
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.unevaluatedItems = &schema
+					} else {
+						return fmt.Errorf(`failed to decode value for field "unevaluatedItems": %w`, err)
+					}
+				}
 			case "unevaluatedProperties":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "unevaluatedProperties": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`failed to decode raw data for field "unevaluatedProperties": %w`, err)
 				}
-				s.unevaluatedProperties = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					s.unevaluatedProperties = SchemaBool(b)
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.unevaluatedProperties = &schema
+					} else {
+						return fmt.Errorf(`failed to decode value for field "unevaluatedProperties": %w`, err)
+					}
+				}
 			case "uniqueItems":
 				var v bool
 				if err := dec.Decode(&v); err != nil {

@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -10,7 +11,7 @@ import (
 var _ Builder = (*BooleanValidatorBuilder)(nil)
 var _ Interface = (*booleanValidator)(nil)
 
-func compileBooleanValidator(s *schema.Schema) (Interface, error) {
+func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Boolean()
 	if s.HasConst() {
 		c, ok := s.Const().(bool)
@@ -84,7 +85,7 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 	return b
 }
 
-func (c *booleanValidator) Validate(v any) error {
+func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr, reflect.Interface:
@@ -98,7 +99,7 @@ func (c *booleanValidator) Validate(v any) error {
 		// Check const constraint
 		if c.constantValue != nil {
 			if boolVal != *c.constantValue {
-				return fmt.Errorf(`invalid value passed to BooleanValidator: must be const value %t, got %t`, *c.constantValue, boolVal)
+				return nil, fmt.Errorf(`invalid value passed to BooleanValidator: must be const value %t, got %t`, *c.constantValue, boolVal)
 			}
 		}
 
@@ -112,12 +113,12 @@ func (c *booleanValidator) Validate(v any) error {
 				}
 			}
 			if !found {
-				return fmt.Errorf(`invalid value passed to BooleanValidator: %t not found in enum`, boolVal)
+				return nil, fmt.Errorf(`invalid value passed to BooleanValidator: %t not found in enum`, boolVal)
 			}
 		}
 
-		return nil
+		return nil, nil
 	default:
-		return fmt.Errorf(`invalid value passed to BooleanValidator: expected boolean, got %T`, v)
+		return nil, fmt.Errorf(`invalid value passed to BooleanValidator: expected boolean, got %T`, v)
 	}
 }

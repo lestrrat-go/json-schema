@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -72,13 +73,13 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				s, err := schema.NewBuilder().Type(schema.BooleanType).Build()
+				s, err := schema.NewBuilder().Types(schema.BooleanType).Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -130,15 +131,15 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.BooleanType).
+					Types(schema.BooleanType).
 					Const(tc.constVal).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -202,15 +203,15 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
-					Type(schema.BooleanType).
+					Types(schema.BooleanType).
 					Enum(tc.enum...).
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -239,9 +240,9 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 				},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("enabled", schema.NewBuilder().Type(schema.BooleanType).MustBuild()).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("enabled", schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						Build()
 					return s
 				},
@@ -255,9 +256,9 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 				},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("enabled", schema.NewBuilder().Type(schema.BooleanType).MustBuild()).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("enabled", schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						Build()
 					return s
 				},
@@ -269,8 +270,8 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 				value: []any{true, false, true, false},
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.BooleanType).MustBuild()).
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
 						Build()
 					return s
 				},
@@ -281,8 +282,8 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 				value: []any{true, false, "true"}, // third item should be boolean
 				schema: func() *schema.Schema {
 					s, _ := schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.BooleanType).MustBuild()).
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
 						Build()
 					return s
 				},
@@ -298,15 +299,15 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 				},
 				schema: func() *schema.Schema {
 					configSchema, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
+						Types(schema.ObjectType).
 						Property("debug", schema.NewBuilder().
-							Type(schema.BooleanType).
+							Types(schema.BooleanType).
 							Const(true).
 							MustBuild()).
 						Build()
-					
+
 					s, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
+						Types(schema.ObjectType).
 						Property("config", configSchema).
 						Build()
 					return s
@@ -322,15 +323,15 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 				},
 				schema: func() *schema.Schema {
 					configSchema, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
+						Types(schema.ObjectType).
 						Property("debug", schema.NewBuilder().
-							Type(schema.BooleanType).
+							Types(schema.BooleanType).
 							Const(true).
 							MustBuild()).
 						Build()
-					
+
 					s, _ := schema.NewBuilder().
-						Type(schema.ObjectType).
+						Types(schema.ObjectType).
 						Property("config", configSchema).
 						Build()
 					return s
@@ -342,10 +343,10 @@ func TestBooleanValidatorComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {

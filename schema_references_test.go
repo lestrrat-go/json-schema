@@ -69,39 +69,55 @@ func TestSchemaReferences(t *testing.T) {
 func TestSchemaDefinitions(t *testing.T) {
 	t.Run("Schema with Definitions", func(t *testing.T) {
 		// Test $defs keyword
+		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
+		require.NoError(t, err)
+		
 		s, err := schema.NewBuilder().
-			Definitions("person").
+			Definitions("person", personSchema).
 			Build()
 		require.NoError(t, err)
-		require.Equal(t, "person", s.Definitions())
+		require.True(t, s.HasDefinitions())
+		defs := s.Definitions()
+		require.Contains(t, defs, "person")
+		require.Equal(t, personSchema, defs["person"])
 	})
 
 	t.Run("Schema with ID and Definitions", func(t *testing.T) {
 		// Test schema with both ID and definitions
+		personSchema, err := schema.NewBuilder().Types(schema.ObjectType).Build()
+		require.NoError(t, err)
+		
 		s, err := schema.NewBuilder().
 			ID("https://example.com/schemas/main").
-			Definitions("person").
+			Definitions("person", personSchema).
 			Build()
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/schemas/main", s.ID())
-		require.Equal(t, "person", s.Definitions())
+		defs := s.Definitions()
+		require.Contains(t, defs, "person")
+		require.Equal(t, personSchema, defs["person"])
 	})
 
 	t.Run("Complex Schema with Multiple References", func(t *testing.T) {
 		// Test schema with multiple reference types
+		baseSchema, err := schema.NewBuilder().Types(schema.ObjectType).Build()
+		require.NoError(t, err)
+		
 		s, err := schema.NewBuilder().
 			ID("https://example.com/schemas/complex").
-			Reference("#/definitions/base").
-			DynamicReference("#/definitions/dynamic").
-			Definitions("definitions").
+			Reference("#/$defs/base").
+			DynamicReference("#/$defs/dynamic").
+			Definitions("base", baseSchema).
 			Anchor("main").
 			Build()
 		require.NoError(t, err)
 		
 		require.Equal(t, "https://example.com/schemas/complex", s.ID())
-		require.Equal(t, "#/definitions/base", s.Reference())
-		require.Equal(t, "#/definitions/dynamic", s.DynamicReference())
-		require.Equal(t, "definitions", s.Definitions())
+		require.Equal(t, "#/$defs/base", s.Reference())
+		require.Equal(t, "#/$defs/dynamic", s.DynamicReference())
+		defs := s.Definitions()
+		require.Contains(t, defs, "base")
+		require.Equal(t, baseSchema, defs["base"])
 		require.Equal(t, "main", s.Anchor())
 	})
 }
@@ -112,8 +128,8 @@ func TestSchemaReferenceResolution(t *testing.T) {
 		// Test schema that references itself
 		s, err := schema.NewBuilder().
 			ID("https://example.com/recursive").
-			Type(schema.ObjectType).
-			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 			Property("child", schema.NewBuilder().Reference("#").MustBuild()).
 			Build()
 		require.NoError(t, err)
@@ -129,15 +145,15 @@ func TestSchemaReferenceResolution(t *testing.T) {
 		// Test schema that references another schema
 		personSchema, err := schema.NewBuilder().
 			ID("https://example.com/person").
-			Type(schema.ObjectType).
-			Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 			Build()
 		require.NoError(t, err)
 		
 		addressSchema, err := schema.NewBuilder().
 			ID("https://example.com/address").
-			Type(schema.ObjectType).
-			Property("street", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+			Types(schema.ObjectType).
+			Property("street", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 			Property("resident", schema.NewBuilder().Reference("https://example.com/person").MustBuild()).
 			Build()
 		require.NoError(t, err)
@@ -152,9 +168,9 @@ func TestSchemaReferenceResolution(t *testing.T) {
 		// Test schema with nested references
 		s, err := schema.NewBuilder().
 			ID("https://example.com/nested").
-			Type(schema.ObjectType).
+			Types(schema.ObjectType).
 			Property("items", schema.NewBuilder().
-				Type(schema.ArrayType).
+				Types(schema.ArrayType).
 				Items(schema.NewBuilder().Reference("#/definitions/item").MustBuild()).
 				MustBuild()).
 			Build()
@@ -165,18 +181,23 @@ func TestSchemaReferenceResolution(t *testing.T) {
 		itemsProp := s.Properties()["items"]
 		require.NotNil(t, itemsProp)
 		require.NotNil(t, itemsProp.Items())
-		require.Equal(t, "#/definitions/item", itemsProp.Items().Reference())
+		itemsSchema, ok := itemsProp.Items().(*schema.Schema)
+		require.True(t, ok, "Items should be a *Schema, not a boolean")
+		require.Equal(t, "#/definitions/item", itemsSchema.Reference())
 	})
 }
 
 // TestSchemaReferencesSerialization tests that references serialize correctly
 func TestSchemaReferencesSerialization(t *testing.T) {
 	t.Run("Reference Serialization", func(t *testing.T) {
+		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
+		require.NoError(t, err)
+		
 		original, err := schema.NewBuilder().
 			ID("https://example.com/test").
-			Reference("#/definitions/person").
-			DynamicReference("#/definitions/dynamic").
-			Definitions("person").
+			Reference("#/$defs/person").
+			DynamicReference("#/$defs/dynamic").
+			Definitions("person", personSchema).
 			Anchor("main").
 			Build()
 		require.NoError(t, err)
@@ -191,9 +212,11 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		
 		// Verify reference fields
 		require.Equal(t, "https://example.com/test", s.ID())
-		require.Equal(t, "#/definitions/person", s.Reference())
-		require.Equal(t, "#/definitions/dynamic", s.DynamicReference())
-		require.Equal(t, "person", s.Definitions())
+		require.Equal(t, "#/$defs/person", s.Reference())
+		require.Equal(t, "#/$defs/dynamic", s.DynamicReference())
+		defs := s.Definitions()
+		require.Contains(t, defs, "person")
+		require.True(t, defs["person"].ContainsType(schema.StringType))
 		require.Equal(t, "main", s.Anchor())
 	})
 
@@ -201,9 +224,9 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		// Create a schema with complex reference structure
 		original, err := schema.NewBuilder().
 			ID("https://example.com/complex-refs").
-			Type(schema.ObjectType).
-			Property("base", schema.NewBuilder().Reference("#/definitions/base").MustBuild()).
-			Property("dynamic", schema.NewBuilder().DynamicReference("#/definitions/dynamic").MustBuild()).
+			Types(schema.ObjectType).
+			Property("base", schema.NewBuilder().Reference("#/$defs/base").MustBuild()).
+			Property("dynamic", schema.NewBuilder().DynamicReference("#/$defs/dynamic").MustBuild()).
 			Property("external", schema.NewBuilder().Reference("https://external.com/schema").MustBuild()).
 			Build()
 		require.NoError(t, err)
@@ -226,12 +249,12 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		// Check base property reference
 		baseProp := props["base"]
 		require.NotNil(t, baseProp)
-		require.Equal(t, "#/definitions/base", baseProp.Reference())
+		require.Equal(t, "#/$defs/base", baseProp.Reference())
 		
 		// Check dynamic property reference
 		dynamicProp := props["dynamic"]
 		require.NotNil(t, dynamicProp)
-		require.Equal(t, "#/definitions/dynamic", dynamicProp.DynamicReference())
+		require.Equal(t, "#/$defs/dynamic", dynamicProp.DynamicReference())
 		
 		// Check external property reference
 		externalProp := props["external"]

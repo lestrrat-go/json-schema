@@ -1,6 +1,7 @@
 package validator_test
 
 import (
+	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -14,15 +15,15 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 		testCases := []struct {
 			name    string
 			value   any
-			schemas []*schema.Schema
+			schemas []schema.SchemaOrBool
 			wantErr bool
 			errMsg  string
 		}{
 			{
 				name:  "all schemas pass",
 				value: "hello",
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().MinLength(3).MustBuild(),
 					schema.NewBuilder().MaxLength(10).MustBuild(),
 				},
@@ -31,8 +32,8 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "one schema fails",
 				value: "hi",
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().MinLength(3).MustBuild(), // fails here
 					schema.NewBuilder().MaxLength(10).MustBuild(),
 				},
@@ -42,8 +43,8 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "type mismatch fails first schema",
 				value: 123,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(), // fails here
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(), // fails here
 					schema.NewBuilder().MinLength(3).MustBuild(),
 				},
 				wantErr: true,
@@ -51,35 +52,35 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "complex allOf with object constraints",
 				value: map[string]any{"name": "John", "age": 30, "email": "john@example.com"},
-				schemas: []*schema.Schema{
+				schemas: []schema.SchemaOrBool{
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).MustBuild(),
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("age", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("age", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).MustBuild(),
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("email", schema.NewBuilder().Type(schema.StringType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("email", schema.NewBuilder().Types(schema.StringType).MustBuild()).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "allOf with overlapping but compatible constraints",
 				value: 50,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.IntegerType).Minimum(10).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).Maximum(100).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MultipleOf(5).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.IntegerType).Minimum(10).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).Maximum(100).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MultipleOf(5).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "allOf with conflicting constraints",
 				value: 7,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.IntegerType).Minimum(10).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).Maximum(5).MustBuild(), // impossible
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.IntegerType).Minimum(10).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).Maximum(5).MustBuild(), // impossible
 				},
 				wantErr: true,
 			},
@@ -92,10 +93,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -112,34 +113,34 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 		testCases := []struct {
 			name    string
 			value   any
-			schemas []*schema.Schema
+			schemas []schema.SchemaOrBool
 			wantErr bool
 			errMsg  string
 		}{
 			{
 				name:  "first schema passes",
 				value: "hello",
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "second schema passes",
 				value: 123,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "multiple schemas pass",
 				value: 42,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.NumberType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.NumberType).MustBuild(),
 					schema.NewBuilder().Minimum(0).MustBuild(),
 				},
 				wantErr: false,
@@ -147,10 +148,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "no schemas pass",
 				value: true,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.ArrayType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.ArrayType).MustBuild(),
 				},
 				wantErr: true,
 				errMsg:  "anyOf validation failed",
@@ -158,28 +159,28 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "anyOf with different constraint types",
 				value: []any{1, 2, 3},
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().
-						Type(schema.ArrayType).
-						Items(schema.NewBuilder().Type(schema.IntegerType).MustBuild()).MustBuild(),
+						Types(schema.ArrayType).
+						Items(schema.NewBuilder().Types(schema.IntegerType).MustBuild()).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "anyOf with object alternatives",
 				value: map[string]any{"name": "John", "age": 30},
-				schemas: []*schema.Schema{
+				schemas: []schema.SchemaOrBool{
 					// Person schema
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						Property("age", schema.NewBuilder().Type(schema.IntegerType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+						Property("age", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).MustBuild(),
 					// Product schema
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("title", schema.NewBuilder().Type(schema.StringType).MustBuild()).
-						Property("price", schema.NewBuilder().Type(schema.NumberType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("title", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+						Property("price", schema.NewBuilder().Types(schema.NumberType).MustBuild()).MustBuild(),
 				},
 				wantErr: false,
 			},
@@ -192,10 +193,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -212,25 +213,25 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 		testCases := []struct {
 			name    string
 			value   any
-			schemas []*schema.Schema
+			schemas []schema.SchemaOrBool
 			wantErr bool
 			errMsg  string
 		}{
 			{
 				name:  "exactly one schema passes",
 				value: "hello",
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "no schemas pass",
 				value: true,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.StringType).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.StringType).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 				},
 				wantErr: true,
 				errMsg:  "oneOf validation failed",
@@ -238,9 +239,9 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "multiple schemas pass - should fail",
 				value: 42,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
-					schema.NewBuilder().Type(schema.NumberType).MustBuild(), // integers are also numbers
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+					schema.NewBuilder().Types(schema.NumberType).MustBuild(), // integers are also numbers
 					schema.NewBuilder().Minimum(0).MustBuild(),
 				},
 				wantErr: true,
@@ -249,43 +250,43 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:  "oneOf with mutually exclusive constraints",
 				value: 15,
-				schemas: []*schema.Schema{
-					schema.NewBuilder().Type(schema.IntegerType).Maximum(10).MustBuild(),
-					schema.NewBuilder().Type(schema.IntegerType).Minimum(12).MustBuild(),
+				schemas: []schema.SchemaOrBool{
+					schema.NewBuilder().Types(schema.IntegerType).Maximum(10).MustBuild(),
+					schema.NewBuilder().Types(schema.IntegerType).Minimum(12).MustBuild(),
 				},
 				wantErr: false, // only second schema passes
 			},
 			{
 				name:  "oneOf with complex object types",
 				value: map[string]any{"type": "circle", "radius": 5},
-				schemas: []*schema.Schema{
+				schemas: []schema.SchemaOrBool{
 					// Circle schema
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("type", schema.NewBuilder().Type(schema.StringType).Const("circle").MustBuild()).
-						Property("radius", schema.NewBuilder().Type(schema.NumberType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("type", schema.NewBuilder().Types(schema.StringType).Const("circle").MustBuild()).
+						Property("radius", schema.NewBuilder().Types(schema.NumberType).MustBuild()).
 						MustBuild(),
 					// Rectangle schema
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("type", schema.NewBuilder().Type(schema.StringType).Const("rectangle").MustBuild()).
-						Property("width", schema.NewBuilder().Type(schema.NumberType).MustBuild()).
-						Property("height", schema.NewBuilder().Type(schema.NumberType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("type", schema.NewBuilder().Types(schema.StringType).Const("rectangle").MustBuild()).
+						Property("width", schema.NewBuilder().Types(schema.NumberType).MustBuild()).
+						Property("height", schema.NewBuilder().Types(schema.NumberType).MustBuild()).MustBuild(),
 				},
 				wantErr: false,
 			},
 			{
 				name:  "oneOf with ambiguous object",
 				value: map[string]any{"name": "John"},
-				schemas: []*schema.Schema{
+				schemas: []schema.SchemaOrBool{
 					// Person schema
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).MustBuild(),
 					// Product schema with optional name
 					schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).MustBuild(),
+						Types(schema.ObjectType).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).MustBuild(),
 				},
 				wantErr: true, // both schemas match
 				errMsg:  "oneOf validation failed",
@@ -299,10 +300,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -326,54 +327,54 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 			{
 				name:      "value doesn't match not schema - valid",
 				value:     123,
-				notSchema: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				notSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:   false,
 			},
 			{
 				name:      "value matches not schema - invalid",
 				value:     "hello",
-				notSchema: schema.NewBuilder().Type(schema.StringType).MustBuild(),
+				notSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:   true,
 				errMsg:    "not validation failed",
 			},
 			{
 				name:      "not with minimum constraint",
 				value:     5,
-				notSchema: schema.NewBuilder().Type(schema.IntegerType).Minimum(10).MustBuild(),
+				notSchema: schema.NewBuilder().Types(schema.IntegerType).Minimum(10).MustBuild(),
 				wantErr:   false, // 5 doesn't match "integer >= 10"
 			},
 			{
 				name:      "not with minimum constraint - fails",
 				value:     15,
-				notSchema: schema.NewBuilder().Type(schema.IntegerType).Minimum(10).MustBuild(),
+				notSchema: schema.NewBuilder().Types(schema.IntegerType).Minimum(10).MustBuild(),
 				wantErr:   true, // 15 matches "integer >= 10"
 			},
 			{
 				name:  "not with complex object schema",
 				value: map[string]any{"name": "John", "type": "user"},
 				notSchema: schema.NewBuilder().
-					Type(schema.ObjectType).
-					Property("type", schema.NewBuilder().Type(schema.StringType).Const("admin").MustBuild()).MustBuild(),
+					Types(schema.ObjectType).
+					Property("type", schema.NewBuilder().Types(schema.StringType).Const("admin").MustBuild()).MustBuild(),
 				wantErr: false, // doesn't match admin schema
 			},
 			{
 				name:  "not with complex object schema - fails",
 				value: map[string]any{"name": "John", "type": "admin"},
 				notSchema: schema.NewBuilder().
-					Type(schema.ObjectType).
-					Property("type", schema.NewBuilder().Type(schema.StringType).Const("admin").MustBuild()).MustBuild(),
+					Types(schema.ObjectType).
+					Property("type", schema.NewBuilder().Types(schema.StringType).Const("admin").MustBuild()).MustBuild(),
 				wantErr: true, // matches admin schema
 			},
 			{
 				name:      "not with array schema",
 				value:     "not an array",
-				notSchema: schema.NewBuilder().Type(schema.ArrayType).MustBuild(),
+				notSchema: schema.NewBuilder().Types(schema.ArrayType).MustBuild(),
 				wantErr:   false,
 			},
 			{
 				name:      "not with array schema - fails",
 				value:     []any{1, 2, 3},
-				notSchema: schema.NewBuilder().Type(schema.ArrayType).MustBuild(),
+				notSchema: schema.NewBuilder().Types(schema.ArrayType).MustBuild(),
 				wantErr:   true,
 			},
 		}
@@ -385,10 +386,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 					Build()
 				require.NoError(t, err)
 
-				v, err := validator.Compile(s)
+				v, err := validator.Compile(context.Background(), s)
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -422,7 +423,7 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 
 					return schema.NewBuilder().
 						AllOf(
-							schema.NewBuilder().Type(schema.StringType).MustBuild(),
+							schema.NewBuilder().Types(schema.StringType).MustBuild(),
 							anyOfSchema,
 						).MustBuild()
 				},
@@ -435,13 +436,13 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 					// Either (string AND minLength 5) OR (integer AND minimum 0)
 					stringConstraints := schema.NewBuilder().
 						AllOf(
-							schema.NewBuilder().Type(schema.StringType).MustBuild(),
+							schema.NewBuilder().Types(schema.StringType).MustBuild(),
 							schema.NewBuilder().MinLength(5).MustBuild(),
 						).MustBuild()
 
 					integerConstraints := schema.NewBuilder().
 						AllOf(
-							schema.NewBuilder().Type(schema.IntegerType).MustBuild(),
+							schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 							schema.NewBuilder().Minimum(0).MustBuild(),
 						).MustBuild()
 
@@ -458,13 +459,13 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 					// Not (short string OR long string) = medium length strings
 					oneOfSchema := schema.NewBuilder().
 						OneOf(
-							schema.NewBuilder().Type(schema.StringType).MaxLength(3).MustBuild(),  // short
-							schema.NewBuilder().Type(schema.StringType).MinLength(10).MustBuild(), // long
+							schema.NewBuilder().Types(schema.StringType).MaxLength(3).MustBuild(),  // short
+							schema.NewBuilder().Types(schema.StringType).MinLength(10).MustBuild(), // long
 						).MustBuild()
 
 					return schema.NewBuilder().
 						AllOf(
-							schema.NewBuilder().Type(schema.StringType).MustBuild(),
+							schema.NewBuilder().Types(schema.StringType).MustBuild(),
 							schema.NewBuilder().Not(oneOfSchema).MustBuild(),
 						).MustBuild()
 				},
@@ -476,13 +477,13 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				schema: func() *schema.Schema {
 					oneOfSchema := schema.NewBuilder().
 						OneOf(
-							schema.NewBuilder().Type(schema.StringType).MaxLength(3).MustBuild(),  // short
-							schema.NewBuilder().Type(schema.StringType).MinLength(10).MustBuild(), // long
+							schema.NewBuilder().Types(schema.StringType).MaxLength(3).MustBuild(),  // short
+							schema.NewBuilder().Types(schema.StringType).MinLength(10).MustBuild(), // long
 						).MustBuild()
 
 					return schema.NewBuilder().
 						AllOf(
-							schema.NewBuilder().Type(schema.StringType).MustBuild(),
+							schema.NewBuilder().Types(schema.StringType).MustBuild(),
 							schema.NewBuilder().Not(oneOfSchema).MustBuild(), // should NOT be short or long
 						).MustBuild()
 				},
@@ -492,10 +493,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {
@@ -521,7 +522,7 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				value: "hello world",
 				schema: func() *schema.Schema {
 					return schema.NewBuilder().
-						Type(schema.StringType).
+						Types(schema.StringType).
 						AllOf(
 							schema.NewBuilder().MinLength(5).MustBuild(),
 							schema.NewBuilder().Pattern("^hello").MustBuild(),
@@ -535,9 +536,9 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				schema: func() *schema.Schema {
 					return schema.NewBuilder().
 						AnyOf(
-							schema.NewBuilder().Type(schema.StringType).MinLength(5).MustBuild(),
-							schema.NewBuilder().Type(schema.IntegerType).Minimum(0).MustBuild(),
-							schema.NewBuilder().Type(schema.BooleanType).MustBuild(),
+							schema.NewBuilder().Types(schema.StringType).MinLength(5).MustBuild(),
+							schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild(),
+							schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 						).MustBuild()
 				},
 				wantErr: false,
@@ -547,15 +548,15 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 				value: map[string]any{"type": "user", "name": "John"},
 				schema: func() *schema.Schema {
 					userSchema := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("type", schema.NewBuilder().Type(schema.StringType).Const("user").MustBuild()).
-						Property("name", schema.NewBuilder().Type(schema.StringType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("type", schema.NewBuilder().Types(schema.StringType).Const("user").MustBuild()).
+						Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 						MustBuild()
 
 					adminSchema := schema.NewBuilder().
-						Type(schema.ObjectType).
-						Property("type", schema.NewBuilder().Type(schema.StringType).Const("admin").MustBuild()).
-						Property("permissions", schema.NewBuilder().Type(schema.ArrayType).MustBuild()).
+						Types(schema.ObjectType).
+						Property("type", schema.NewBuilder().Types(schema.StringType).Const("admin").MustBuild()).
+						Property("permissions", schema.NewBuilder().Types(schema.ArrayType).MustBuild()).
 						MustBuild()
 
 					return schema.NewBuilder().
@@ -568,10 +569,10 @@ func TestSchemaCompositionComprehensive(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				v, err := validator.Compile(tc.schema())
+				v, err := validator.Compile(context.Background(), tc.schema())
 				require.NoError(t, err)
 
-				err = v.Validate(tc.value)
+				_, err = v.Validate(context.Background(), tc.value)
 				if tc.wantErr {
 					require.Error(t, err)
 					if tc.errMsg != "" {

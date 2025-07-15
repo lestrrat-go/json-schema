@@ -32,13 +32,15 @@ func isNilZeroType(field codegen.Field) bool {
 	return strings.HasPrefix(typ, "*") ||
 		strings.HasPrefix(typ, "[]") ||
 		strings.HasPrefix(typ, "map[") ||
+		typ == "PrimitiveTypes" ||
+		typ == "SchemaOrBool" ||
 		field.Name(false) == "schema"
 }
 
 func isVariadicSliceType(field codegen.Field) bool {
 	typ := field.Type()
 	switch typ {
-	case "[]*Schema", "[]interface{}", "[]string":
+	case "[]*Schema", "[]interface{}", "[]string", "PrimitiveTypes", "[]SchemaOrBool":
 		return true
 	default:
 		return false
@@ -54,6 +56,10 @@ func getVariadicElementType(field codegen.Field) string {
 		return "interface{}"
 	case "[]string":
 		return "string"
+	case "PrimitiveTypes":
+		return "PrimitiveType"
+	case "[]SchemaOrBool":
+		return "SchemaOrBool"
 	default:
 		return ""
 	}
@@ -230,20 +236,37 @@ func genObject(obj *codegen.Object) error {
 		switch field.Type() {
 		default:
 			o.L("case %q:", field.JSON())
-			if field.Name(false) == "additionalProperties" {
-				// Attempt to decode as *Schema first, then as a boolean
-				o.L("var v *Schema")
-				o.L("var tmp Schema")
-				o.L("if err := dec.Decode(&tmp); err == nil {")
-				o.L("v = &tmp")
-				o.L("} else {")
+			if field.Type() == "SchemaOrBool" {
+				// Handle single SchemaOrBool fields
+				o.L("var rawData json.RawMessage")
+				o.L("if err := dec.Decode(&rawData); err != nil {")
+				o.L("return fmt.Errorf(`failed to decode raw data for field %q: %%w`, err)", field.JSON())
+				o.L("}")
+				o.L("// Try to decode as boolean first")
 				o.L("var b bool")
-				o.L("if err = dec.Decode(&b); err != nil {")
+				o.L("if err := json.Unmarshal(rawData, &b); err == nil {")
+				o.L("s.%s = SchemaBool(b)", field.Name(false))
+				o.L("} else {")
+				o.L("// Try to decode as Schema object")
+				o.L("var schema Schema")
+				o.L("if err := json.Unmarshal(rawData, &schema); err == nil {")
+				o.L("s.%s = &schema", field.Name(false))
+				o.L("} else {")
 				o.L("return fmt.Errorf(`failed to decode value for field %q: %%w`, err)", field.JSON())
 				o.L("}")
-				o.L("if b {")
-				o.L("v = &Schema{}")
 				o.L("}")
+			} else if field.Type() == "[]SchemaOrBool" {
+				// Special handling for []SchemaOrBool fields - use token-based parsing
+				o.L("v, err := unmarshalSchemaOrBoolSlice(dec)")
+				o.L("if err != nil {")
+				o.L("return fmt.Errorf(`failed to decode value for field %q: %%w`, err)", field.JSON())
+				o.L("}")
+				o.L("s.%s = v", field.Name(false))
+			} else if field.Type() == "SchemaOrBool" {
+				// Special handling for SchemaOrBool fields - decode as raw JSON values
+				o.L("var v %s", field.Type())
+				o.L("if err := dec.Decode(&v); err != nil {")
+				o.L("return fmt.Errorf(`failed to decode value for field %q: %%w`, err)", field.JSON())
 				o.L("}")
 				o.L("s.%s = v", field.Name(false))
 			} else {
@@ -305,30 +328,17 @@ func genBuilder(obj *codegen.Object) error {
 	o.L("}")
 
 	for _, field := range obj.Fields() {
-		if field.Name(true) == "AdditionalProperties" {
-			o.LL("func (b *Builder) AdditionalProperties(v SchemaOrBool) *Builder {")
+		if field.Type() == "SchemaOrBool" {
+			o.LL("func (b *Builder) %s(v SchemaOrBool) *Builder {", field.Name(true))
 			o.L("if b.err != nil {")
 			o.L("return b")
 			o.L("}")
-			o.L("var tmp Schema")
-			o.L("if err := tmp.Accept(v); err != nil {")
-			o.L("b.err = fmt.Errorf(`failed to accept value for %q: %%w`, err)", field.JSON())
-			o.L("return b")
-			o.L("}")
-			o.L("b.additionalProperties = &tmp")
+			o.L("b.%s = v", field.Name(false))
 			o.L("return b")
 			o.L("}")
 			continue
 		}
 		switch field.Type() {
-		case `[]PrimitiveType`:
-			o.LL("func (b *Builder) Type(v PrimitiveType) *Builder {")
-			o.L("if b.err != nil {")
-			o.L("return b")
-			o.L("}")
-			o.L("b.types = append(b.types, v)")
-			o.L("return b")
-			o.L("}")
 		case `map[string]*Schema`:
 			name := strings.Replace(field.Name(true), `Properties`, `Property`, 1)
 			o.LL("func (b *Builder) %s(n string, v %s) *Builder {", name, `*Schema`)
@@ -346,14 +356,34 @@ func genBuilder(obj *codegen.Object) error {
 				o.L("if b.err != nil {")
 				o.L("return b")
 				o.L("}")
-				o.LL("b.%s = v", field.Name(false))
+				if field.Type() == "PrimitiveTypes" {
+					o.LL("b.%s = PrimitiveTypes(v)", field.Name(false))
+				} else if field.Type() == "[]SchemaOrBool" {
+					o.LL("for _, item := range v {")
+					o.L("if err := validateSchemaOrBool(item); err != nil {")
+					o.L("b.err = fmt.Errorf(`invalid value in %s: %%w`, err)", field.Name(true))
+					o.L("return b")
+					o.L("}")
+					o.L("}")
+					o.LL("b.%s = v", field.Name(false))
+				} else {
+					o.LL("b.%s = v", field.Name(false))
+				}
 				o.L("return b")
 				o.L("}")
 			} else {
-				o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), field.Type())
+				paramType := field.Type()
+				o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), paramType)
 				o.L("if b.err != nil {")
 				o.L("return b")
 				o.L("}")
+
+				if field.Type() == "SchemaOrBool" {
+					o.LL("if err := validateSchemaOrBool(v); err != nil {")
+					o.L("b.err = fmt.Errorf(`invalid value for %s: %%w`, err)", field.Name(true))
+					o.L("return b")
+					o.L("}")
+				}
 
 				if !isNilZeroType(field) && !isInterfaceField(field) {
 					o.LL("b.%s = &v", field.Name(false))
@@ -364,6 +394,66 @@ func genBuilder(obj *codegen.Object) error {
 				o.L("}")
 			}
 		}
+	}
+
+	// Clone method creates a new Builder pre-initialized with values from an existing Schema
+	o.LL("func (b *Builder) Clone(original *Schema) *Builder {")
+	o.L("if b.err != nil {")
+	o.L("return b")
+	o.L("}")
+	o.L("if original == nil {")
+	o.L("return b")
+	o.L("}")
+	
+	// Copy all fields from original schema to builder
+	for _, field := range obj.Fields() {
+		switch field.Type() {
+		case `map[string]*Schema`:
+			// For map fields, we need to copy the map to propPair slices
+			o.LL("if original.%s != nil {", field.Name(false))
+			o.L("for name, schema := range original.%s {", field.Name(false))
+			o.L("b.%s = append(b.%s, &propPair{Name: name, Schema: schema})", field.Name(false), field.Name(false))
+			o.L("}")
+			o.L("}")
+		default:
+			if field.Name(false) == "schema" {
+				// Special handling for schema field (it's a string, not a pointer)
+				o.LL("b.%s = original.%s", field.Name(false), field.Name(false))
+			} else {
+				o.LL("if original.%s != nil {", field.Name(false))
+				o.L("b.%s = original.%s", field.Name(false), field.Name(false))
+				o.L("}")
+			}
+		}
+	}
+	
+	o.L("return b")
+	o.L("}")
+
+	// Reset methods for clearing individual fields
+	for _, field := range obj.Fields() {
+		methodName := "Reset" + field.Name(true)
+		o.LL("func (b *Builder) %s() *Builder {", methodName)
+		o.L("if b.err != nil {")
+		o.L("return b")
+		o.L("}")
+		
+		switch field.Type() {
+		case `map[string]*Schema`:
+			// For map fields, clear the propPair slice
+			o.L("b.%s = nil", field.Name(false))
+		default:
+			if field.Name(false) == "schema" {
+				// Special handling for schema field (it's a string, reset to default)
+				o.L("b.%s = Version", field.Name(false))
+			} else {
+				// For all other fields, set to nil/zero value
+				o.L("b.%s = nil", field.Name(false))
+			}
+		}
+		
+		o.L("return b")
+		o.L("}")
 	}
 
 	o.LL("func (b *Builder) Build() (*Schema, error) {")

@@ -3,17 +3,88 @@
 package schema
 
 import (
+	"encoding/json"
 	"fmt"
 	"unicode"
 )
 
-// SchemaOrBool is a visual indicator for those cases where
-// a Schema or boolean can be passed, for example, AdditionalProperties
-type SchemaOrBool any
+// SchemaOrBool is an interface for types that can be either a Schema or boolean
+type SchemaOrBool interface {
+	schemaOrBool() // internal identifier
+}
+
+// SchemaBool represents a boolean value in allOf, oneOf, anyOf, etc
+type SchemaBool bool
+
+// schemaOrBool implements the SchemaOrBool interface
+func (s SchemaBool) schemaOrBool() {}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (s *SchemaBool) UnmarshalJSON(data []byte) error {
+	var b bool
+	if err := json.Unmarshal(data, &b); err != nil {
+		return fmt.Errorf("failed to unmarshal SchemaBool: %w", err)
+	}
+	*s = SchemaBool(b)
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler
+func (s SchemaBool) MarshalJSON() ([]byte, error) {
+	return json.Marshal(bool(s))
+}
 
 // The schema that this implementation supports. We use the name
 // `Version` here because `Schema` is confusin with other types
 const Version = `https://json-schema.org/draft/2020-12/schema`
+
+// schemaOrBool implements the SchemaOrBool interface for Schema
+func (s *Schema) schemaOrBool() {}
+
+// Convenience variables and functions for SchemaBool values
+var schemaTrue = SchemaBool(true)
+var schemaFalse = SchemaBool(false)
+
+// SchemaTrue returns a SchemaBool representing true
+func SchemaTrue() SchemaBool {
+	return schemaTrue
+}
+
+// SchemaFalse returns a SchemaBool representing false
+func SchemaFalse() SchemaBool {
+	return schemaFalse
+}
+
+// unmarshalSchemaOrBoolSlice parses a JSON array using token-based decoding
+func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
+	// We need to decode the array as raw JSON first, then handle each element
+	var rawArray []json.RawMessage
+	if err := dec.Decode(&rawArray); err != nil {
+		return nil, fmt.Errorf("failed to decode array: %w", err)
+	}
+	
+	result := make([]SchemaOrBool, 0, len(rawArray))
+	
+	for i, rawElement := range rawArray {
+		// Try to decode as boolean first
+		var b bool
+		if err := json.Unmarshal(rawElement, &b); err == nil {
+			result = append(result, SchemaBool(b))
+			continue
+		}
+		
+		// Try to decode as Schema object
+		var schema Schema
+		if err := json.Unmarshal(rawElement, &schema); err == nil {
+			result = append(result, &schema)
+			continue
+		}
+		
+		return nil, fmt.Errorf("element at index %d is neither boolean nor valid schema object", i)
+	}
+	
+	return result, nil
+}
 
 func (s *Schema) Accept(v interface{}) error {
 	switch v := v.(type) {
@@ -29,6 +100,16 @@ func (s *Schema) Accept(v interface{}) error {
 		return fmt.Errorf(`invalid value for additionalProperties. Got %T`, v)
 	}
 	return nil
+}
+
+// validateSchemaOrBool checks if a value is either a bool or *Schema
+func validateSchemaOrBool(v any) error {
+	switch v.(type) {
+	case bool, *Schema:
+		return nil
+	default:
+		return fmt.Errorf(`expected bool or *Schema, got %T`, v)
+	}
 }
 
 type propPair struct {
