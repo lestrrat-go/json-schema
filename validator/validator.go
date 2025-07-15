@@ -162,8 +162,10 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			return nil, fmt.Errorf("failed to resolve reference %s: %w", reference, err)
 		}
 		
-		// Compile the reference validator
-		refValidator, err := Compile(ctx, &targetSchema)
+		// Compile the reference validator with the target schema as the new root
+		// This ensures that relative references within the target schema are resolved correctly
+		refCtx := WithRootSchema(ctx, &targetSchema)
+		refValidator, err := Compile(refCtx, &targetSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile reference validator: %w", err)
 		}
@@ -351,7 +353,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, v)
 		}
-		if s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() {
+		if s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() || s.HasPropertyNames() {
 			// For inferred object types, create non-strict object validator
 			v, err := compileObjectValidator(ctx, s, false)
 			if err != nil {
@@ -1302,7 +1304,7 @@ func hasBaseConstraints(s *schema.Schema) bool {
 		s.HasMinLength() || s.HasMaxLength() || s.HasPattern() ||
 		s.HasMinimum() || s.HasMaximum() || s.HasExclusiveMinimum() || s.HasExclusiveMaximum() || s.HasMultipleOf() ||
 		s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() ||
-		s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() ||
+		s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() || s.HasPropertyNames() ||
 		s.HasEnum() || s.HasConst()
 }
 
@@ -1392,6 +1394,9 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 		for propName, depSchema := range s.DependentSchemas() {
 			builder.DependentSchemas(propName, depSchema)
 		}
+	}
+	if s.HasPropertyNames() {
+		builder.PropertyNames(s.PropertyNames())
 	}
 	
 	// Copy enum/const

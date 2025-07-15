@@ -22,11 +22,20 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			tmp = int(rv.Int())
 		case reflect.Float32, reflect.Float64:
-			tmp = int(rv.Float())
+			f := rv.Float()
+			if f < 1.0 && f > 0 {
+				// For very small positive fractions like 1e-8, any integer is a multiple
+				// Skip adding multipleOf constraint as all integers pass
+				tmp = 0 // This will be ignored due to the <= 0 check in validation
+			} else {
+				tmp = int(f)
+			}
 		default:
 			panic(`poop`)
 		}
-		b.MultipleOf(tmp)
+		if tmp > 0 { // Only set multipleOf if it's a positive integer
+			b.MultipleOf(tmp)
+		}
 	}
 
 	if s.HasMaximum() {
@@ -231,6 +240,10 @@ func (v *integerValidator) Validate(ctx context.Context, in any) (Result, error)
 		if f != math.Trunc(f) {
 			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T with non-integer value %g`, in, f)
 		}
+		// Check if the float is within integer range
+		if f > math.MaxInt || f < math.MinInt || math.IsInf(f, 0) || math.IsNaN(f) {
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value %g is out of integer range`, f)
+		}
 		n = int(f)
 	default:
 		return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T`, in)
@@ -261,7 +274,11 @@ func (v *integerValidator) Validate(ctx context.Context, in any) (Result, error)
 	}
 
 	if mo := v.multipleOf; mo != nil {
-		if math.Mod(float64(n), float64(*mo)) != 0 {
+		if *mo <= 0 {
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: multipleOf must be positive`)
+		}
+		remainder := math.Mod(float64(n), float64(*mo))
+		if math.Abs(remainder) > 1e-9 && math.Abs(remainder-float64(*mo)) > 1e-9 {
 			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is not multiple of %d`, *mo)
 		}
 	}

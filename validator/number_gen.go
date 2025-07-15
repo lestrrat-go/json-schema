@@ -261,6 +261,9 @@ func (v *numberValidator) Validate(ctx context.Context, in any) (Result, error) 
 	}
 
 	if mo := v.multipleOf; mo != nil {
+		if *mo <= 0 || math.IsNaN(*mo) || math.IsInf(*mo, 0) {
+			return nil, fmt.Errorf(`invalid value passed to NumberValidator: invalid multipleOf value`)
+		}
 		remainder := math.Mod(n, *mo)
 		if math.Abs(remainder) > 1e-9 && math.Abs(remainder-*mo) > 1e-9 {
 			return nil, fmt.Errorf(`invalid value passed to NumberValidator: value is not multiple of %f`, *mo)
