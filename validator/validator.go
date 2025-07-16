@@ -1570,12 +1570,20 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 // hasBaseConstraints checks if a schema has base-level constraints that need validation
 // when used with allOf/anyOf/oneOf
 func hasBaseConstraints(s *schema.Schema) bool {
-	return len(s.Types()) > 0 ||
-		s.HasMinLength() || s.HasMaxLength() || s.HasPattern() ||
-		s.HasMinimum() || s.HasMaximum() || s.HasExclusiveMinimum() || s.HasExclusiveMaximum() || s.HasMultipleOf() ||
-		s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() ||
-		s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() || s.HasPropertyNames() ||
-		s.HasEnum() || s.HasConst()
+	// Check for types separately since it's not a bit field check
+	if len(s.Types()) > 0 {
+		return true
+	}
+
+	// Use bit field approach for efficient checking of multiple constraints
+	baseConstraintFields := schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
+		schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
+		schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField |
+		schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
+		schema.EnumField | schema.ConstField
+
+	// Returns true if ANY of the base constraint fields are set
+	return s.HasAny(baseConstraintFields)
 }
 
 // createBaseSchema creates a new schema with only the base constraints (no composition keywords).
