@@ -19,6 +19,18 @@ const (
 	NumberType
 )
 
+// unexported string constants for primitive type names
+const (
+	nullTypeString    = "null"
+	integerTypeString = "integer"
+	stringTypeString  = "string"
+	objectTypeString  = "object"
+	arrayTypeString   = "array"
+	booleanTypeString = "boolean"
+	numberTypeString  = "number"
+	invalidTypeString = "<invalid>"
+)
+
 // UnmarshalJSON initializes the primitive type from
 // a JSON string.
 func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
@@ -38,19 +50,19 @@ func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
 // It accepts standard JSON Schema type names such as "null", "integer", "string", "object", "array", "boolean", and "number".
 func NewPrimitiveType(s string) (PrimitiveType, error) {
 	switch s {
-	case "null":
+	case nullTypeString:
 		return NullType, nil
-	case "integer":
+	case integerTypeString:
 		return IntegerType, nil
-	case "string":
+	case stringTypeString:
 		return StringType, nil
-	case "object":
+	case objectTypeString:
 		return ObjectType, nil
-	case "array":
+	case arrayTypeString:
 		return ArrayType, nil
-	case "boolean":
+	case booleanTypeString:
 		return BooleanType, nil
-	case "number":
+	case numberTypeString:
 		return NumberType, nil
 	default:
 		return InvalidType, fmt.Errorf(`unknown primitive type %q`, s)
@@ -62,21 +74,21 @@ func (t PrimitiveType) String() string {
 	var v string
 	switch t {
 	case NullType:
-		v = "null"
+		v = nullTypeString
 	case IntegerType:
-		v = "integer"
+		v = integerTypeString
 	case StringType:
-		v = "string"
+		v = stringTypeString
 	case ObjectType:
-		v = "object"
+		v = objectTypeString
 	case ArrayType:
-		v = "array"
+		v = arrayTypeString
 	case BooleanType:
-		v = "boolean"
+		v = booleanTypeString
 	case NumberType:
-		v = "number"
+		v = numberTypeString
 	default:
-		v = "<invalid>"
+		v = invalidTypeString
 	}
 	return v
 }
