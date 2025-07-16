@@ -269,14 +269,6 @@ func TestSchemaBuilderErrorHandling(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "duplicate key")
 	})
-
-	t.Run("Invalid Additional Properties", func(t *testing.T) {
-		// Test invalid value for additional properties
-		var s schema.Schema
-		err := s.Accept("invalid")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value for additionalProperties")
-	})
 }
 
 // TestMultipleTypes tests schemas with multiple types

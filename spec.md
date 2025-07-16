@@ -231,3 +231,26 @@ through the properties: one for the "properties" field, and another for "depende
 Validation for dependentSchemas should return a Result object that records which properties have
 been evaluated. These results, if necessary, should be combined with other Results from, for example,
 evaluating against "properties" field.
+
+# Testing
+
+## Meta Schema Testing.
+
+Meta Schema Testing requires that we fetch a live document from the web, but causing unnecessary external network traffic.
+
+So we create a testdata/schemas/meta directory that contains all the necessary files in html/template format. They are in template format so that we can replace the $id field (and any others, if applicable) with the URL of the local test HTTP server.
+
+The test server should be instantiated in the test file, using embed.FS
+
+```
+//go:embed testdata/schemas
+var metaSchema embed.FS
+
+server := httptest.NewUntestedServer(nil)
+
+mux := http.NewServeMux()
+mux.HandleFunc("/", func(...) {
+    // Use metaSchema embed.FS to serve files
+})
+server.Config.Handler = mux
+```

@@ -86,22 +86,6 @@ func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
 	return result, nil
 }
 
-func (s *Schema) Accept(v interface{}) error {
-	switch v := v.(type) {
-	case bool:
-		if v {
-			*s = Schema{}
-		} else {
-			*s = Schema{not: &Schema{}}
-		}
-	case *Schema:
-		*s = *v
-	default:
-		return fmt.Errorf(`invalid value for additionalProperties. Got %T`, v)
-	}
-	return nil
-}
-
 // validateSchemaOrBool checks if a value is either a bool, SchemaBool, or *Schema
 func validateSchemaOrBool(v any) error {
 	switch v.(type) {

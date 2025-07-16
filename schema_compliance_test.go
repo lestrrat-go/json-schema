@@ -60,22 +60,6 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 		require.Equal(t, "test-anchor", s.Anchor())
 		require.Equal(t, "Test comment", s.Comment())
 	})
-
-	t.Run("Schema as Boolean", func(t *testing.T) {
-		// Test that schemas can be boolean values (true/false)
-		trueSchema := schema.New()
-		falseSchema := schema.New()
-
-		// Test schema acceptance of boolean values
-		err := trueSchema.Accept(true)
-		require.NoError(t, err)
-
-		err = falseSchema.Accept(false)
-		require.NoError(t, err)
-
-		// false schema should have a 'not' constraint
-		require.NotNil(t, falseSchema.Not())
-	})
 }
 
 func TestPrimitiveTypes(t *testing.T) {

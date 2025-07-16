@@ -9,6 +9,7 @@ import (
 	"github.com/lestrrat-go/jsref/v2"
 )
 
+
 // Resolver provides JSON Schema reference resolution capabilities.
 // It uses jsref for resolving JSON references within and across schemas.
 type Resolver struct {
@@ -147,10 +148,17 @@ func (r *Resolver) dataToSchema(data any, dst *Schema) error {
 		return fmt.Errorf("failed to marshal resolved data: %w", err)
 	}
 
+	fmt.Printf("DEBUG: dataToSchema - JSON data contains allOf: %v\n", strings.Contains(string(jsonData), "\"allOf\""))
+	if strings.Contains(string(jsonData), "\"allOf\"") {
+		fmt.Printf("DEBUG: dataToSchema - JSON preview: %.300s...\n", string(jsonData))
+	}
+
 	// Use Schema's UnmarshalJSON method which handles type field properly
 	if err := dst.UnmarshalJSON(jsonData); err != nil {
 		return fmt.Errorf("failed to unmarshal resolved data to schema: %w", err)
 	}
+
+	fmt.Printf("DEBUG: dataToSchema - After UnmarshalJSON, schema has allOf: %v\n", dst.HasAllOf())
 
 	return nil
 }

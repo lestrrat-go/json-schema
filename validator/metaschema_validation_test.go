@@ -2,12 +2,96 @@ package validator_test
 
 import (
 	"context"
+	"embed"
+	"fmt"
+	"html/template"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/stretchr/testify/require"
 )
+
+//go:embed testdata/schemas
+var metaSchemaFS embed.FS
+
+// setupMetaschemaServer creates a local HTTP server that serves metaschema files using embed.FS
+func setupMetaschemaServer(t *testing.T) *httptest.Server {
+	server := httptest.NewUnstartedServer(nil)
+	mux := http.NewServeMux()
+	
+	// Map metaschema paths to template files 
+	metaschemaFiles := map[string]string{
+		"/draft/2020-12/schema":           "meta/schema.json.tpl",
+		"/draft/2020-12/meta/core":       "meta/core.json.tpl", 
+		"/draft/2020-12/meta/validation": "meta/validation.json.tpl",
+		"/draft/2020-12/meta/content":    "meta/content.json.tpl",
+		"/draft/2020-12/meta/format":     "meta/format.json.tpl",
+	}
+	
+	for path, templateFile := range metaschemaFiles {
+		// Capture variables in closure
+		path := path
+		templateFile := templateFile
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			t.Logf("HTTP Server: Serving %s from template %s", path, templateFile)
+			
+			// Read template file from embed.FS
+			data, err := metaSchemaFS.ReadFile("testdata/schemas/" + templateFile)
+			if err != nil {
+				t.Logf("Failed to read template file %s: %v", templateFile, err)
+				http.Error(w, fmt.Sprintf("Failed to read template: %v", err), http.StatusInternalServerError)
+				return
+			}
+			
+			// Parse template and execute with server URL
+			tmpl, err := template.New("schema").Parse(string(data))
+			if err != nil {
+				t.Logf("Failed to parse template %s: %v", templateFile, err)
+				http.Error(w, fmt.Sprintf("Failed to parse template: %v", err), http.StatusInternalServerError)
+				return
+			}
+			
+			templateData := struct {
+				ServerURL string
+			}{
+				ServerURL: server.URL,
+			}
+			
+			var buf strings.Builder
+			if err := tmpl.Execute(&buf, templateData); err != nil {
+				t.Logf("Failed to execute template %s: %v", templateFile, err)
+				http.Error(w, fmt.Sprintf("Failed to execute template: %v", err), http.StatusInternalServerError)
+				return
+			}
+			
+			result := buf.String()
+			t.Logf("HTTP Server: Successfully serving %d bytes for %s", len(result), path)
+			// Check for allOf in the content
+			if strings.Contains(result, "\"allOf\"") {
+				t.Logf("HTTP Server: ✓ allOf field found in served content for %s", path)
+			} else {
+				t.Logf("HTTP Server: ✗ allOf field NOT found in served content for %s", path)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(result))
+		})
+	}
+	
+	// Add catch-all handler to log any unexpected requests
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("HTTP Server: Unexpected request to %s", r.URL.Path)
+		http.NotFound(w, r)
+	})
+	
+	server.Config.Handler = mux
+	server.Start()
+	t.Logf("Started metaschema server at %s", server.URL)
+	return server
+}
 
 // TestMetaschemaValidation tests that raw JSON data is properly validated against
 // the JSON Schema metaschema to catch semantic errors that should be rejected
@@ -31,19 +115,33 @@ import (
 //  4. This separation allows the validator to validate potentially malformed schemas
 //     and provide proper metaschema validation errors, rather than just parsing errors
 func TestMetaschemaValidation(t *testing.T) {
+	// Set up local metaschema server  
+	server := setupMetaschemaServer(t)
+	defer server.Close()
+	
 	t.Run("Validate invalid type definition against metaschema", func(t *testing.T) {
-		// This schema references the JSON Schema metaschema - any data validated
+		// This schema references the local metaschema server - any data validated
 		// against it should conform to the JSON Schema 2020-12 specification
-		metaschemaRefJSON := `{
-			"$schema": "https://json-schema.org/draft/2020-12/schema",
-			"$ref": "https://json-schema.org/draft/2020-12/schema"
-		}`
+		metaschemaRefJSON := fmt.Sprintf(`{
+			"$schema": "%s/draft/2020-12/schema",
+			"$ref": "%s/draft/2020-12/schema"
+		}`, server.URL, server.URL)
 
 		var metaschemaRef schema.Schema
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
+		// Log the schema before compilation to see if allOf is present
+		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.HasAllOf(), metaschemaRef.HasReference())
+		if metaschemaRef.HasReference() {
+			t.Logf("Reference: %s", metaschemaRef.Reference())
+		}
+		if metaschemaRef.HasAllOf() {
+			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
+		}
+		
 		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)
+		t.Logf("Compiled validator type: %T", v)
 
 		// IMPORTANT: We use map[string]any here instead of trying to unmarshal {"type": 1}
 		// into a Schema struct because:
@@ -72,13 +170,22 @@ func TestMetaschemaValidation(t *testing.T) {
 		//
 		// The test validates that schemas containing $defs are themselves valid according to the metaschema.
 		// When a schema definition violates the JSON Schema spec, validation should fail.
-		metaschemaRefJSON := `{
-			"$schema": "https://json-schema.org/draft/2020-12/schema",
-			"$ref": "https://json-schema.org/draft/2020-12/schema"
-		}`
+		metaschemaRefJSON := fmt.Sprintf(`{
+			"$schema": "%s/draft/2020-12/schema",
+			"$ref": "%s/draft/2020-12/schema"
+		}`, server.URL, server.URL)
 
 		var metaschemaRef schema.Schema
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
+
+		// Log the schema before compilation to see if allOf is present
+		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.HasAllOf(), metaschemaRef.HasReference())
+		if metaschemaRef.HasReference() {
+			t.Logf("Reference: %s", metaschemaRef.Reference())
+		}
+		if metaschemaRef.HasAllOf() {
+			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
+		}
 
 		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)
@@ -112,13 +219,22 @@ func TestMetaschemaValidation(t *testing.T) {
 	t.Run("Validate valid schema against metaschema", func(t *testing.T) {
 		// Positive control test - this should pass to ensure our metaschema validation
 		// works correctly for valid schemas (not just rejecting invalid ones)
-		metaschemaRefJSON := `{
-			"$schema": "https://json-schema.org/draft/2020-12/schema",
-			"$ref": "https://json-schema.org/draft/2020-12/schema"
-		}`
+		metaschemaRefJSON := fmt.Sprintf(`{
+			"$schema": "%s/draft/2020-12/schema",
+			"$ref": "%s/draft/2020-12/schema"
+		}`, server.URL, server.URL)
 
 		var metaschemaRef schema.Schema
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
+
+		// Log the schema before compilation to see if allOf is present
+		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.HasAllOf(), metaschemaRef.HasReference())
+		if metaschemaRef.HasReference() {
+			t.Logf("Reference: %s", metaschemaRef.Reference())
+		}
+		if metaschemaRef.HasAllOf() {
+			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
+		}
 
 		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)

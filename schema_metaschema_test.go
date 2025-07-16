@@ -209,34 +209,3 @@ func TestSchemaIdentification(t *testing.T) {
 		require.Equal(t, "person-schema", s.Anchor())
 	})
 }
-
-// TestBooleanSchemas tests boolean schema values
-func TestBooleanSchemas(t *testing.T) {
-	t.Run("True Schema", func(t *testing.T) {
-		// true schema should accept everything
-		var s schema.Schema
-		err := s.Accept(true)
-		require.NoError(t, err)
-
-		// Should be an empty schema (accepts everything)
-		require.Nil(t, s.Not())
-	})
-
-	t.Run("False Schema", func(t *testing.T) {
-		// false schema should reject everything
-		var s schema.Schema
-		err := s.Accept(false)
-		require.NoError(t, err)
-
-		// Should have a 'not' constraint with empty schema
-		require.NotNil(t, s.Not())
-	})
-
-	t.Run("Invalid Schema Value", func(t *testing.T) {
-		// Test invalid value for schema
-		var s schema.Schema
-		err := s.Accept("invalid")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value for additionalProperties")
-	})
-}
