@@ -19,20 +19,6 @@ const (
 	NumberType
 )
 
-// Number represents a "number" value in a JSON Schema, such as
-// "minimum", "maximum", etc.
-type Number struct {
-	val         float64
-	initialized bool
-}
-
-// Integer represents a "integer" value in a JSON Schema, such as
-// "minLength", "maxLength", etc.
-type Integer struct {
-	val         int
-	initialized bool
-}
-
 // Bool represents a "boolean" value in a JSON Schema, such as
 // "exclusiveMinimum", "exclusiveMaximum", etc.
 type Bool struct {
