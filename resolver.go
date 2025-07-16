@@ -9,7 +9,6 @@ import (
 	"github.com/lestrrat-go/jsref/v2"
 )
 
-
 // Resolver provides JSON Schema reference resolution capabilities.
 // It uses jsref for resolving JSON references within and across schemas.
 type Resolver struct {
@@ -111,15 +110,12 @@ func (r *Resolver) ResolveReferenceWithBaseURI(dst *Schema, baseSchema *Schema, 
 	// Otherwise, treat as JSON pointer reference
 	err := r.ResolveJSONReference(dst, baseSchema, resolvedReference)
 	if err != nil {
-		// Convert the specific JSON pointer error to a more generic reference error
-		errStr := err.Error()
-		if strings.Contains(errStr, "failed to resolve local JSON pointer reference") {
-			errStr = strings.Replace(errStr, "failed to resolve local JSON pointer reference", "failed to resolve local reference", 1)
+		// Wrap the error with appropriate context based on reference type
+		if strings.HasPrefix(resolvedReference, "#") {
+			return fmt.Errorf("failed to resolve local reference %s: %w", resolvedReference, err)
+		} else {
+			return fmt.Errorf("failed to resolve external reference %s: %w", resolvedReference, err)
 		}
-		if strings.Contains(errStr, "failed to resolve external JSON pointer reference") {
-			errStr = strings.Replace(errStr, "failed to resolve external JSON pointer reference", "failed to resolve external reference", 1)
-		}
-		return fmt.Errorf("%s", errStr)
 	}
 	return nil
 }
