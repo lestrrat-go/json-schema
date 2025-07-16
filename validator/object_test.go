@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestObjectConstrainctSanity(t *testing.T) {
+func TestObjectConstraintSanity(t *testing.T) {
 	testcases := makeSanityTestCases()
 	for _, tc := range testcases {
 		switch tc.Name {

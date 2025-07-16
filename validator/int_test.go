@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIntegerConstrainctSanity(t *testing.T) {
+func TestIntegerConstraintSanity(t *testing.T) {
 	testcases := makeSanityTestCases()
 	for _, tc := range testcases {
 		switch tc.Name {

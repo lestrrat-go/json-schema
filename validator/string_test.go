@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStringConstrainctSanity(t *testing.T) {
+func TestStringConstraintSanity(t *testing.T) {
 	testcases := makeSanityTestCases()
 	for _, tc := range testcases {
 		switch tc.Name {
@@ -20,7 +20,7 @@ func TestStringConstrainctSanity(t *testing.T) {
 		}
 	}
 
-	var c validator.Interface = validator.String().MustBuild()
+	c := validator.String().MustBuild()
 	for _, tc := range testcases {
 		t.Run(tc.Name, makeSanityTestFunc(tc, c))
 	}
