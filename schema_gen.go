@@ -5,66 +5,68 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+
+	"github.com/lestrrat-go/json-schema/internal/field"
 )
 
 // Field bit flags for tracking populated fields
-type FieldFlag uint64
+type FieldFlag = field.Flag
 
 const (
-	AdditionalPropertiesField  FieldFlag = 1 << 0
-	AllOfField                 FieldFlag = 1 << 1
-	AnchorField                FieldFlag = 1 << 2
-	AnyOfField                 FieldFlag = 1 << 3
-	CommentField               FieldFlag = 1 << 4
-	ConstField                 FieldFlag = 1 << 5
-	ContainsField              FieldFlag = 1 << 6
-	ContentEncodingField       FieldFlag = 1 << 7
-	ContentMediaTypeField      FieldFlag = 1 << 8
-	ContentSchemaField         FieldFlag = 1 << 9
-	DefaultField               FieldFlag = 1 << 10
-	DefinitionsField           FieldFlag = 1 << 11
-	DependentRequiredField     FieldFlag = 1 << 12
-	DependentSchemasField      FieldFlag = 1 << 13
-	DynamicAnchorField         FieldFlag = 1 << 14
-	DynamicReferenceField      FieldFlag = 1 << 15
-	ElseSchemaField            FieldFlag = 1 << 16
-	EnumField                  FieldFlag = 1 << 17
-	ExclusiveMaximumField      FieldFlag = 1 << 18
-	ExclusiveMinimumField      FieldFlag = 1 << 19
-	FormatField                FieldFlag = 1 << 20
-	IDField                    FieldFlag = 1 << 21
-	IfSchemaField              FieldFlag = 1 << 22
-	ItemsField                 FieldFlag = 1 << 23
-	MaxContainsField           FieldFlag = 1 << 24
-	MaxItemsField              FieldFlag = 1 << 25
-	MaxLengthField             FieldFlag = 1 << 26
-	MaxPropertiesField         FieldFlag = 1 << 27
-	MaximumField               FieldFlag = 1 << 28
-	MinContainsField           FieldFlag = 1 << 29
-	MinItemsField              FieldFlag = 1 << 30
-	MinLengthField             FieldFlag = 1 << 31
-	MinPropertiesField         FieldFlag = 1 << 32
-	MinimumField               FieldFlag = 1 << 33
-	MultipleOfField            FieldFlag = 1 << 34
-	NotField                   FieldFlag = 1 << 35
-	OneOfField                 FieldFlag = 1 << 36
-	PatternField               FieldFlag = 1 << 37
-	PatternPropertiesField     FieldFlag = 1 << 38
-	PropertiesField            FieldFlag = 1 << 39
-	PropertyNamesField         FieldFlag = 1 << 40
-	ReferenceField             FieldFlag = 1 << 41
-	RequiredField              FieldFlag = 1 << 42
-	ThenSchemaField            FieldFlag = 1 << 43
-	TypesField                 FieldFlag = 1 << 44
-	UnevaluatedItemsField      FieldFlag = 1 << 45
-	UnevaluatedPropertiesField FieldFlag = 1 << 46
-	UniqueItemsField           FieldFlag = 1 << 47
-	VocabularyField            FieldFlag = 1 << 48
+	AdditionalPropertiesField  = field.AdditionalProperties
+	AllOfField                 = field.AllOf
+	AnchorField                = field.Anchor
+	AnyOfField                 = field.AnyOf
+	CommentField               = field.Comment
+	ConstField                 = field.Const
+	ContainsField              = field.Contains
+	ContentEncodingField       = field.ContentEncoding
+	ContentMediaTypeField      = field.ContentMediaType
+	ContentSchemaField         = field.ContentSchema
+	DefaultField               = field.Default
+	DefinitionsField           = field.Definitions
+	DependentRequiredField     = field.DependentRequired
+	DependentSchemasField      = field.DependentSchemas
+	DynamicAnchorField         = field.DynamicAnchor
+	DynamicReferenceField      = field.DynamicReference
+	ElseSchemaField            = field.ElseSchema
+	EnumField                  = field.Enum
+	ExclusiveMaximumField      = field.ExclusiveMaximum
+	ExclusiveMinimumField      = field.ExclusiveMinimum
+	FormatField                = field.Format
+	IDField                    = field.ID
+	IfSchemaField              = field.IfSchema
+	ItemsField                 = field.Items
+	MaxContainsField           = field.MaxContains
+	MaxItemsField              = field.MaxItems
+	MaxLengthField             = field.MaxLength
+	MaxPropertiesField         = field.MaxProperties
+	MaximumField               = field.Maximum
+	MinContainsField           = field.MinContains
+	MinItemsField              = field.MinItems
+	MinLengthField             = field.MinLength
+	MinPropertiesField         = field.MinProperties
+	MinimumField               = field.Minimum
+	MultipleOfField            = field.MultipleOf
+	NotField                   = field.Not
+	OneOfField                 = field.OneOf
+	PatternField               = field.Pattern
+	PatternPropertiesField     = field.PatternProperties
+	PropertiesField            = field.Properties
+	PropertyNamesField         = field.PropertyNames
+	ReferenceField             = field.Reference
+	RequiredField              = field.Required
+	ThenSchemaField            = field.ThenSchema
+	TypesField                 = field.Types
+	UnevaluatedItemsField      = field.UnevaluatedItems
+	UnevaluatedPropertiesField = field.UnevaluatedProperties
+	UniqueItemsField           = field.UniqueItems
+	VocabularyField            = field.Vocabulary
 )
 
 type Schema struct {
 	isRoot                bool
-	populatedFields       FieldFlag
+	populatedFields       field.Flag
 	additionalProperties  SchemaOrBool
 	allOf                 []SchemaOrBool
 	anchor                *string

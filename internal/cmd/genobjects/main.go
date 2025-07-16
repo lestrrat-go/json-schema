@@ -118,23 +118,24 @@ func genObject(obj *codegen.Object) error {
 	o := codegen.NewOutput(&buf)
 
 	o.L("package schema")
+	o.LL("import (")
+	o.L(`"github.com/lestrrat-go/json-schema/internal/field"`)
+	o.L(")")
 
-	// Generate bit field constants
+	// Re-export field constants for external API
 	o.LL("// Field bit flags for tracking populated fields")
-	o.L("type FieldFlag uint64")
+	o.L("type FieldFlag = field.Flag")
 	o.LL("const (")
-	fieldIndex := 0
 	for _, field := range obj.Fields() {
 		if field.Name(false) != "schema" { // Skip schema field as it's always set
-			o.L("%sField FieldFlag = 1 << %d", field.Name(true), fieldIndex)
-			fieldIndex++
+			o.L("%sField = field.%s", field.Name(true), field.Name(true))
 		}
 	}
 	o.L(")")
 
 	o.LL("type Schema struct {")
 	o.L(`isRoot bool`)
-	o.L(`populatedFields FieldFlag`)
+	o.L(`populatedFields field.Flag`)
 	for _, field := range obj.Fields() {
 		typ := field.Type()
 		if !isNilZeroType(field) && !isInterfaceField(field) {

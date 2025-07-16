@@ -54,7 +54,38 @@ if s.Has(requiredFields) {
 
 which is more efficient.
 
+However, because these fields are used from multiple inter-dependent packages, we will need
+to declare them in an internal package first:
 
+```
+// in internal/field
+package field
+
+const (
+    Anchor = ...
+    Definitions = ...
+    Properties = ...
+    ...
+)
+```
+
+Then, for the end-users, these should be exported by creating new constants in schema package:
+
+```
+package schema
+
+import "github.com/lestrrat-go/json-schema/internal/field"
+
+const (
+    AnchorField = field.Anchor
+    DefinitionsField = field.Definitions
+    PropertiesField = field.Properties
+    ...
+)
+```
+
+Code in this module (excluding tests) should reference these by their internal
+identifiers.
 
 # Schemas and boolean Schemas
 
