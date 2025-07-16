@@ -35,7 +35,7 @@ func TestDependentSchemasDebug2(t *testing.T) {
 		t.Logf("Has properties: %v", s.HasProperties())
 		t.Logf("Has dependent schemas: %v", s.HasDependentSchemas())
 
-		_, err := validator.CompileSchema(&s)
+		_, err := validator.Compile(context.Background(), &s)
 		require.NoError(t, err)
 
 		// Try to test without the root properties constraint
@@ -54,7 +54,7 @@ func TestDependentSchemasDebug2(t *testing.T) {
 		var s2 schema.Schema
 		require.NoError(t, s2.UnmarshalJSON([]byte(jsonSchemaNoProps)))
 
-		v2, err := validator.CompileSchema(&s2)
+		v2, err := validator.Compile(context.Background(), &s2)
 		require.NoError(t, err)
 
 		// This should FAIL because dependent schema rejects "foo"

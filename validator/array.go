@@ -26,7 +26,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasItems() {
 		itemsSchema := s.Items()
 		if itemsSchema != nil {
-			itemValidator, err := Compile(ctx, ConvertSchemaOrBool(itemsSchema))
+			itemValidator, err := Compile(ctx, convertSchemaOrBool(itemsSchema))
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile items validator: %w", err)
 			}
@@ -76,15 +76,15 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 }
 
 type arrayValidator struct {
-	minItems          *uint
-	maxItems          *uint
-	uniqueItems       bool
-	items             Interface
-	contains          Interface
-	minContains       *uint
-	maxContains       *uint
-	unevaluatedItems  any // can be bool or Interface
-	strictArrayType   bool // true when schema explicitly declares type: array
+	minItems         *uint
+	maxItems         *uint
+	uniqueItems      bool
+	items            Interface
+	contains         Interface
+	minContains      *uint
+	maxContains      *uint
+	unevaluatedItems any  // can be bool or Interface
+	strictArrayType  bool // true when schema explicitly declares type: array
 }
 
 type ArrayValidatorBuilder struct {
@@ -293,14 +293,14 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				if len(stash.EvaluatedItems) > maxLen {
 					maxLen = len(stash.EvaluatedItems)
 				}
-				
+
 				// Extend our result if necessary
 				if len(result.EvaluatedItems) < maxLen {
 					newEvaluated := make([]bool, maxLen)
 					copy(newEvaluated, result.EvaluatedItems)
 					result.EvaluatedItems = newEvaluated
 				}
-				
+
 				// Mark items as evaluated if they were evaluated by previous validators
 				for i := 0; i < len(stash.EvaluatedItems) && i < maxLen; i++ {
 					if stash.EvaluatedItems[i] {
@@ -315,9 +315,9 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				if i < len(result.EvaluatedItems) && result.EvaluatedItems[i] {
 					continue
 				}
-				
+
 				item := rv.Index(i).Interface()
-				
+
 				// Handle boolean unevaluatedItems
 				if boolVal, ok := c.unevaluatedItems.(bool); ok {
 					if !boolVal {
@@ -327,7 +327,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 					// true means unevaluated items are allowed - no validation needed
 					continue
 				}
-				
+
 				// Handle schema unevaluatedItems
 				if validator, ok := c.unevaluatedItems.(Interface); ok {
 					_, err := validator.Validate(ctx, item)

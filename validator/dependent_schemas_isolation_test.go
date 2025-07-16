@@ -22,7 +22,7 @@ func TestDependentSchemasIsolation(t *testing.T) {
 		var depSchema schema.Schema
 		require.NoError(t, depSchema.UnmarshalJSON([]byte(dependentSchemaJSON)))
 
-		v, err := validator.CompileSchema(&depSchema)
+		v, err := validator.Compile(context.Background(), &depSchema)
 		require.NoError(t, err)
 
 		// This should FAIL - "foo" is not allowed because additionalProperties: false
@@ -52,7 +52,7 @@ func TestDependentSchemasIsolation(t *testing.T) {
 
 		ctx := context.Background()
 		depSchemas := map[string]*schema.Schema{"foo": &depSchema}
-		
+
 		depValidator, err := validator.DependentSchemasValidator(ctx, depSchemas)
 		require.NoError(t, err)
 

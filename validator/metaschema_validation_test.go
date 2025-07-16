@@ -16,20 +16,20 @@ import (
 // This test uses map[string]any (raw data) instead of attempting to unmarshal
 // into a Schema struct because:
 //
-// 1. Our Schema.UnmarshalJSON correctly rejects malformed schemas like {"type": 1}
-//    at the parsing level with errors like "cannot unmarshal number into Go value of type string"
+//  1. Our Schema.UnmarshalJSON correctly rejects malformed schemas like {"type": 1}
+//     at the parsing level with errors like "cannot unmarshal number into Go value of type string"
 //
-// 2. However, metaschema validation should happen at the SEMANTIC level, where the
-//    validator validates raw JSON against metaschema rules to determine if the JSON
-//    represents a valid JSON Schema according to the specification
+//  2. However, metaschema validation should happen at the SEMANTIC level, where the
+//     validator validates raw JSON against metaschema rules to determine if the JSON
+//     represents a valid JSON Schema according to the specification
 //
-// 3. The failing defs.json test expects that when validating raw data like
-//    {"$defs": {"foo": {"type": 1}}} against a schema that references the metaschema,
-//    the validator should detect that {"type": 1} violates the metaschema rules
-//    (type must be string or array of strings, not number)
+//  3. The failing defs.json test expects that when validating raw data like
+//     {"$defs": {"foo": {"type": 1}}} against a schema that references the metaschema,
+//     the validator should detect that {"type": 1} violates the metaschema rules
+//     (type must be string or array of strings, not number)
 //
-// 4. This separation allows the validator to validate potentially malformed schemas
-//    and provide proper metaschema validation errors, rather than just parsing errors
+//  4. This separation allows the validator to validate potentially malformed schemas
+//     and provide proper metaschema validation errors, rather than just parsing errors
 func TestMetaschemaValidation(t *testing.T) {
 	t.Run("Validate invalid type definition against metaschema", func(t *testing.T) {
 		// This schema references the JSON Schema metaschema - any data validated
@@ -42,7 +42,7 @@ func TestMetaschemaValidation(t *testing.T) {
 		var metaschemaRef schema.Schema
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
-		v, err := validator.CompileSchema(&metaschemaRef)
+		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)
 
 		// IMPORTANT: We use map[string]any here instead of trying to unmarshal {"type": 1}
@@ -80,7 +80,7 @@ func TestMetaschemaValidation(t *testing.T) {
 		var metaschemaRef schema.Schema
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
-		v, err := validator.CompileSchema(&metaschemaRef)
+		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)
 
 		// IMPORTANT: This uses map[string]any to represent the raw JSON data from the test suite.
@@ -120,7 +120,7 @@ func TestMetaschemaValidation(t *testing.T) {
 		var metaschemaRef schema.Schema
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
-		v, err := validator.CompileSchema(&metaschemaRef)
+		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)
 
 		// This uses map[string]any for a valid schema that should pass metaschema validation.

@@ -1,8 +1,7 @@
 # Coding Guidelines
 
 * Do your best not to create multiple exported functions or types with similar
-  names. For example `Foo` and `FooWithContext`, etc. The exported API should be
-  unmistakeably simple to find. Unexported functions have no such limitation
+  names. For example `Foo` and `FooWithContext`, etc. The exported API should be unmistakeably simple to find. Unexported functions have no such limitation. Also, Try your best not introduce things like Compile/CompileSchema, etc
 
 # Builder
 

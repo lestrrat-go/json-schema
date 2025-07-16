@@ -29,7 +29,7 @@ func TestDependentSchemasDebug(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		v, err := validator.CompileSchema(&s)
+		v, err := validator.Compile(context.Background(), &s)
 		require.NoError(t, err)
 
 		// This should FAIL because:

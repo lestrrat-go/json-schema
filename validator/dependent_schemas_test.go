@@ -26,7 +26,7 @@ func TestDependentSchemas(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		v, err := validator.CompileSchema(&s)
+		v, err := validator.Compile(context.Background(), &s)
 		require.NoError(t, err)
 
 		// Valid case - both properties satisfy the dependent schema
@@ -85,7 +85,7 @@ func TestDependentSchemas(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		v, err := validator.CompileSchema(&s)
+		v, err := validator.Compile(context.Background(), &s)
 		require.NoError(t, err)
 
 		// Invalid case - foo dependency requires bar to be string, but quux dependency requires bar to be integer
@@ -99,7 +99,7 @@ func TestDependentSchemas(t *testing.T) {
 		_, err = v.Validate(context.Background(), onlyFooData)
 		require.NoError(t, err)
 
-		// Valid case - only quux dependency applies  
+		// Valid case - only quux dependency applies
 		onlyQuuxData := map[string]any{"bar": 2, "quux": "baz"}
 		_, err = v.Validate(context.Background(), onlyQuuxData)
 		require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestDependentSchemas(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		v, err := validator.CompileSchema(&s)
+		v, err := validator.Compile(context.Background(), &s)
 		require.NoError(t, err)
 
 		// Any data should be valid
@@ -138,7 +138,7 @@ func TestDependentSchemas(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		v, err := validator.CompileSchema(&s)
+		v, err := validator.Compile(context.Background(), &s)
 		require.NoError(t, err)
 
 		// Valid case - credit_card present with required billing_address

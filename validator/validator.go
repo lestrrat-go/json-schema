@@ -71,12 +71,12 @@ type Builder interface {
 	MustBuild() Interface
 }
 
-// ConvertSchemaOrBool converts a SchemaOrBool to a *Schema.
+// convertSchemaOrBool converts a SchemaOrBool to a *Schema.
 // When the value is true, it returns an empty Schema which accepts everything.
 // When the value is false, it returns a Schema with "not": {} which rejects everything.
 // When the value is already a *Schema, it returns the schema as-is.
 // When the value is a map[string]interface{} from JSON unmarshaling, it converts it to a Schema.
-func ConvertSchemaOrBool(v schema.SchemaOrBool) *schema.Schema {
+func convertSchemaOrBool(v schema.SchemaOrBool) *schema.Schema {
 	switch val := v.(type) {
 	case schema.SchemaBool:
 		if bool(val) {
@@ -92,14 +92,6 @@ func ConvertSchemaOrBool(v schema.SchemaOrBool) *schema.Schema {
 		// This shouldn't happen if validation is working correctly
 		panic(fmt.Sprintf("invalid SchemaOrBool type: %T", v))
 	}
-}
-
-// CompileSchema compiles a schema into a validator with default settings
-func CompileSchema(s *schema.Schema) (Interface, error) {
-	ctx := context.Background()
-	ctx = WithResolver(ctx, schema.NewResolver())
-	ctx = WithRootSchema(ctx, s)
-	return Compile(ctx, s)
 }
 
 // hasOtherConstraints checks if a schema has constraints other than $ref/$dynamicRef
@@ -127,6 +119,16 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 }
 
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
+	// Set up context with default resolver if none provided
+	if ResolverFromContext(ctx) == nil {
+		ctx = WithResolver(ctx, schema.NewResolver())
+	}
+
+	// Set up context with root schema if none provided
+	if RootSchemaFromContext(ctx) == nil {
+		ctx = WithRootSchema(ctx, s)
+	}
+
 	// Set up base URI context from schema's $id field if present
 	if s.HasID() {
 		schemaID := s.ID()
@@ -137,7 +139,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 		}
 	}
-	
+
 	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
 	var reference string
 	if s.HasReference() {
@@ -146,21 +148,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// For now, treat $dynamicRef like a normal $ref (simple case)
 		reference = s.DynamicReference()
 	}
-	
+
 	if reference != "" {
-		// Get resolver from context - create default if none provided
+		// Get resolver from context (guaranteed to be present)
 		resolver := ResolverFromContext(ctx)
-		if resolver == nil {
-			resolver = schema.NewResolver()
-		}
-		
-		// Get root schema from context
+
+		// Get root schema from context (guaranteed to be present)
 		rootSchema := RootSchemaFromContext(ctx)
-		if rootSchema == nil {
-			// If no root schema in context, use current schema as root
-			rootSchema = s
-		}
-		
+
 		// Check for circular references by looking at context
 		if stack := ctx.Value(referenceStackKey); stack != nil {
 			refStack := stack.([]string)
@@ -178,14 +173,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			// Start new reference stack
 			ctx = context.WithValue(ctx, referenceStackKey, []string{reference})
 		}
-		
+
 		// Resolve the reference to get the target schema
 		var targetSchema schema.Schema
 		baseURI := BaseURIFromContext(ctx)
 		if err := resolver.ResolveReferenceWithBaseURI(&targetSchema, rootSchema, reference, baseURI); err != nil {
 			return nil, fmt.Errorf("failed to resolve reference %s: %w", reference, err)
 		}
-		
+
 		// If the target schema has relative references, we need to ensure they're resolved
 		// against the correct base URI. For metaschema, this is crucial.
 		if targetSchema.HasID() && targetSchema.ID() != "" {
@@ -194,11 +189,11 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				ctx = WithBaseURI(ctx, baseURI)
 			}
 		}
-		
+
 		// Compile the reference validator with the target schema as the new root
 		// This ensures that relative references within the target schema are resolved correctly
 		refCtx := WithRootSchema(ctx, &targetSchema)
-		
+
 		// Set base URI context for resolving relative references within the target schema
 		// This is crucial for metaschema which has relative references like "meta/validation"
 		if targetSchema.HasID() && targetSchema.ID() != "" {
@@ -211,12 +206,12 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				refCtx = WithBaseURI(refCtx, baseURI)
 			}
 		}
-		
+
 		refValidator, err := Compile(refCtx, &targetSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile reference validator: %w", err)
 		}
-		
+
 		// Check if the schema has other constraints besides $ref
 		if hasOtherConstraints(s) {
 			// Special handling for $ref + unevaluatedProperties
@@ -225,7 +220,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				compositionValidator := NewRefUnevaluatedPropertiesCompositionValidator(ctx, s, refValidator)
 				return compositionValidator, nil
 			}
-			
+
 			// Create a composite validator that combines $ref with other constraints
 			// First, create a schema without the $ref for other constraints
 			otherSchema := createSchemaWithoutRef(s)
@@ -233,14 +228,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile other constraints validator: %w", err)
 			}
-			
+
 			// Create a MultiValidator with allOf logic to combine both
 			compositeValidator := NewMultiValidator(AndMode)
 			compositeValidator.Append(refValidator)
 			compositeValidator.Append(otherValidator)
 			return compositeValidator, nil
 		}
-		
+
 		// Only $ref constraint, return the reference validator
 		return refValidator, nil
 	}
@@ -259,7 +254,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			allValidators = append(allValidators, compositionValidator)
 		} else {
 			allOfValidators := make([]Interface, 0, len(s.AllOf())+1)
-			
+
 			// If the schema has base properties/constraints, create a base validator first
 			if hasBaseConstraints(s) {
 				baseSchema := createBaseSchema(s)
@@ -269,9 +264,9 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				}
 				allOfValidators = append(allOfValidators, baseValidator)
 			}
-			
+
 			for _, subSchema := range s.AllOf() {
-				v, err := Compile(ctx, ConvertSchemaOrBool(subSchema))
+				v, err := Compile(ctx, convertSchemaOrBool(subSchema))
 				if err != nil {
 					return nil, fmt.Errorf(`failed to compile allOf validator: %w`, err)
 				}
@@ -288,13 +283,13 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if s.HasAnyOf() {
 		anyOfValidators := make([]Interface, 0, len(s.AnyOf()))
 		for _, subSchema := range s.AnyOf() {
-			v, err := Compile(ctx, ConvertSchemaOrBool(subSchema))
+			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile anyOf validator: %w`, err)
 			}
 			anyOfValidators = append(anyOfValidators, v)
 		}
-		
+
 		if hasBaseConstraints(s) && s.HasUnevaluatedProperties() {
 			// Special anyOf composition validator for unevaluatedProperties
 			compositionValidator, err := NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, anyOfValidators, ResolverFromContext(ctx))
@@ -314,13 +309,13 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if s.HasOneOf() {
 		oneOfValidators := make([]Interface, 0, len(s.OneOf()))
 		for _, subSchema := range s.OneOf() {
-			v, err := Compile(ctx, ConvertSchemaOrBool(subSchema))
+			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile oneOf validator: %w`, err)
 			}
 			oneOfValidators = append(oneOfValidators, v)
 		}
-		
+
 		if hasBaseConstraints(s) && s.HasUnevaluatedProperties() {
 			// Special oneOf composition validator for unevaluatedProperties
 			compositionValidator, err := NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, oneOfValidators, ResolverFromContext(ctx))
@@ -391,7 +386,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		(s.HasAnyOf() && hasBaseConstraints(s) && s.HasUnevaluatedProperties()) ||
 		(s.HasOneOf() && hasBaseConstraints(s) && s.HasUnevaluatedProperties()) ||
 		(s.HasIfSchema() && hasBaseConstraints(s) && s.HasUnevaluatedProperties())
-	
+
 	if len(types) == 0 && !hasCompositionValidator {
 		if s.HasMinLength() || s.HasMaxLength() || s.HasPattern() {
 			types = append(types, schema.StringType)
@@ -533,7 +528,7 @@ func compileInferredNumberValidator(ctx context.Context, s *schema.Schema) (Inte
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &inferredNumberValidator{
 		numberValidator: numValidator,
 	}, nil
@@ -544,8 +539,8 @@ func (v *inferredNumberValidator) Validate(ctx context.Context, in any) (Result,
 	rv := reflect.ValueOf(in)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		 reflect.Float32, reflect.Float64:
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
 		// Value is numeric, apply number validation
 		return v.numberValidator.Validate(ctx, in)
 	default:
@@ -643,11 +638,11 @@ func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error
 	r.resolvedOnce.Do(func() {
 		r.resolved, r.resolveErr = r.resolveReference(ctx)
 	})
-	
+
 	if r.resolveErr != nil {
 		return nil, fmt.Errorf("reference resolution failed for %s: %w", r.reference, r.resolveErr)
 	}
-	
+
 	return r.resolved.Validate(ctx, v)
 }
 
@@ -657,13 +652,13 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 	if resolver == nil {
 		resolver = schema.NewResolver()
 	}
-	
+
 	// Get root schema from context
 	rootSchema := RootSchemaFromContext(ctx)
 	if rootSchema == nil {
 		return nil, fmt.Errorf("no root schema available in context for reference resolution: %s", r.reference)
 	}
-	
+
 	// Check for circular references by looking at context
 	if stack := ctx.Value(referenceStackKey); stack != nil {
 		refStack := stack.([]string)
@@ -681,14 +676,14 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 		// Start new reference stack
 		ctx = context.WithValue(ctx, referenceStackKey, []string{r.reference})
 	}
-	
+
 	// Resolve the reference to get the target schema
 	var targetSchema schema.Schema
 	baseURI := BaseURIFromContext(ctx)
 	if err := resolver.ResolveReferenceWithBaseURI(&targetSchema, rootSchema, r.reference, baseURI); err != nil {
 		return nil, fmt.Errorf("failed to resolve reference %s: %w", r.reference, err)
 	}
-	
+
 	// Compile the resolved schema into a validator
 	return Compile(ctx, &targetSchema)
 }
@@ -750,7 +745,7 @@ func extractBaseURI(reference string) string {
 		// Split on '#' to get the URI part without fragment
 		parts := strings.Split(reference, "#")
 		uri := parts[0]
-		
+
 		// Find the last '/' to get the directory path
 		lastSlash := strings.LastIndex(uri, "/")
 		if lastSlash != -1 {
@@ -758,7 +753,7 @@ func extractBaseURI(reference string) string {
 		}
 		return uri + "/" // Add trailing slash if not present
 	}
-	
+
 	// For relative references, we can't determine base URI without context
 	return ""
 }
@@ -813,16 +808,16 @@ func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Contex
 	v := &UnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
-	
+
 	// Compile allOf validators
 	for _, subSchema := range s.AllOf() {
-		subValidator, err := Compile(ctx, ConvertSchemaOrBool(subSchema))
+		subValidator, err := Compile(ctx, convertSchemaOrBool(subSchema))
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile allOf validator: %w", err)
 		}
 		v.allOfValidators = append(v.allOfValidators, subValidator)
 	}
-	
+
 	// Compile base validator (everything except allOf)
 	baseSchema := createBaseSchema(s)
 	baseValidator, err := Compile(ctx, baseSchema)
@@ -830,7 +825,7 @@ func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Contex
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)
 	}
 	v.baseValidator = baseValidator
-	
+
 	return v, nil
 }
 
@@ -842,7 +837,7 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 		if err != nil {
 			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 		}
-		
+
 		// Merge object results for property evaluation tracking
 		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 			if mergedResult == nil {
@@ -853,13 +848,13 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 			}
 		}
 	}
-	
+
 	// Now validate base constraints, passing the evaluated properties from allOf
 	baseResult, err := v.validateBaseWithContext(ctx, in, mergedResult)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Merge the base result with allOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if mergedResult == nil {
@@ -869,7 +864,7 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 			mergedResult.EvaluatedProperties[prop] = true
 		}
 	}
-	
+
 	return mergedResult, nil
 }
 
@@ -883,7 +878,7 @@ func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx 
 	} else {
 		currentCtx = ctx
 	}
-	
+
 	return v.baseValidator.Validate(currentCtx, in)
 }
 
@@ -898,12 +893,12 @@ func (v *UnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithCo
 				mergedResult.EvaluatedProperties[prop] = true
 			}
 		}
-		
+
 		for i, subValidator := range mv.validators {
 			var result Result
 			var err error
-			
-			// Each cousin validator should be validated independently 
+
+			// Each cousin validator should be validated independently
 			// without seeing evaluated properties from other cousins
 			// Only pass the original previousResult context, not accumulated cousin results
 			if objValidator, ok := subValidator.(*objectValidator); ok {
@@ -922,11 +917,11 @@ func (v *UnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithCo
 			} else {
 				result, err = subValidator.Validate(ctx, in)
 			}
-			
+
 			if err != nil {
 				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 			}
-			
+
 			// Merge object results
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedResult == nil {
@@ -963,21 +958,21 @@ func NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.C
 	v := &AnyOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
-	
+
 	// Use provided validators or compile them if not provided
 	if anyOfValidators != nil {
 		v.anyOfValidators = anyOfValidators
 	} else {
 		// Compile anyOf validators
 		for _, subSchema := range s.AnyOf() {
-			subValidator, err := Compile(ctx, ConvertSchemaOrBool(subSchema))
+			subValidator, err := Compile(ctx, convertSchemaOrBool(subSchema))
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile anyOf validator: %w", err)
 			}
 			v.anyOfValidators = append(v.anyOfValidators, subValidator)
 		}
 	}
-	
+
 	// Compile base validator (everything except anyOf)
 	baseSchema := createBaseSchema(s)
 	baseValidator, err := Compile(ctx, baseSchema)
@@ -985,7 +980,7 @@ func NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.C
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)
 	}
 	v.baseValidator = baseValidator
-	
+
 	return v, nil
 }
 
@@ -993,7 +988,7 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 	// For anyOf, we need at least one subschema to pass and collect its annotations
 	var validResult *ObjectResult
 	anyOfPassed := false
-	
+
 	for _, subValidator := range v.anyOfValidators {
 		result, err := subValidator.Validate(ctx, in)
 		if err == nil {
@@ -1010,17 +1005,17 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 			// Continue to check other validators for annotation collection
 		}
 	}
-	
+
 	if !anyOfPassed {
 		return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
 	}
-	
+
 	// Now validate base constraints, passing the evaluated properties from anyOf
 	baseResult, err := v.validateBaseWithContext(ctx, in, validResult)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Merge the base result with anyOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if validResult == nil {
@@ -1030,7 +1025,7 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 			validResult.EvaluatedProperties[prop] = true
 		}
 	}
-	
+
 	return validResult, nil
 }
 
@@ -1042,13 +1037,13 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			previouslyEvaluated = previousResult.EvaluatedProperties
 		}
 		var currentCtx context.Context
-	if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-		stash := &Stash{EvaluatedProperties: previouslyEvaluated}
-		currentCtx = WithStash(ctx, stash)
-	} else {
-		currentCtx = ctx
-	}
-	return objValidator.Validate(currentCtx, in)
+		if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
+			stash := &Stash{EvaluatedProperties: previouslyEvaluated}
+			currentCtx = WithStash(ctx, stash)
+		} else {
+			currentCtx = ctx
+		}
+		return objValidator.Validate(currentCtx, in)
 	} else if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
 		// If the base validator is a MultiValidator, we need to handle it specially
 		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
@@ -1069,12 +1064,12 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 				mergedResult.EvaluatedProperties[prop] = true
 			}
 		}
-		
+
 		for i, subValidator := range mv.validators {
 			var result Result
 			var err error
-			
-			// Each cousin validator should be validated independently 
+
+			// Each cousin validator should be validated independently
 			// without seeing evaluated properties from other cousins
 			// Only pass the original previousResult context, not accumulated cousin results
 			if objValidator, ok := subValidator.(*objectValidator); ok {
@@ -1093,11 +1088,11 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			} else {
 				result, err = subValidator.Validate(ctx, in)
 			}
-			
+
 			if err != nil {
 				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 			}
-			
+
 			// Merge object results
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedResult == nil {
@@ -1134,21 +1129,21 @@ func NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.C
 	v := &OneOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
-	
+
 	// Use provided validators or compile them if not provided
 	if oneOfValidators != nil {
 		v.oneOfValidators = oneOfValidators
 	} else {
 		// Compile oneOf validators
 		for _, subSchema := range s.OneOf() {
-			subValidator, err := Compile(ctx, ConvertSchemaOrBool(subSchema))
+			subValidator, err := Compile(ctx, convertSchemaOrBool(subSchema))
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile oneOf validator: %w", err)
 			}
 			v.oneOfValidators = append(v.oneOfValidators, subValidator)
 		}
 	}
-	
+
 	// Compile base validator (everything except oneOf)
 	baseSchema := createBaseSchema(s)
 	baseValidator, err := Compile(ctx, baseSchema)
@@ -1156,7 +1151,7 @@ func NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.C
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)
 	}
 	v.baseValidator = baseValidator
-	
+
 	return v, nil
 }
 
@@ -1164,7 +1159,7 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 	// For oneOf, exactly one subschema must pass and we collect its annotations
 	var validResult *ObjectResult
 	passedCount := 0
-	
+
 	for _, subValidator := range v.oneOfValidators {
 		result, err := subValidator.Validate(ctx, in)
 		if err == nil {
@@ -1178,20 +1173,20 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 			}
 		}
 	}
-	
+
 	if passedCount == 0 {
 		return nil, fmt.Errorf(`oneOf validation failed: none of the validators passed`)
 	}
 	if passedCount > 1 {
 		return nil, fmt.Errorf(`oneOf validation failed: more than one validator passed (%d), expected exactly one`, passedCount)
 	}
-	
+
 	// Now validate base constraints, passing the evaluated properties from oneOf
 	baseResult, err := v.validateBaseWithContext(ctx, in, validResult)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Merge the base result with oneOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if validResult == nil {
@@ -1201,7 +1196,7 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 			validResult.EvaluatedProperties[prop] = true
 		}
 	}
-	
+
 	return validResult, nil
 }
 
@@ -1213,13 +1208,13 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			previouslyEvaluated = previousResult.EvaluatedProperties
 		}
 		var currentCtx context.Context
-	if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-		stash := &Stash{EvaluatedProperties: previouslyEvaluated}
-		currentCtx = WithStash(ctx, stash)
-	} else {
-		currentCtx = ctx
-	}
-	return objValidator.Validate(currentCtx, in)
+		if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
+			stash := &Stash{EvaluatedProperties: previouslyEvaluated}
+			currentCtx = WithStash(ctx, stash)
+		} else {
+			currentCtx = ctx
+		}
+		return objValidator.Validate(currentCtx, in)
 	} else if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
 		// If the base validator is a MultiValidator, we need to handle it specially
 		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
@@ -1240,12 +1235,12 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 				mergedResult.EvaluatedProperties[prop] = true
 			}
 		}
-		
+
 		for i, subValidator := range mv.validators {
 			var result Result
 			var err error
-			
-			// Each cousin validator should be validated independently 
+
+			// Each cousin validator should be validated independently
 			// without seeing evaluated properties from other cousins
 			// Only pass the original previousResult context, not accumulated cousin results
 			if objValidator, ok := subValidator.(*objectValidator); ok {
@@ -1264,11 +1259,11 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			} else {
 				result, err = subValidator.Validate(ctx, in)
 			}
-			
+
 			if err != nil {
 				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 			}
-			
+
 			// Merge object results
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedResult == nil {
@@ -1298,7 +1293,7 @@ func NewRefUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *sch
 		schema:       s,
 		refValidator: refValidator,
 	}
-	
+
 	// Compile base validator (everything except $ref)
 	baseSchema := createSchemaWithoutRef(s)
 	baseValidator, err := Compile(ctx, baseSchema)
@@ -1306,7 +1301,7 @@ func NewRefUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *sch
 		panic(fmt.Sprintf("failed to compile base schema: %v", err))
 	}
 	v.baseValidator = baseValidator
-	
+
 	return v
 }
 
@@ -1316,13 +1311,13 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Cont
 	if err != nil {
 		return nil, fmt.Errorf("$ref validation failed: %w", err)
 	}
-	
+
 	// Now validate base constraints, passing the evaluated properties from $ref
 	baseResult, err := v.validateBaseWithContext(ctx, in, refResult)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Merge the base result with $ref result
 	return mergeResults(refResult, baseResult), nil
 }
@@ -1337,7 +1332,7 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(c
 	} else {
 		currentCtx = ctx
 	}
-	
+
 	return v.baseValidator.Validate(currentCtx, in)
 }
 
@@ -1346,28 +1341,28 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 		// For allOf, collect all results and merge them while passing context between validators
 		var mergedObjectResult *ObjectResult
 		var mergedArrayResult *ArrayResult
-		
+
 		for i, subv := range v.validators {
 			// Create stash context with accumulated annotations for this validator
 			var currentCtx context.Context
 			stash := &Stash{}
-			
+
 			// Add evaluated items if we have them (items annotations flow between allOf subschemas)
 			if mergedArrayResult != nil && len(mergedArrayResult.EvaluatedItems) > 0 {
 				stash.EvaluatedItems = mergedArrayResult.EvaluatedItems
 			}
-			
+
 			// NOTE: We do NOT pass evaluated properties between allOf subschemas
 			// This implements the "cousin" semantics where properties evaluated by one
 			// subschema are not visible to other subschemas in the same allOf
-			
+
 			// Only create stash context if we have something to pass
 			if len(stash.EvaluatedItems) > 0 {
 				currentCtx = WithStash(ctx, stash)
 			} else {
 				currentCtx = ctx
 			}
-			
+
 			result, err := subv.Validate(currentCtx, in)
 			if err != nil {
 				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
@@ -1381,7 +1376,7 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 					mergedObjectResult.EvaluatedProperties[prop] = true
 				}
 			}
-			
+
 			// Merge array results for item evaluation tracking
 			if arrResult, ok := result.(*ArrayResult); ok && arrResult != nil {
 				if mergedArrayResult == nil {
@@ -1402,7 +1397,7 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 				}
 			}
 		}
-		
+
 		// Return appropriate result type based on what we merged
 		if mergedObjectResult != nil && mergedArrayResult != nil {
 			// Both object and array results - this shouldn't happen in normal validation
@@ -1413,7 +1408,7 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 		} else if mergedArrayResult != nil {
 			return mergedArrayResult, nil
 		}
-		
+
 		return nil, nil
 	}
 
@@ -1460,12 +1455,12 @@ func hasBaseConstraints(s *schema.Schema) bool {
 // createBaseSchema creates a new schema with only the base constraints (no composition keywords)
 func createBaseSchema(s *schema.Schema) *schema.Schema {
 	builder := schema.NewBuilder()
-	
+
 	// Copy types
 	if len(s.Types()) > 0 {
 		builder.Types(s.Types()...)
 	}
-	
+
 	// Copy string constraints
 	if s.HasMinLength() {
 		builder.MinLength(s.MinLength())
@@ -1476,7 +1471,7 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	if s.HasPattern() {
 		builder.Pattern(s.Pattern())
 	}
-	
+
 	// Copy number constraints
 	if s.HasMinimum() {
 		builder.Minimum(s.Minimum())
@@ -1493,7 +1488,7 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	if s.HasMultipleOf() {
 		builder.MultipleOf(s.MultipleOf())
 	}
-	
+
 	// Copy array constraints
 	if s.HasMinItems() {
 		builder.MinItems(s.MinItems())
@@ -1510,7 +1505,7 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	if s.HasContains() {
 		builder.Contains(s.Contains())
 	}
-	
+
 	// Copy object constraints
 	if s.HasMinProperties() {
 		builder.MinProperties(s.MinProperties())
@@ -1547,7 +1542,7 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	if s.HasPropertyNames() {
 		builder.PropertyNames(s.PropertyNames())
 	}
-	
+
 	// Copy enum/const
 	if s.HasEnum() {
 		builder.Enum(s.Enum()...)
@@ -1555,7 +1550,7 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	if s.HasConst() {
 		builder.Const(s.Const())
 	}
-	
+
 	return builder.MustBuild()
 }
 
@@ -1568,14 +1563,14 @@ type IfThenElseValidator struct {
 
 func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := &IfThenElseValidator{}
-	
+
 	// Compile 'if' validator (required)
 	ifValidator, err := Compile(ctx, s.IfSchema())
 	if err != nil {
 		return nil, fmt.Errorf(`failed to compile if validator: %w`, err)
 	}
 	v.ifValidator = ifValidator
-	
+
 	// Compile 'then' validator (optional)
 	if s.HasThenSchema() {
 		thenValidator, err := Compile(ctx, s.ThenSchema())
@@ -1584,7 +1579,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 		}
 		v.thenValidator = thenValidator
 	}
-	
+
 	// Compile 'else' validator (optional)
 	if s.HasElseSchema() {
 		elseValidator, err := Compile(ctx, s.ElseSchema())
@@ -1593,17 +1588,17 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 		}
 		v.elseValidator = elseValidator
 	}
-	
+
 	return v, nil
 }
 
 func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, error) {
 	// First, check the 'if' condition and collect its annotations
 	ifResult, ifErr := v.ifValidator.Validate(ctx, in)
-	
+
 	// The 'if' schema contributes annotations regardless of whether it passes or fails
 	var conditionalResult Result
-	
+
 	if ifErr == nil {
 		// 'if' condition passed, validate against 'then' if it exists
 		if v.thenValidator != nil {
@@ -1631,7 +1626,7 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 			conditionalResult = ifResult
 		}
 	}
-	
+
 	return conditionalResult, nil
 }
 
@@ -1644,7 +1639,7 @@ func mergeResults(result1, result2 Result) Result {
 	if result2 == nil {
 		return result1
 	}
-	
+
 	// Try to merge object results
 	if objResult1, ok := result1.(*ObjectResult); ok {
 		if objResult2, ok := result2.(*ObjectResult); ok {
@@ -1659,7 +1654,7 @@ func mergeResults(result1, result2 Result) Result {
 			return merged
 		}
 	}
-	
+
 	// Try to merge array results
 	if arrResult1, ok := result1.(*ArrayResult); ok {
 		if arrResult2, ok := result2.(*ArrayResult); ok {
@@ -1668,25 +1663,25 @@ func mergeResults(result1, result2 Result) Result {
 			if len(arrResult2.EvaluatedItems) > maxLen {
 				maxLen = len(arrResult2.EvaluatedItems)
 			}
-			
+
 			merged := &ArrayResult{EvaluatedItems: make([]bool, maxLen)}
-			
+
 			// Merge items from first result
 			for i := 0; i < len(arrResult1.EvaluatedItems) && i < maxLen; i++ {
 				merged.EvaluatedItems[i] = arrResult1.EvaluatedItems[i]
 			}
-			
+
 			// Merge items from second result
 			for i := 0; i < len(arrResult2.EvaluatedItems) && i < maxLen; i++ {
 				if arrResult2.EvaluatedItems[i] {
 					merged.EvaluatedItems[i] = true
 				}
 			}
-			
+
 			return merged
 		}
 	}
-	
+
 	// If we can't merge, return the first result
 	return result1
 }
@@ -1704,14 +1699,14 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	v := &IfThenElseUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
-	
+
 	// Compile if validator
 	ifValidator, err := Compile(ctx, s.IfSchema())
 	if err != nil {
 		panic(fmt.Sprintf("failed to compile if validator: %v", err))
 	}
 	v.ifValidator = ifValidator
-	
+
 	// Compile then validator if it exists
 	if s.HasThenSchema() {
 		thenValidator, err := Compile(ctx, s.ThenSchema())
@@ -1720,7 +1715,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 		}
 		v.thenValidator = thenValidator
 	}
-	
+
 	// Compile else validator if it exists
 	if s.HasElseSchema() {
 		elseValidator, err := Compile(ctx, s.ElseSchema())
@@ -1729,7 +1724,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 		}
 		v.elseValidator = elseValidator
 	}
-	
+
 	// Compile base validator (everything except if/then/else)
 	baseSchema := createIfThenElseBaseSchema(s)
 	baseValidator, err := Compile(ctx, baseSchema)
@@ -1737,17 +1732,17 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 		panic(fmt.Sprintf("failed to compile base schema: %v", err))
 	}
 	v.baseValidator = baseValidator
-	
+
 	return v
 }
 
 func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context, in any) (Result, error) {
 	// First, evaluate if/then/else and collect annotations
 	var conditionalResult *ObjectResult
-	
+
 	// Check the 'if' condition and collect its annotations
 	ifResult, ifErr := v.ifValidator.Validate(ctx, in)
-	
+
 	// Collect annotations from 'if' schema (contributes regardless of outcome)
 	if ifObjResult, ok := ifResult.(*ObjectResult); ok && ifObjResult != nil {
 		conditionalResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
@@ -1755,7 +1750,7 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 			conditionalResult.EvaluatedProperties[prop] = true
 		}
 	}
-	
+
 	if ifErr == nil {
 		// 'if' condition passed, validate against 'then' if it exists
 		if v.thenValidator != nil {
@@ -1791,13 +1786,13 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 			}
 		}
 	}
-	
+
 	// Now validate base constraints, passing the evaluated properties from if/then/else
 	baseResult, err := v.validateBaseWithContext(ctx, in, conditionalResult)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Merge the base result with if/then/else result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if conditionalResult == nil {
@@ -1807,7 +1802,7 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 			conditionalResult.EvaluatedProperties[prop] = true
 		}
 	}
-	
+
 	return conditionalResult, nil
 }
 
@@ -1821,15 +1816,14 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithCo
 	} else {
 		currentCtx = ctx
 	}
-	
+
 	return v.baseValidator.Validate(currentCtx, in)
 }
-
 
 // createIfThenElseBaseSchema creates a new schema with only the base constraints (no if/then/else keywords)
 func createIfThenElseBaseSchema(s *schema.Schema) *schema.Schema {
 	// Copy all fields except if/then/else using the existing createBaseSchema function
 	baseSchema := createBaseSchema(s)
-	
+
 	return baseSchema
 }
