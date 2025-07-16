@@ -378,6 +378,13 @@ func genObject(obj *codegen.Object) error {
 			}
 		}
 	}
+	// Add default case to handle unknown fields by consuming their values
+	o.L("default:")
+	o.L("// Skip unknown fields by consuming their values")
+	o.L("var discard json.RawMessage")
+	o.L("if err := dec.Decode(&discard); err != nil {")
+	o.L("return fmt.Errorf(`json-schema: failed to decode unknown field %%q: %%w`, tok, err)")
+	o.L("}")
 	o.L("}")
 	o.L("}")
 	o.L("}")

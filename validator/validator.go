@@ -128,14 +128,6 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 }
 
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
-	fmt.Printf("DEBUG: Compile called with schema - HasAllOf: %v, HasReference: %v\n", s.HasAllOf(), s.HasReference())
-	if s.HasReference() {
-		fmt.Printf("DEBUG: Schema has reference: %s\n", s.Reference())
-	}
-	if s.HasAllOf() {
-		fmt.Printf("DEBUG: Schema has allOf with %d entries before resolver setup\n", len(s.AllOf()))
-	}
-
 	// Set up context with default resolver if none provided
 	if ResolverFromContext(ctx) == nil {
 		ctx = WithResolver(ctx, schema.NewResolver())
@@ -198,10 +190,6 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			return nil, fmt.Errorf("failed to resolve reference %s: %w", reference, err)
 		}
 
-		fmt.Printf("DEBUG: After resolution - targetSchema HasAllOf: %v, HasReference: %v\n", targetSchema.HasAllOf(), targetSchema.HasReference())
-		if targetSchema.HasAllOf() {
-			fmt.Printf("DEBUG: Target schema allOf length: %d\n", len(targetSchema.AllOf()))
-		}
 
 		// If the target schema has relative references, we need to ensure they're resolved
 		// against the correct base URI. For metaschema, this is crucial.
@@ -266,7 +254,6 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Handle schema composition first
 	if s.HasAllOf() {
-		fmt.Printf("DEBUG: Schema has allOf with %d entries\n", len(s.AllOf()))
 		// Special handling for allOf with unevaluatedProperties in base schema
 		if hasBaseConstraints(s) && s.HasUnevaluatedProperties() {
 			// Create a special validator that evaluates allOf first, then base constraints with annotation context
@@ -288,18 +275,12 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				allOfValidators = append(allOfValidators, baseValidator)
 			}
 
-			for i, subSchema := range s.AllOf() {
-				fmt.Printf("DEBUG: Processing allOf[%d]: %T\n", i, subSchema)
+			for _, subSchema := range s.AllOf() {
 				convertedSchema := convertSchemaOrBool(subSchema)
-				if convertedSchema.HasReference() {
-					fmt.Printf("DEBUG: allOf[%d] has reference: %s\n", i, convertedSchema.Reference())
-				}
 				v, err := Compile(ctx, convertedSchema)
 				if err != nil {
-					fmt.Printf("DEBUG: Failed to compile allOf[%d]: %v\n", i, err)
 					return nil, fmt.Errorf(`failed to compile allOf validator: %w`, err)
 				}
-				fmt.Printf("DEBUG: Compiled allOf[%d] to validator type: %T\n", i, v)
 				allOfValidators = append(allOfValidators, v)
 			}
 			allOfValidator := NewMultiValidator(AndMode)

@@ -1303,6 +1303,12 @@ LOOP:
 				}
 				s.uniqueItems = &v
 				s.populatedFields |= UniqueItemsField
+			default:
+				// Skip unknown fields by consuming their values
+				var discard json.RawMessage
+				if err := dec.Decode(&discard); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode unknown field %q: %w`, tok, err)
+				}
 			}
 		}
 	}
