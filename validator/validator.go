@@ -113,17 +113,17 @@ func mergeObjectResults(results ...*ObjectResult) *ObjectResult {
 func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
 	merged := NewArrayResult()
 	maxLen := 0
-	
+
 	// Find the maximum length needed
 	for _, result := range results {
 		if result != nil && len(result.evaluatedItems) > maxLen {
 			maxLen = len(result.evaluatedItems)
 		}
 	}
-	
+
 	// Initialize with the correct length
 	merged.evaluatedItems = make([]bool, maxLen)
-	
+
 	// Merge all results
 	for _, result := range results {
 		if result != nil {
@@ -134,7 +134,7 @@ func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
 			}
 		}
 	}
-	
+
 	return merged
 }
 
@@ -143,7 +143,7 @@ func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
 func MergeResults(dst interface{}, results ...interface{}) error {
 	var objectResults []*ObjectResult
 	var arrayResults []*ArrayResult
-	
+
 	// Collect results by type
 	for _, result := range results {
 		switch r := result.(type) {
@@ -157,7 +157,7 @@ func MergeResults(dst interface{}, results ...interface{}) error {
 			}
 		}
 	}
-	
+
 	// Merge based on destination type
 	switch dst.(type) {
 	case **ObjectResult:
@@ -329,7 +329,6 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		if err := resolver.ResolveReferenceWithBaseURI(&targetSchema, rootSchema, reference, baseURI); err != nil {
 			return nil, fmt.Errorf("failed to resolve reference %s: %w", reference, err)
 		}
-
 
 		// If the target schema has relative references, we need to ensure they're resolved
 		// against the correct base URI. For metaschema, this is crucial.
@@ -1579,7 +1578,14 @@ func hasBaseConstraints(s *schema.Schema) bool {
 		s.HasEnum() || s.HasConst()
 }
 
-// createBaseSchema creates a new schema with only the base constraints (no composition keywords)
+// createBaseSchema creates a new schema with only the base constraints (no composition keywords).
+// This function excludes ALL composition and control flow keywords:
+//   - allOf, anyOf, oneOf (composition keywords)
+//   - not (negation keyword)
+//   - if/then/else (conditional keywords)
+//   - $ref, $dynamicRef (reference keywords)
+//
+// Only basic validation constraints are copied (types, string/number/array/object constraints, enum/const).
 func createBaseSchema(s *schema.Schema) *schema.Schema {
 	builder := schema.NewBuilder()
 
@@ -1781,7 +1787,6 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 	return conditionalResult, nil
 }
 
-
 // IfThenElseUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with if/then/else
 type IfThenElseUnevaluatedPropertiesCompositionValidator struct {
 	ifValidator   Interface
@@ -1822,7 +1827,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	}
 
 	// Compile base validator (everything except if/then/else)
-	baseSchema := createIfThenElseBaseSchema(s)
+	baseSchema := createBaseSchema(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		panic(fmt.Sprintf("failed to compile base schema: %v", err))
@@ -1919,12 +1924,4 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithCo
 	}
 
 	return v.baseValidator.Validate(currentCtx, in)
-}
-
-// createIfThenElseBaseSchema creates a new schema with only the base constraints (no if/then/else keywords)
-func createIfThenElseBaseSchema(s *schema.Schema) *schema.Schema {
-	// Copy all fields except if/then/else using the existing createBaseSchema function
-	baseSchema := createBaseSchema(s)
-
-	return baseSchema
 }

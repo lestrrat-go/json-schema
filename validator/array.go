@@ -331,7 +331,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 						currentEvaluated[i] = true
 					}
 				}
-				
+
 				// Update the result with the merged evaluated items
 				result.SetEvaluatedItems(currentEvaluated)
 			}
