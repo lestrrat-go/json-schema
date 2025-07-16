@@ -20,7 +20,7 @@ func TestResolver(t *testing.T) {
 }
 
 func TestResolveLocalReference(t *testing.T) {
-	// Since we can't add definitions directly (not in current schema), 
+	// Since we can't add definitions directly (not in current schema),
 	// let's test with a more realistic schema structure
 	jsonSchema := `{
 		"$id": "https://example.com/person",
@@ -66,7 +66,7 @@ func TestResolveLocalReference(t *testing.T) {
 func TestResolveFileReference(t *testing.T) {
 	// Create temporary schema files
 	tmpDir := t.TempDir()
-	
+
 	// Create person.json
 	personSchema := map[string]any{
 		"$id":  "https://example.com/person",
@@ -77,7 +77,7 @@ func TestResolveFileReference(t *testing.T) {
 		},
 		"required": []string{"name"},
 	}
-	
+
 	personFile := filepath.Join(tmpDir, "person.json")
 	personData, err := json.Marshal(personSchema)
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestResolveFileReference(t *testing.T) {
 			"resident": map[string]any{"$ref": "person.json"},
 		},
 	}
-	
+
 	addressFile := filepath.Join(tmpDir, "address.json")
 	addressData, err := json.Marshal(addressSchema)
 	require.NoError(t, err)
@@ -179,33 +179,6 @@ func TestResolveHTTPReference(t *testing.T) {
 	})
 }
 
-func TestResolveSchemaReference(t *testing.T) {
-	// Test the convenience function
-	jsonSchema := `{
-		"type": "object",
-		"$defs": {
-			"stringType": {"type": "string", "minLength": 1},
-			"numberType": {"type": "number", "minimum": 0}
-		}
-	}`
-
-	var base schema.Schema
-	require.NoError(t, base.UnmarshalJSON([]byte(jsonSchema)))
-
-	t.Run("convenience function success", func(t *testing.T) {
-		resolved, err := schema.ResolveSchemaReference(&base, "#/$defs/stringType")
-		require.NoError(t, err)
-		require.NotNil(t, resolved)
-		require.True(t, resolved.ContainsType(schema.StringType))
-	})
-
-	t.Run("convenience function error", func(t *testing.T) {
-		resolved, err := schema.ResolveSchemaReference(&base, "#/$defs/nonexistent")
-		require.Error(t, err)
-		require.Nil(t, resolved)
-	})
-}
-
 func TestValidateReference(t *testing.T) {
 	testCases := []struct {
 		name      string
@@ -238,7 +211,7 @@ func TestValidateReference(t *testing.T) {
 func TestResolverWithYAMLFiles(t *testing.T) {
 	// Create temporary YAML schema file
 	tmpDir := t.TempDir()
-	
+
 	yamlContent := `
 $id: https://example.com/yaml-schema
 type: object
@@ -253,7 +226,7 @@ $defs:
     type: integer
     minimum: 1
 `
-	
+
 	yamlFile := filepath.Join(tmpDir, "schema.yaml")
 	require.NoError(t, os.WriteFile(yamlFile, []byte(yamlContent), 0644))
 
@@ -305,12 +278,12 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
 
 		resolver := schema.NewResolver()
-		
+
 		// Test ResolveJSONReference directly
 		var resolved schema.Schema
 		err := resolver.ResolveJSONReference(&resolved, &baseSchema, "#/$defs/person")
 		require.NoError(t, err)
-		
+
 		// Verify resolved schema
 		require.True(t, resolved.ContainsType(schema.ObjectType))
 		require.True(t, resolved.HasProperties())
@@ -342,12 +315,12 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
 
 		resolver := schema.NewResolver()
-		
+
 		// Test ResolveAnchor directly
 		var resolved schema.Schema
 		err := resolver.ResolveAnchor(&resolved, &baseSchema, "person")
 		require.NoError(t, err)
-		
+
 		// Verify resolved schema
 		require.True(t, resolved.ContainsType(schema.ObjectType))
 		require.True(t, resolved.HasProperties())
@@ -381,21 +354,21 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
 
 		resolver := schema.NewResolver()
-		
+
 		// Test unified API with JSON pointer reference
 		var resolvedPointer schema.Schema
 		err := resolver.ResolveReference(&resolvedPointer, &baseSchema, "#/$defs/person")
 		require.NoError(t, err)
 		require.True(t, resolvedPointer.ContainsType(schema.ObjectType))
 		require.Equal(t, "person", resolvedPointer.Anchor())
-		
+
 		// Test unified API with anchor reference
 		var resolvedAnchor schema.Schema
 		err = resolver.ResolveReference(&resolvedAnchor, &baseSchema, "#person")
 		require.NoError(t, err)
 		require.True(t, resolvedAnchor.ContainsType(schema.ObjectType))
 		require.Equal(t, "person", resolvedAnchor.Anchor())
-		
+
 		// Both should resolve to the same schema
 		require.Equal(t, resolvedPointer.Anchor(), resolvedAnchor.Anchor())
 	})
@@ -416,7 +389,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
 
 		resolver := schema.NewResolver()
-		
+
 		// Try to resolve non-existent anchor
 		var resolved schema.Schema
 		err := resolver.ResolveAnchor(&resolved, &baseSchema, "nonexistent")
@@ -439,7 +412,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
 
 		resolver := schema.NewResolver()
-		
+
 		// Try to resolve non-existent JSON pointer
 		var resolved schema.Schema
 		err := resolver.ResolveJSONReference(&resolved, &baseSchema, "#/$defs/nonexistent")
@@ -457,8 +430,8 @@ func TestResolverSeparateAPIs(t *testing.T) {
 					"type": "object",
 					"$defs": map[string]any{
 						"nameType": map[string]any{
-							"$anchor": "personName",
-							"type": "string", 
+							"$anchor":   "personName",
+							"type":      "string",
 							"minLength": 1,
 						},
 					},

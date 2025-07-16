@@ -18,15 +18,15 @@ type Resolver struct {
 // NewResolver creates a new schema resolver with HTTP and filesystem support.
 func NewResolver() *Resolver {
 	resolver := jsref.New()
-	
+
 	// Add HTTP resolver for remote schema references
 	resolver.AddResolver(jsref.NewHTTPResolver())
-	
+
 	// Add filesystem resolver rooted at current directory for local files
 	if fsResolver, err := jsref.NewFSResolver("."); err == nil {
 		resolver.AddResolver(fsResolver)
 	}
-	
+
 	return &Resolver{resolver: resolver}
 }
 
@@ -41,31 +41,31 @@ func (r *Resolver) ResolveJSONReference(dst *Schema, baseSchema *Schema, referen
 		if err != nil {
 			return fmt.Errorf("failed to convert base schema to data: %w", err)
 		}
-		
+
 		var resolved any
 		if err := r.resolver.Resolve(&resolved, schemaData, reference); err != nil {
 			return fmt.Errorf("failed to resolve local JSON pointer reference %s: %w", reference, err)
 		}
-		
+
 		return r.dataToSchema(resolved, dst)
 	}
-	
+
 	// For external references, split the reference and use our resolver
 	external, local, err := jsref.Split(reference)
 	if err != nil {
 		return fmt.Errorf("failed to split reference %s: %w", reference, err)
 	}
-	
+
 	// If no local reference is provided, default to root reference
 	if local == "" {
 		local = "#"
 	}
-	
+
 	var resolved any
 	if err := r.resolver.Resolve(&resolved, external, local); err != nil {
 		return fmt.Errorf("failed to resolve external JSON pointer reference %s: %w", reference, err)
 	}
-	
+
 	return r.dataToSchema(resolved, dst)
 }
 
@@ -95,7 +95,7 @@ func (r *Resolver) ResolveReferenceWithBaseURI(dst *Schema, baseSchema *Schema, 
 		anchorName := reference[1:] // Remove the '#' prefix
 		return r.ResolveAnchor(dst, baseSchema, anchorName)
 	}
-	
+
 	// Handle relative references with base URI
 	resolvedReference := reference
 	if baseURI != "" && !strings.HasPrefix(reference, "http://") && !strings.HasPrefix(reference, "https://") && !strings.HasPrefix(reference, "#") {
@@ -106,7 +106,7 @@ func (r *Resolver) ResolveReferenceWithBaseURI(dst *Schema, baseSchema *Schema, 
 			resolvedReference = baseURI + "/" + reference
 		}
 	}
-	
+
 	// Otherwise, treat as JSON pointer reference
 	err := r.ResolveJSONReference(dst, baseSchema, resolvedReference)
 	if err != nil {
@@ -130,13 +130,12 @@ func (r *Resolver) schemaToData(s *Schema) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal schema: %w", err)
 	}
-	
+
 	var data any
 	if err := json.Unmarshal(jsonData, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal schema data: %w", err)
 	}
-	
-	
+
 	return data, nil
 }
 
@@ -147,24 +146,13 @@ func (r *Resolver) dataToSchema(data any, dst *Schema) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal resolved data: %w", err)
 	}
-	
+
 	// Use Schema's UnmarshalJSON method which handles type field properly
 	if err := dst.UnmarshalJSON(jsonData); err != nil {
 		return fmt.Errorf("failed to unmarshal resolved data to schema: %w", err)
 	}
-	
-	return nil
-}
 
-// ResolveSchemaReference is a convenience function that resolves a reference and returns a new Schema.
-// It creates a new resolver instance for one-time use.
-func ResolveSchemaReference(baseSchema *Schema, reference string) (*Schema, error) {
-	resolver := NewResolver()
-	var resolved Schema
-	if err := resolver.ResolveReference(&resolved, baseSchema, reference); err != nil {
-		return nil, err
-	}
-	return &resolved, nil
+	return nil
 }
 
 // ValidateReference checks if a reference string is valid.
@@ -173,13 +161,13 @@ func ValidateReference(reference string) error {
 	if reference == "" {
 		return fmt.Errorf("reference cannot be empty")
 	}
-	
+
 	// Try to split the reference to validate format
 	_, _, err := jsref.Split(reference)
 	if err != nil {
 		return fmt.Errorf("invalid reference format: %w", err)
 	}
-	
+
 	// If it contains a URI part, validate the URI syntax
 	if len(reference) > 0 && reference[0] != '#' {
 		external, _, _ := jsref.Split(reference)
@@ -189,7 +177,7 @@ func ValidateReference(reference string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -199,7 +187,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	if schema.HasAnchor() && schema.Anchor() == anchorName {
 		return schema, nil
 	}
-	
+
 	// Search in definitions, but be scope-aware
 	if schema.HasDefinitions() {
 		// First pass: search definitions that don't have their own $id (same scope)
@@ -210,7 +198,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 				}
 			}
 		}
-		
+
 		// Second pass: search definitions that have their own $id (different scope)
 		for _, defSchema := range schema.Definitions() {
 			if defSchema.HasID() {
@@ -220,7 +208,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in properties
 	if schema.HasProperties() {
 		for _, propSchema := range schema.Properties() {
@@ -229,7 +217,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in pattern properties
 	if schema.HasPatternProperties() {
 		for _, propSchema := range schema.PatternProperties() {
@@ -238,7 +226,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in items
 	if schema.HasItems() {
 		if itemSchema, ok := schema.Items().(*Schema); ok {
@@ -247,7 +235,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in additional properties
 	if schema.HasAdditionalProperties() {
 		if addlSchema, ok := schema.AdditionalProperties().(*Schema); ok {
@@ -256,7 +244,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in unevaluated properties
 	if schema.HasUnevaluatedProperties() {
 		if unevalSchema, ok := schema.UnevaluatedProperties().(*Schema); ok {
@@ -265,7 +253,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in unevaluated items
 	if schema.HasUnevaluatedItems() {
 		if unevalSchema, ok := schema.UnevaluatedItems().(*Schema); ok {
@@ -274,7 +262,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in composition schemas
 	if schema.HasAllOf() {
 		for _, subSchema := range schema.AllOf() {
@@ -285,7 +273,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	if schema.HasAnyOf() {
 		for _, subSchema := range schema.AnyOf() {
 			if subSchema, ok := subSchema.(*Schema); ok {
@@ -295,7 +283,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	if schema.HasOneOf() {
 		for _, subSchema := range schema.OneOf() {
 			if subSchema, ok := subSchema.(*Schema); ok {
@@ -305,53 +293,53 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 			}
 		}
 	}
-	
+
 	// Search in not schema
 	if schema.HasNot() {
 		if found, err := r.findSchemaByAnchor(schema.Not(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	// Search in if/then/else schemas
 	if schema.HasIfSchema() {
 		if found, err := r.findSchemaByAnchor(schema.IfSchema(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	if schema.HasThenSchema() {
 		if found, err := r.findSchemaByAnchor(schema.ThenSchema(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	if schema.HasElseSchema() {
 		if found, err := r.findSchemaByAnchor(schema.ElseSchema(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	// Search in contains schema
 	if schema.HasContains() {
 		if found, err := r.findSchemaByAnchor(schema.Contains(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	// Search in property names schema
 	if schema.HasPropertyNames() {
 		if found, err := r.findSchemaByAnchor(schema.PropertyNames(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	// Search in content schema
 	if schema.HasContentSchema() {
 		if found, err := r.findSchemaByAnchor(schema.ContentSchema(), anchorName); err == nil {
 			return found, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("anchor %s not found", anchorName)
 }
