@@ -214,7 +214,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 	t.Run("Schema with References", func(t *testing.T) {
 		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		original, err := schema.NewBuilder().
 			ID("https://example.com/ref-test").
 			Reference("#/$defs/person").

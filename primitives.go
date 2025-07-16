@@ -19,14 +19,6 @@ const (
 	NumberType
 )
 
-// Bool represents a "boolean" value in a JSON Schema, such as
-// "exclusiveMinimum", "exclusiveMaximum", etc.
-type Bool struct {
-	val          bool
-	defaultValue bool
-	initialized  bool
-}
-
 // UnmarshalJSON initializes the primitive type from
 // a JSON string.
 func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
@@ -128,15 +120,6 @@ func (pt PrimitiveTypes) MarshalJSON() ([]byte, error) {
 		return json.Marshal(pt[0])
 	}
 	return json.Marshal([]PrimitiveType(pt))
-}
-
-// Bool returns the underlying boolean value for the
-// primitive boolean type
-func (b Bool) Bool() bool {
-	if b.initialized {
-		return b.val
-	}
-	return b.defaultValue
 }
 
 // Contains returns true if the list of primitive types

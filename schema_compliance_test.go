@@ -314,7 +314,7 @@ func TestSchemaBasicReferences(t *testing.T) {
 	t.Run("Definitions", func(t *testing.T) {
 		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		s, err := schema.NewBuilder().
 			Definitions("person", personSchema).
 			Build()
@@ -335,7 +335,7 @@ func TestMain(m *testing.M) {
 			break
 		}
 	}
-	
+
 	if !skipInit {
 		// Initialize the test suite
 		if err := initializeTestSuite(); err != nil {
@@ -352,7 +352,7 @@ func TestMain(m *testing.M) {
 // initializeTestSuite clones or updates the JSON Schema Test Suite repository
 func initializeTestSuite() error {
 	testDir := "tests"
-	
+
 	// Check if the directory already exists
 	if _, err := os.Stat(testDir); err == nil {
 		// Directory exists, pull latest changes
@@ -370,7 +370,7 @@ func initializeTestSuite() error {
 			return fmt.Errorf("failed to clone test suite: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -381,14 +381,14 @@ func TestSpecificationCompliance(t *testing.T) {
 	}
 
 	testDir := filepath.Join("tests", "tests", "latest")
-	
+
 	// Resolve the symlink to get the actual directory
 	resolvedDir, err := filepath.EvalSymlinks(testDir)
 	if err != nil {
 		t.Fatalf("Failed to resolve symlink %s: %v", testDir, err)
 	}
 	testDir = resolvedDir
-	
+
 	// Check if test directory exists
 	if _, err := os.Stat(testDir); os.IsNotExist(err) {
 		t.Fatalf("Test directory %s does not exist. Make sure TestMain ran successfully.", testDir)
@@ -399,35 +399,35 @@ func TestSpecificationCompliance(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		
+
 		if info.IsDir() {
 			return nil
 		}
-		
+
 		if !strings.HasSuffix(path, ".json") || strings.Contains(path, "remotes") {
 			return nil
 		}
-		
+
 		// Skip optional tests that we don't support yet
 		if strings.Contains(path, "optional") {
 			return nil
 		}
-		
+
 		relPath, _ := filepath.Rel(testDir, path)
 		t.Run(relPath, func(t *testing.T) {
 			runTestFile(t, path)
 		})
-		
+
 		return nil
 	})
-	
+
 	require.NoError(t, err)
 }
 
 // TestSuite represents a single test suite from the JSON Schema Test Suite
 type TestSuite struct {
-	Description string   `json:"description"`
-	Schema      any      `json:"schema"`
+	Description string     `json:"description"`
+	Schema      any        `json:"schema"`
 	Tests       []TestCase `json:"tests"`
 }
 
@@ -442,11 +442,11 @@ type TestCase struct {
 func runTestFile(t *testing.T, filePath string) {
 	data, err := os.ReadFile(filePath)
 	require.NoError(t, err)
-	
+
 	var testSuites []TestSuite
 	err = json.Unmarshal(data, &testSuites)
 	require.NoError(t, err)
-	
+
 	for _, testSuite := range testSuites {
 		t.Run(testSuite.Description, func(t *testing.T) {
 			runTestSuite(t, testSuite)
@@ -458,7 +458,7 @@ func runTestFile(t *testing.T, filePath string) {
 func runTestSuite(t *testing.T, testSuite TestSuite) {
 	var s *schema.Schema
 	var err error
-	
+
 	// Handle boolean schemas (true/false) and object schemas
 	switch schemaValue := testSuite.Schema.(type) {
 	case bool:
@@ -480,7 +480,7 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 			t.Skipf("Failed to marshal schema: %v", err)
 			return
 		}
-		
+
 		// Try to parse the schema
 		err = json.Unmarshal(schemaJSON, &s)
 		if err != nil {
@@ -488,14 +488,14 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 			return
 		}
 	}
-	
+
 	// Compile the schema to a validator
 	v, err := validator.Compile(context.Background(), s)
 	if err != nil {
 		t.Skipf("Failed to compile schema: %v", err)
 		return
 	}
-	
+
 	// Run each test case
 	for _, testCase := range testSuite.Tests {
 		t.Run(testCase.Description, func(t *testing.T) {
