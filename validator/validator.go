@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lestrrat-go/blackmagic"
 	schema "github.com/lestrrat-go/json-schema"
 )
 
@@ -23,12 +24,151 @@ type Result any
 
 // ObjectResult contains information about which object properties were evaluated
 type ObjectResult struct {
-	EvaluatedProperties map[string]bool // property name -> true if evaluated
+	evaluatedProperties map[string]bool // property name -> true if evaluated
 }
 
 // ArrayResult contains information about which array items were evaluated
 type ArrayResult struct {
-	EvaluatedItems []bool // index -> true if evaluated, length determines max evaluated index
+	evaluatedItems []bool // index -> true if evaluated, length determines max evaluated index
+}
+
+// NewObjectResult creates a new ObjectResult with an initialized map
+func NewObjectResult() *ObjectResult {
+	return &ObjectResult{
+		evaluatedProperties: make(map[string]bool),
+	}
+}
+
+// NewArrayResult creates a new ArrayResult with an initialized slice
+func NewArrayResult() *ArrayResult {
+	return &ArrayResult{
+		evaluatedItems: make([]bool, 0),
+	}
+}
+
+// EvaluatedProperties returns a copy of the evaluated properties map
+func (r *ObjectResult) EvaluatedProperties() map[string]bool {
+	if r == nil || r.evaluatedProperties == nil {
+		return make(map[string]bool)
+	}
+	result := make(map[string]bool, len(r.evaluatedProperties))
+	for k, v := range r.evaluatedProperties {
+		result[k] = v
+	}
+	return result
+}
+
+// SetEvaluatedProperty marks a property as evaluated
+func (r *ObjectResult) SetEvaluatedProperty(prop string) {
+	if r != nil && r.evaluatedProperties != nil {
+		r.evaluatedProperties[prop] = true
+	}
+}
+
+// EvaluatedItems returns a copy of the evaluated items slice
+func (r *ArrayResult) EvaluatedItems() []bool {
+	if r == nil || r.evaluatedItems == nil {
+		return make([]bool, 0)
+	}
+	result := make([]bool, len(r.evaluatedItems))
+	copy(result, r.evaluatedItems)
+	return result
+}
+
+// SetEvaluatedItem marks an item at the given index as evaluated
+func (r *ArrayResult) SetEvaluatedItem(index int) {
+	if r == nil {
+		return
+	}
+	// Extend slice if necessary
+	for len(r.evaluatedItems) <= index {
+		r.evaluatedItems = append(r.evaluatedItems, false)
+	}
+	r.evaluatedItems[index] = true
+}
+
+// SetEvaluatedItems sets the entire slice of evaluated items
+func (r *ArrayResult) SetEvaluatedItems(items []bool) {
+	if r == nil {
+		return
+	}
+	r.evaluatedItems = make([]bool, len(items))
+	copy(r.evaluatedItems, items)
+}
+
+// mergeObjectResults merges multiple ObjectResult instances into a single result
+func mergeObjectResults(results ...*ObjectResult) *ObjectResult {
+	merged := NewObjectResult()
+	for _, result := range results {
+		if result != nil && result.evaluatedProperties != nil {
+			for prop := range result.evaluatedProperties {
+				merged.evaluatedProperties[prop] = true
+			}
+		}
+	}
+	return merged
+}
+
+// mergeArrayResults merges multiple ArrayResult instances into a single result
+func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
+	merged := NewArrayResult()
+	maxLen := 0
+	
+	// Find the maximum length needed
+	for _, result := range results {
+		if result != nil && len(result.evaluatedItems) > maxLen {
+			maxLen = len(result.evaluatedItems)
+		}
+	}
+	
+	// Initialize with the correct length
+	merged.evaluatedItems = make([]bool, maxLen)
+	
+	// Merge all results
+	for _, result := range results {
+		if result != nil {
+			for i, evaluated := range result.evaluatedItems {
+				if evaluated {
+					merged.evaluatedItems[i] = true
+				}
+			}
+		}
+	}
+	
+	return merged
+}
+
+// MergeResults merges multiple validation results and assigns the final result to dst
+// using blackmagic.AssignIfCompatible for type-safe assignment
+func MergeResults(dst interface{}, results ...interface{}) error {
+	var objectResults []*ObjectResult
+	var arrayResults []*ArrayResult
+	
+	// Collect results by type
+	for _, result := range results {
+		switch r := result.(type) {
+		case *ObjectResult:
+			if r != nil {
+				objectResults = append(objectResults, r)
+			}
+		case *ArrayResult:
+			if r != nil {
+				arrayResults = append(arrayResults, r)
+			}
+		}
+	}
+	
+	// Merge based on destination type
+	switch dst.(type) {
+	case **ObjectResult:
+		merged := mergeObjectResults(objectResults...)
+		return blackmagic.AssignIfCompatible(dst, merged)
+	case **ArrayResult:
+		merged := mergeArrayResults(arrayResults...)
+		return blackmagic.AssignIfCompatible(dst, merged)
+	default:
+		return fmt.Errorf("unsupported destination type: %T", dst)
+	}
 }
 
 // Stash contains annotation data passed between validators via context
@@ -371,11 +511,25 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if s.HasDependentSchemas() {
 		compiledDependentSchemas := make(map[string]Interface)
 		for propertyName, depSchema := range s.DependentSchemas() {
-			depValidator, err := Compile(ctx, depSchema)
-			if err != nil {
-				return nil, fmt.Errorf("failed to compile dependent schema for property %s: %w", propertyName, err)
+			// Handle SchemaOrBool types
+			switch val := depSchema.(type) {
+			case schema.SchemaBool:
+				// Boolean schema: true means always valid, false means always invalid
+				if bool(val) {
+					compiledDependentSchemas[propertyName] = &alwaysPassValidator{}
+				} else {
+					compiledDependentSchemas[propertyName] = &alwaysFailValidator{}
+				}
+			case *schema.Schema:
+				// Regular schema object
+				depValidator, err := Compile(ctx, val)
+				if err != nil {
+					return nil, fmt.Errorf("failed to compile dependent schema for property %s: %w", propertyName, err)
+				}
+				compiledDependentSchemas[propertyName] = depValidator
+			default:
+				return nil, fmt.Errorf("unexpected dependent schema type for property %s: %T", propertyName, depSchema)
 			}
-			compiledDependentSchemas[propertyName] = depValidator
 		}
 		ctx = WithDependentSchemas(ctx, compiledDependentSchemas)
 	}
@@ -419,7 +573,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, v)
 		}
-		if s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() || s.HasPropertyNames() {
+		if s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasDependentRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() || s.HasPropertyNames() {
 			// For inferred object types, create non-strict object validator
 			v, err := compileObjectValidator(ctx, s, false)
 			if err != nil {
@@ -852,10 +1006,10 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 		// Merge object results for property evaluation tracking
 		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 			if mergedResult == nil {
-				mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+				mergedResult = NewObjectResult()
 			}
-			for prop := range objResult.EvaluatedProperties {
-				mergedResult.EvaluatedProperties[prop] = true
+			for prop := range objResult.EvaluatedProperties() {
+				mergedResult.SetEvaluatedProperty(prop)
 			}
 		}
 	}
@@ -869,10 +1023,10 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 	// Merge the base result with allOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if mergedResult == nil {
-			mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+			mergedResult = NewObjectResult()
 		}
-		for prop := range baseObjResult.EvaluatedProperties {
-			mergedResult.EvaluatedProperties[prop] = true
+		for prop := range baseObjResult.EvaluatedProperties() {
+			mergedResult.SetEvaluatedProperty(prop)
 		}
 	}
 
@@ -883,9 +1037,14 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousResult *ObjectResult) (Result, error) {
 	// Create context with stash if we have previous evaluation results
 	var currentCtx context.Context
-	if previousResult != nil && len(previousResult.EvaluatedProperties) > 0 {
-		stash := &Stash{EvaluatedProperties: previousResult.EvaluatedProperties}
-		currentCtx = WithStash(ctx, stash)
+	if previousResult != nil {
+		evalProps := previousResult.EvaluatedProperties()
+		if len(evalProps) > 0 {
+			stash := &Stash{EvaluatedProperties: evalProps}
+			currentCtx = WithStash(ctx, stash)
+		} else {
+			currentCtx = ctx
+		}
 	} else {
 		currentCtx = ctx
 	}
@@ -950,10 +1109,10 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 			// Collect annotations from ALL passing validators (not just the first)
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if validResult == nil {
-					validResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+					validResult = NewObjectResult()
 				}
-				for prop := range objResult.EvaluatedProperties {
-					validResult.EvaluatedProperties[prop] = true
+				for prop := range objResult.EvaluatedProperties() {
+					validResult.SetEvaluatedProperty(prop)
 				}
 			}
 			// Continue to check other validators for annotation collection
@@ -973,10 +1132,10 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 	// Merge the base result with anyOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if validResult == nil {
-			validResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+			validResult = NewObjectResult()
 		}
-		for prop := range baseObjResult.EvaluatedProperties {
-			validResult.EvaluatedProperties[prop] = true
+		for prop := range baseObjResult.EvaluatedProperties() {
+			validResult.SetEvaluatedProperty(prop)
 		}
 	}
 
@@ -988,7 +1147,7 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 	if objValidator, ok := v.baseValidator.(*objectValidator); ok {
 		var previouslyEvaluated map[string]bool
 		if previousResult != nil {
-			previouslyEvaluated = previousResult.EvaluatedProperties
+			previouslyEvaluated = previousResult.EvaluatedProperties()
 		}
 		var currentCtx context.Context
 		if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
@@ -1013,9 +1172,9 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 		// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
 		var mergedResult *ObjectResult
 		if previousResult != nil {
-			mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-			for prop := range previousResult.EvaluatedProperties {
-				mergedResult.EvaluatedProperties[prop] = true
+			mergedResult = NewObjectResult()
+			for prop := range previousResult.EvaluatedProperties() {
+				mergedResult.SetEvaluatedProperty(prop)
 			}
 		}
 
@@ -1029,7 +1188,7 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			if objValidator, ok := subValidator.(*objectValidator); ok {
 				var previouslyEvaluated map[string]bool
 				if previousResult != nil {
-					previouslyEvaluated = previousResult.EvaluatedProperties
+					previouslyEvaluated = previousResult.EvaluatedProperties()
 				}
 				var currentCtx context.Context
 				if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
@@ -1050,10 +1209,10 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			// Merge object results
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedResult == nil {
-					mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+					mergedResult = NewObjectResult()
 				}
-				for prop := range objResult.EvaluatedProperties {
-					mergedResult.EvaluatedProperties[prop] = true
+				for prop := range objResult.EvaluatedProperties() {
+					mergedResult.SetEvaluatedProperty(prop)
 				}
 			}
 		}
@@ -1120,9 +1279,9 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 			passedCount++
 			// Collect annotations from the passing validator
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-				validResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-				for prop := range objResult.EvaluatedProperties {
-					validResult.EvaluatedProperties[prop] = true
+				validResult = NewObjectResult()
+				for prop := range objResult.EvaluatedProperties() {
+					validResult.SetEvaluatedProperty(prop)
 				}
 			}
 		}
@@ -1144,10 +1303,10 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Co
 	// Merge the base result with oneOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if validResult == nil {
-			validResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+			validResult = NewObjectResult()
 		}
-		for prop := range baseObjResult.EvaluatedProperties {
-			validResult.EvaluatedProperties[prop] = true
+		for prop := range baseObjResult.EvaluatedProperties() {
+			validResult.SetEvaluatedProperty(prop)
 		}
 	}
 
@@ -1159,7 +1318,7 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 	if objValidator, ok := v.baseValidator.(*objectValidator); ok {
 		var previouslyEvaluated map[string]bool
 		if previousResult != nil {
-			previouslyEvaluated = previousResult.EvaluatedProperties
+			previouslyEvaluated = previousResult.EvaluatedProperties()
 		}
 		var currentCtx context.Context
 		if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
@@ -1184,9 +1343,9 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 		// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
 		var mergedResult *ObjectResult
 		if previousResult != nil {
-			mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-			for prop := range previousResult.EvaluatedProperties {
-				mergedResult.EvaluatedProperties[prop] = true
+			mergedResult = NewObjectResult()
+			for prop := range previousResult.EvaluatedProperties() {
+				mergedResult.SetEvaluatedProperty(prop)
 			}
 		}
 
@@ -1200,7 +1359,7 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			if objValidator, ok := subValidator.(*objectValidator); ok {
 				var previouslyEvaluated map[string]bool
 				if previousResult != nil {
-					previouslyEvaluated = previousResult.EvaluatedProperties
+					previouslyEvaluated = previousResult.EvaluatedProperties()
 				}
 				var currentCtx context.Context
 				if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
@@ -1221,10 +1380,10 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			// Merge object results
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedResult == nil {
-					mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+					mergedResult = NewObjectResult()
 				}
-				for prop := range objResult.EvaluatedProperties {
-					mergedResult.EvaluatedProperties[prop] = true
+				for prop := range objResult.EvaluatedProperties() {
+					mergedResult.SetEvaluatedProperty(prop)
 				}
 			}
 		}
@@ -1273,16 +1432,34 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Cont
 	}
 
 	// Merge the base result with $ref result
-	return mergeResults(refResult, baseResult), nil
+	var finalResult *ObjectResult
+	if err := MergeResults(&finalResult, refResult, baseResult); err != nil {
+		// Fall back to simple merging if MergeResults fails
+		if objRefResult, ok := refResult.(*ObjectResult); ok {
+			if objBaseResult, ok := baseResult.(*ObjectResult); ok {
+				finalResult = mergeObjectResults(objRefResult, objBaseResult)
+			} else {
+				finalResult = objRefResult
+			}
+		} else if objBaseResult, ok := baseResult.(*ObjectResult); ok {
+			finalResult = objBaseResult
+		}
+	}
+	return finalResult, nil
 }
 
 // validateBaseWithContext validates the base schema with annotation context from $ref
 func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, refResult Result) (Result, error) {
 	// Create context with stash if we have evaluation results from $ref
 	var currentCtx context.Context
-	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil && len(objResult.EvaluatedProperties) > 0 {
-		stash := &Stash{EvaluatedProperties: objResult.EvaluatedProperties}
-		currentCtx = WithStash(ctx, stash)
+	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil {
+		evalProps := objResult.EvaluatedProperties()
+		if len(evalProps) > 0 {
+			stash := &Stash{EvaluatedProperties: evalProps}
+			currentCtx = WithStash(ctx, stash)
+		} else {
+			currentCtx = ctx
+		}
 	} else {
 		currentCtx = ctx
 	}
@@ -1302,8 +1479,11 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 			stash := &Stash{}
 
 			// Add evaluated items if we have them (items annotations flow between allOf subschemas)
-			if mergedArrayResult != nil && len(mergedArrayResult.EvaluatedItems) > 0 {
-				stash.EvaluatedItems = mergedArrayResult.EvaluatedItems
+			if mergedArrayResult != nil {
+				evalItems := mergedArrayResult.EvaluatedItems()
+				if len(evalItems) > 0 {
+					stash.EvaluatedItems = evalItems
+				}
 			}
 
 			// NOTE: We do NOT pass evaluated properties between allOf subschemas
@@ -1324,29 +1504,22 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 			// Merge object results for property evaluation tracking
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedObjectResult == nil {
-					mergedObjectResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+					mergedObjectResult = NewObjectResult()
 				}
-				for prop := range objResult.EvaluatedProperties {
-					mergedObjectResult.EvaluatedProperties[prop] = true
+				for prop := range objResult.EvaluatedProperties() {
+					mergedObjectResult.SetEvaluatedProperty(prop)
 				}
 			}
 
 			// Merge array results for item evaluation tracking
 			if arrResult, ok := result.(*ArrayResult); ok && arrResult != nil {
 				if mergedArrayResult == nil {
-					mergedArrayResult = &ArrayResult{EvaluatedItems: make([]bool, len(arrResult.EvaluatedItems))}
-					copy(mergedArrayResult.EvaluatedItems, arrResult.EvaluatedItems)
-				} else {
-					// Merge array results by extending if necessary and combining evaluations
-					if len(arrResult.EvaluatedItems) > len(mergedArrayResult.EvaluatedItems) {
-						newEvaluated := make([]bool, len(arrResult.EvaluatedItems))
-						copy(newEvaluated, mergedArrayResult.EvaluatedItems)
-						mergedArrayResult.EvaluatedItems = newEvaluated
-					}
-					for i := 0; i < len(arrResult.EvaluatedItems) && i < len(mergedArrayResult.EvaluatedItems); i++ {
-						if arrResult.EvaluatedItems[i] {
-							mergedArrayResult.EvaluatedItems[i] = true
-						}
+					mergedArrayResult = NewArrayResult()
+				}
+				arrItems := arrResult.EvaluatedItems()
+				for i, evaluated := range arrItems {
+					if evaluated {
+						mergedArrayResult.SetEvaluatedItem(i)
 					}
 				}
 			}
@@ -1489,9 +1662,7 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 		builder.UnevaluatedProperties(s.UnevaluatedProperties())
 	}
 	if s.HasDependentSchemas() {
-		for propName, depSchema := range s.DependentSchemas() {
-			builder.DependentSchemas(propName, depSchema)
-		}
+		builder.DependentSchemas(s.DependentSchemas())
 	}
 	if s.HasPropertyNames() {
 		builder.PropertyNames(s.PropertyNames())
@@ -1561,7 +1732,20 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 				return nil, err
 			}
 			// Merge 'if' and 'then' results
-			conditionalResult = mergeResults(ifResult, thenResult)
+			var mergedResult *ObjectResult
+			if err := MergeResults(&mergedResult, ifResult, thenResult); err != nil {
+				// Fall back to simple merging
+				if objIfResult, ok := ifResult.(*ObjectResult); ok {
+					if objThenResult, ok := thenResult.(*ObjectResult); ok {
+						mergedResult = mergeObjectResults(objIfResult, objThenResult)
+					} else {
+						mergedResult = objIfResult
+					}
+				} else if objThenResult, ok := thenResult.(*ObjectResult); ok {
+					mergedResult = objThenResult
+				}
+			}
+			conditionalResult = mergedResult
 		} else {
 			// Only 'if' result
 			conditionalResult = ifResult
@@ -1574,7 +1758,20 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 				return nil, err
 			}
 			// Merge 'if' and 'else' results
-			conditionalResult = mergeResults(ifResult, elseResult)
+			var mergedResult *ObjectResult
+			if err := MergeResults(&mergedResult, ifResult, elseResult); err != nil {
+				// Fall back to simple merging
+				if objIfResult, ok := ifResult.(*ObjectResult); ok {
+					if objElseResult, ok := elseResult.(*ObjectResult); ok {
+						mergedResult = mergeObjectResults(objIfResult, objElseResult)
+					} else {
+						mergedResult = objIfResult
+					}
+				} else if objElseResult, ok := elseResult.(*ObjectResult); ok {
+					mergedResult = objElseResult
+				}
+			}
+			conditionalResult = mergedResult
 		} else {
 			// Only 'if' result (even though it failed validation, it may have annotations)
 			conditionalResult = ifResult
@@ -1584,61 +1781,6 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 	return conditionalResult, nil
 }
 
-// mergeResults combines two validation results, merging their annotations
-func mergeResults(result1, result2 Result) Result {
-	// Handle nil results
-	if result1 == nil {
-		return result2
-	}
-	if result2 == nil {
-		return result1
-	}
-
-	// Try to merge object results
-	if objResult1, ok := result1.(*ObjectResult); ok {
-		if objResult2, ok := result2.(*ObjectResult); ok {
-			merged := &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-			// Merge properties from both results
-			for prop := range objResult1.EvaluatedProperties {
-				merged.EvaluatedProperties[prop] = true
-			}
-			for prop := range objResult2.EvaluatedProperties {
-				merged.EvaluatedProperties[prop] = true
-			}
-			return merged
-		}
-	}
-
-	// Try to merge array results
-	if arrResult1, ok := result1.(*ArrayResult); ok {
-		if arrResult2, ok := result2.(*ArrayResult); ok {
-			// Determine the length for the merged result
-			maxLen := len(arrResult1.EvaluatedItems)
-			if len(arrResult2.EvaluatedItems) > maxLen {
-				maxLen = len(arrResult2.EvaluatedItems)
-			}
-
-			merged := &ArrayResult{EvaluatedItems: make([]bool, maxLen)}
-
-			// Merge items from first result
-			for i := 0; i < len(arrResult1.EvaluatedItems) && i < maxLen; i++ {
-				merged.EvaluatedItems[i] = arrResult1.EvaluatedItems[i]
-			}
-
-			// Merge items from second result
-			for i := 0; i < len(arrResult2.EvaluatedItems) && i < maxLen; i++ {
-				if arrResult2.EvaluatedItems[i] {
-					merged.EvaluatedItems[i] = true
-				}
-			}
-
-			return merged
-		}
-	}
-
-	// If we can't merge, return the first result
-	return result1
-}
 
 // IfThenElseUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with if/then/else
 type IfThenElseUnevaluatedPropertiesCompositionValidator struct {
@@ -1699,9 +1841,9 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 
 	// Collect annotations from 'if' schema (contributes regardless of outcome)
 	if ifObjResult, ok := ifResult.(*ObjectResult); ok && ifObjResult != nil {
-		conditionalResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-		for prop := range ifObjResult.EvaluatedProperties {
-			conditionalResult.EvaluatedProperties[prop] = true
+		conditionalResult = NewObjectResult()
+		for prop := range ifObjResult.EvaluatedProperties() {
+			conditionalResult.SetEvaluatedProperty(prop)
 		}
 	}
 
@@ -1715,10 +1857,10 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 			// Merge annotations from 'then' with 'if' annotations
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if conditionalResult == nil {
-					conditionalResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+					conditionalResult = NewObjectResult()
 				}
-				for prop := range objResult.EvaluatedProperties {
-					conditionalResult.EvaluatedProperties[prop] = true
+				for prop := range objResult.EvaluatedProperties() {
+					conditionalResult.SetEvaluatedProperty(prop)
 				}
 			}
 		}
@@ -1732,10 +1874,10 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 			// Merge annotations from 'else' with 'if' annotations
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if conditionalResult == nil {
-					conditionalResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+					conditionalResult = NewObjectResult()
 				}
-				for prop := range objResult.EvaluatedProperties {
-					conditionalResult.EvaluatedProperties[prop] = true
+				for prop := range objResult.EvaluatedProperties() {
+					conditionalResult.SetEvaluatedProperty(prop)
 				}
 			}
 		}
@@ -1750,10 +1892,10 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 	// Merge the base result with if/then/else result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
 		if conditionalResult == nil {
-			conditionalResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+			conditionalResult = NewObjectResult()
 		}
-		for prop := range baseObjResult.EvaluatedProperties {
-			conditionalResult.EvaluatedProperties[prop] = true
+		for prop := range baseObjResult.EvaluatedProperties() {
+			conditionalResult.SetEvaluatedProperty(prop)
 		}
 	}
 
@@ -1764,9 +1906,14 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousResult *ObjectResult) (Result, error) {
 	// Create context with stash if we have previous evaluation results
 	var currentCtx context.Context
-	if previousResult != nil && len(previousResult.EvaluatedProperties) > 0 {
-		stash := &Stash{EvaluatedProperties: previousResult.EvaluatedProperties}
-		currentCtx = WithStash(ctx, stash)
+	if previousResult != nil {
+		evalProps := previousResult.EvaluatedProperties()
+		if len(evalProps) > 0 {
+			stash := &Stash{EvaluatedProperties: evalProps}
+			currentCtx = WithStash(ctx, stash)
+		} else {
+			currentCtx = ctx
+		}
 	} else {
 		currentCtx = ctx
 	}

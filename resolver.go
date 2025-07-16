@@ -184,6 +184,11 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	if schema.HasAnchor() && schema.Anchor() == anchorName {
 		return schema, nil
 	}
+	
+	// Check if current schema has the dynamic anchor
+	if schema.HasDynamicAnchor() && schema.DynamicAnchor() == anchorName {
+		return schema, nil
+	}
 
 	// Search in definitions, but be scope-aware
 	if schema.HasDefinitions() {
@@ -319,8 +324,10 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 
 	// Search in contains schema
 	if schema.HasContains() {
-		if found, err := r.findSchemaByAnchor(schema.Contains(), anchorName); err == nil {
-			return found, nil
+		if containsSchema, ok := schema.Contains().(*Schema); ok {
+			if found, err := r.findSchemaByAnchor(containsSchema, anchorName); err == nil {
+				return found, nil
+			}
 		}
 	}
 

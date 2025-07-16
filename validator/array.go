@@ -36,11 +36,29 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasContains() {
 		containsSchema := s.Contains()
 		if containsSchema != nil {
-			containsValidator, err := Compile(ctx, containsSchema)
-			if err != nil {
-				return nil, fmt.Errorf("failed to compile contains validator: %w", err)
+			// Handle SchemaOrBool types
+			switch val := containsSchema.(type) {
+			case schema.SchemaBool:
+				// Boolean schema: true means any item matches, false means no items should match
+				if bool(val) {
+					// contains: true - any item matches, so any non-empty array is valid
+					// We'll create a validator that always passes
+					v.Contains(&alwaysPassValidator{})
+				} else {
+					// contains: false - no items should match, so any non-empty array is invalid
+					// We'll create a validator that always fails
+					v.Contains(&alwaysFailValidator{})
+				}
+			case *schema.Schema:
+				// Regular schema object
+				containsValidator, err := Compile(ctx, val)
+				if err != nil {
+					return nil, fmt.Errorf("failed to compile contains validator: %w", err)
+				}
+				v.Contains(containsValidator)
+			default:
+				return nil, fmt.Errorf("unexpected contains type: %T", containsSchema)
 			}
-			v.Contains(containsValidator)
 		}
 	}
 	if s.HasMinContains() {
@@ -231,9 +249,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		}
 
 		// Initialize result for tracking evaluated items
-		result := &ArrayResult{
-			EvaluatedItems: make([]bool, rv.Len()),
-		}
+		result := NewArrayResult()
 
 		// Validate each item and track evaluation
 		if c.items != nil {
@@ -244,7 +260,14 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: item validation failed: %w`, err)
 				}
 				// Mark this item as evaluated
-				result.EvaluatedItems[i] = true
+				evaluatedItems := result.EvaluatedItems()
+				if len(evaluatedItems) <= i {
+					newEvaluated := make([]bool, i+1)
+					copy(newEvaluated, evaluatedItems)
+					evaluatedItems = newEvaluated
+				}
+				evaluatedItems[i] = true
+				result.SetEvaluatedItems(evaluatedItems)
 			}
 		}
 		// Note: When c.items is nil, all items remain unevaluated (false in result.EvaluatedItems)
@@ -258,7 +281,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				if err == nil {
 					containsCount++
 					// Mark this item as evaluated by contains
-					result.EvaluatedItems[i] = true
+					result.SetEvaluatedItem(i)
 				}
 			}
 
@@ -289,30 +312,35 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			stash := StashFromContext(ctx)
 			if stash != nil && stash.EvaluatedItems != nil {
 				// Merge stash evaluated items with our current result
-				maxLen := len(result.EvaluatedItems)
+				currentEvaluated := result.EvaluatedItems()
+				maxLen := len(currentEvaluated)
 				if len(stash.EvaluatedItems) > maxLen {
 					maxLen = len(stash.EvaluatedItems)
 				}
 
 				// Extend our result if necessary
-				if len(result.EvaluatedItems) < maxLen {
+				if len(currentEvaluated) < maxLen {
 					newEvaluated := make([]bool, maxLen)
-					copy(newEvaluated, result.EvaluatedItems)
-					result.EvaluatedItems = newEvaluated
+					copy(newEvaluated, currentEvaluated)
+					currentEvaluated = newEvaluated
 				}
 
 				// Mark items as evaluated if they were evaluated by previous validators
 				for i := 0; i < len(stash.EvaluatedItems) && i < maxLen; i++ {
 					if stash.EvaluatedItems[i] {
-						result.EvaluatedItems[i] = true
+						currentEvaluated[i] = true
 					}
 				}
+				
+				// Update the result with the merged evaluated items
+				result.SetEvaluatedItems(currentEvaluated)
 			}
 
 			// Validate unevaluated items
 			for i := 0; i < rv.Len(); i++ {
 				// Skip items that were already evaluated
-				if i < len(result.EvaluatedItems) && result.EvaluatedItems[i] {
+				evaluatedItems := result.EvaluatedItems()
+				if i < len(evaluatedItems) && evaluatedItems[i] {
 					continue
 				}
 
@@ -349,4 +377,18 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// According to JSON Schema spec, array constraints should be ignored for non-arrays
 		return nil, nil
 	}
+}
+
+// alwaysPassValidator is a validator that always passes (used for contains: true)
+type alwaysPassValidator struct{}
+
+func (v *alwaysPassValidator) Validate(ctx context.Context, value any) (Result, error) {
+	return nil, nil
+}
+
+// alwaysFailValidator is a validator that always fails (used for contains: false)
+type alwaysFailValidator struct{}
+
+func (v *alwaysFailValidator) Validate(ctx context.Context, value any) (Result, error) {
+	return nil, fmt.Errorf("contains: false schema always fails")
 }

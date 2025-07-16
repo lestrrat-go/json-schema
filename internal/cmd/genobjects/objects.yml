@@ -16,6 +16,8 @@ objects:
         json: '$comment'
       - name: anchor
         json: '$anchor'
+      - name: dynamicAnchor
+        json: '$dynamicAnchor'
       - name: allOf
         type: '[]SchemaOrBool'
       - name: anyOf
@@ -39,7 +41,7 @@ objects:
       - name: items
         type: 'SchemaOrBool'
       - name: contains
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: properties
         type: 'map[string]*Schema'
       - name: patternProperties
@@ -97,8 +99,12 @@ objects:
       - name: required
         type: '[]string'
       - name: dependentSchemas
-        type: 'map[string]*Schema'
-        #      - name: dependentRequired
+        type: 'map[string]SchemaOrBool'
+      - name: dependentRequired
+        type: 'map[string][]string'
+      - name: vocabulary
+        json: '$vocabulary'
+        type: 'map[string]bool'
       - name: contentEncoding
         type: string
       - name: contentMediaType  

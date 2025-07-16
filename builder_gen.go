@@ -10,13 +10,15 @@ type Builder struct {
 	anyOf                 []SchemaOrBool
 	comment               *string
 	constantValue         *interface{}
-	contains              *Schema
+	contains              SchemaOrBool
 	contentEncoding       *string
 	contentMediaType      *string
 	contentSchema         *Schema
 	defaultValue          *interface{}
 	definitions           []*propPair
-	dependentSchemas      []*propPair
+	dependentRequired     map[string][]string
+	dependentSchemas      map[string]SchemaOrBool
+	dynamicAnchor         *string
 	dynamicReference      *string
 	elseSchema            *Schema
 	enum                  []interface{}
@@ -51,6 +53,7 @@ type Builder struct {
 	unevaluatedItems      SchemaOrBool
 	unevaluatedProperties SchemaOrBool
 	uniqueItems           *bool
+	vocabulary            map[string]bool
 }
 
 func NewBuilder() *Builder {
@@ -126,11 +129,10 @@ func (b *Builder) Const(v interface{}) *Builder {
 	return b
 }
 
-func (b *Builder) Contains(v *Schema) *Builder {
+func (b *Builder) Contains(v SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
 	}
-
 	b.contains = v
 	return b
 }
@@ -180,12 +182,30 @@ func (b *Builder) Definitions(n string, v *Schema) *Builder {
 	return b
 }
 
-func (b *Builder) DependentSchemas(n string, v *Schema) *Builder {
+func (b *Builder) DependentRequired(v map[string][]string) *Builder {
 	if b.err != nil {
 		return b
 	}
 
-	b.dependentSchemas = append(b.dependentSchemas, &propPair{Name: n, Schema: v})
+	b.dependentRequired = v
+	return b
+}
+
+func (b *Builder) DependentSchemas(v map[string]SchemaOrBool) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.dependentSchemas = v
+	return b
+}
+
+func (b *Builder) DynamicAnchor(v string) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.dynamicAnchor = &v
 	return b
 }
 
@@ -499,6 +519,15 @@ func (b *Builder) UniqueItems(v bool) *Builder {
 	return b
 }
 
+func (b *Builder) Vocabulary(v map[string]bool) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.vocabulary = v
+	return b
+}
+
 func (b *Builder) Clone(original *Schema) *Builder {
 	if b.err != nil {
 		return b
@@ -557,10 +586,16 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		}
 	}
 
+	if original.HasDependentRequired() {
+		b.dependentRequired = original.dependentRequired
+	}
+
 	if original.HasDependentSchemas() {
-		for name, schema := range original.dependentSchemas {
-			b.dependentSchemas = append(b.dependentSchemas, &propPair{Name: name, Schema: schema})
-		}
+		b.dependentSchemas = original.dependentSchemas
+	}
+
+	if original.HasDynamicAnchor() {
+		b.dynamicAnchor = original.dynamicAnchor
 	}
 
 	if original.HasDynamicReference() {
@@ -700,6 +735,10 @@ func (b *Builder) Clone(original *Schema) *Builder {
 	if original.HasUniqueItems() {
 		b.uniqueItems = original.uniqueItems
 	}
+
+	if original.HasVocabulary() {
+		b.vocabulary = original.vocabulary
+	}
 	return b
 }
 
@@ -799,11 +838,27 @@ func (b *Builder) ResetDefinitions() *Builder {
 	return b
 }
 
+func (b *Builder) ResetDependentRequired() *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.dependentRequired = nil
+	return b
+}
+
 func (b *Builder) ResetDependentSchemas() *Builder {
 	if b.err != nil {
 		return b
 	}
 	b.dependentSchemas = nil
+	return b
+}
+
+func (b *Builder) ResetDynamicAnchor() *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.dynamicAnchor = nil
 	return b
 }
 
@@ -1079,6 +1134,14 @@ func (b *Builder) ResetUniqueItems() *Builder {
 	return b
 }
 
+func (b *Builder) ResetVocabulary() *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.vocabulary = nil
+	return b
+}
+
 func (b *Builder) Build() (*Schema, error) {
 	s := New()
 	if b.additionalProperties != nil {
@@ -1136,16 +1199,17 @@ func (b *Builder) Build() (*Schema, error) {
 		}
 		s.populatedFields |= DefinitionsField
 	}
-
+	if b.dependentRequired != nil {
+		s.dependentRequired = b.dependentRequired
+		s.populatedFields |= DependentRequiredField
+	}
 	if b.dependentSchemas != nil {
-		s.dependentSchemas = make(map[string]*Schema)
-		for _, pair := range b.dependentSchemas {
-			if _, ok := s.dependentSchemas[pair.Name]; ok {
-				return nil, fmt.Errorf(`duplicate key %q in "dependentSchemas"`, pair.Name)
-			}
-			s.dependentSchemas[pair.Name] = pair.Schema
-		}
+		s.dependentSchemas = b.dependentSchemas
 		s.populatedFields |= DependentSchemasField
+	}
+	if b.dynamicAnchor != nil {
+		s.dynamicAnchor = b.dynamicAnchor
+		s.populatedFields |= DynamicAnchorField
 	}
 	if b.dynamicReference != nil {
 		s.dynamicReference = b.dynamicReference
@@ -1293,6 +1357,10 @@ func (b *Builder) Build() (*Schema, error) {
 	if b.uniqueItems != nil {
 		s.uniqueItems = b.uniqueItems
 		s.populatedFields |= UniqueItemsField
+	}
+	if b.vocabulary != nil {
+		s.vocabulary = b.vocabulary
+		s.populatedFields |= VocabularyField
 	}
 	return s, nil
 }

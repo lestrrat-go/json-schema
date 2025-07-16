@@ -24,6 +24,9 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 	if s.HasRequired() {
 		v.Required(s.Required())
 	}
+	if s.HasDependentRequired() {
+		v.DependentRequired(s.DependentRequired())
+	}
 	if s.HasProperties() {
 		properties := make(map[string]Interface)
 		for name, propSchema := range s.Properties() {
@@ -115,6 +118,7 @@ type objectValidator struct {
 	minProperties          *uint
 	maxProperties          *uint
 	required               []string
+	dependentRequired      map[string][]string // dependent required fields
 	properties             map[string]Interface
 	patternProperties      map[*regexp.Regexp]Interface
 	additionalProperties   any // can be bool or Validator
@@ -154,6 +158,14 @@ func (b *ObjectValidatorBuilder) Required(v []string) *ObjectValidatorBuilder {
 		return b
 	}
 	b.c.required = v
+	return b
+}
+
+func (b *ObjectValidatorBuilder) DependentRequired(v map[string][]string) *ObjectValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.c.dependentRequired = v
 	return b
 }
 
@@ -311,6 +323,18 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 			return nil, fmt.Errorf(`invalid value passed to ObjectValidator: required property %s is missing`, requiredProp)
 		}
 	}
+	
+	// Check dependent required properties
+	for triggerProp, dependentProps := range c.dependentRequired {
+		if _, exists := properties[triggerProp]; exists {
+			// If the trigger property is present, all dependent properties must be present
+			for _, dependentProp := range dependentProps {
+				if _, exists := properties[dependentProp]; !exists {
+					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: dependent required property %s is missing when %s is present`, dependentProp, triggerProp)
+				}
+			}
+		}
+	}
 
 	// Validate property names
 	if c.propertyNames != nil {
@@ -408,7 +432,8 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				
 				// Merge evaluated properties from dependent schema validation
 				if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-					for prop := range objResult.EvaluatedProperties {
+					evaluatedProps := objResult.EvaluatedProperties()
+					for prop := range evaluatedProps {
 						evaluatedProperties[prop] = true
 						// Remove from unevaluated list if it was marked as evaluated by dependent schema
 						for i, unevalProp := range unevaluatedProps {
@@ -445,5 +470,9 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	}
 
 	// Always return ObjectResult with evaluated properties information for annotation tracking
-	return &ObjectResult{EvaluatedProperties: evaluatedProperties}, nil
+	result := NewObjectResult()
+	for prop := range evaluatedProperties {
+		result.SetEvaluatedProperty(prop)
+	}
+	return result, nil
 }

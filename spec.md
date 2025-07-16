@@ -141,6 +141,24 @@ type Interface interface {
 type Result any
 ```
 
+## Result Objects
+
+The only times a result is required is when the resource being validated is either an array or an object.
+So there exists `type ObjectResult` and `type ArrayResult`. They should have corresponding constructors
+`NewObjectResult()` and `NewArrayResult(size int)`. Fields on these results should be unexported.
+
+There should be a utility function that is used to merge multiple results. When all the results are merged,
+it should assign the final result to `dst` using `blackmagic.AssignIfCompatible`.
+The type of `dst` dictates how the merging is performed. I.e., if `dst` is of type `*ObjectResult`,
+it should expect `*ObjectResult` in `list`, and `*ArrayResult` if `dst` is of type `*ArrayResult`
+
+```
+func MergeResults(dst Result, list ...Result) error { ... }
+```
+
+`ObjectResult` and `ArrayResult` should NOT implement their own merge methods. Instead there should be
+helper functions `func mergeObjectResults(obj1, obj2 *ObjectResult) error` and `func mergeArrayResults(arr1, arr2 *ArrayResult) error`.
+
 ## Context passing during Validation
 
 There are cases such as for unevaluatedProperties handling, you need to pass context to/from callees and callers
@@ -168,6 +186,7 @@ data against the validator compiled from the reference, and the validator compil
 rest of the spec.
 
 The composite validator should combine their results and return as a single Result object.
+For this reason, 
 
 ## allOf/anyOf/oneOf
 

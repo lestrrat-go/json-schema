@@ -23,40 +23,43 @@ const (
 	ContentSchemaField         FieldFlag = 1 << 9
 	DefaultField               FieldFlag = 1 << 10
 	DefinitionsField           FieldFlag = 1 << 11
-	DependentSchemasField      FieldFlag = 1 << 12
-	DynamicReferenceField      FieldFlag = 1 << 13
-	ElseSchemaField            FieldFlag = 1 << 14
-	EnumField                  FieldFlag = 1 << 15
-	ExclusiveMaximumField      FieldFlag = 1 << 16
-	ExclusiveMinimumField      FieldFlag = 1 << 17
-	FormatField                FieldFlag = 1 << 18
-	IDField                    FieldFlag = 1 << 19
-	IfSchemaField              FieldFlag = 1 << 20
-	ItemsField                 FieldFlag = 1 << 21
-	MaxContainsField           FieldFlag = 1 << 22
-	MaxItemsField              FieldFlag = 1 << 23
-	MaxLengthField             FieldFlag = 1 << 24
-	MaxPropertiesField         FieldFlag = 1 << 25
-	MaximumField               FieldFlag = 1 << 26
-	MinContainsField           FieldFlag = 1 << 27
-	MinItemsField              FieldFlag = 1 << 28
-	MinLengthField             FieldFlag = 1 << 29
-	MinPropertiesField         FieldFlag = 1 << 30
-	MinimumField               FieldFlag = 1 << 31
-	MultipleOfField            FieldFlag = 1 << 32
-	NotField                   FieldFlag = 1 << 33
-	OneOfField                 FieldFlag = 1 << 34
-	PatternField               FieldFlag = 1 << 35
-	PatternPropertiesField     FieldFlag = 1 << 36
-	PropertiesField            FieldFlag = 1 << 37
-	PropertyNamesField         FieldFlag = 1 << 38
-	ReferenceField             FieldFlag = 1 << 39
-	RequiredField              FieldFlag = 1 << 40
-	ThenSchemaField            FieldFlag = 1 << 41
-	TypesField                 FieldFlag = 1 << 42
-	UnevaluatedItemsField      FieldFlag = 1 << 43
-	UnevaluatedPropertiesField FieldFlag = 1 << 44
-	UniqueItemsField           FieldFlag = 1 << 45
+	DependentRequiredField     FieldFlag = 1 << 12
+	DependentSchemasField      FieldFlag = 1 << 13
+	DynamicAnchorField         FieldFlag = 1 << 14
+	DynamicReferenceField      FieldFlag = 1 << 15
+	ElseSchemaField            FieldFlag = 1 << 16
+	EnumField                  FieldFlag = 1 << 17
+	ExclusiveMaximumField      FieldFlag = 1 << 18
+	ExclusiveMinimumField      FieldFlag = 1 << 19
+	FormatField                FieldFlag = 1 << 20
+	IDField                    FieldFlag = 1 << 21
+	IfSchemaField              FieldFlag = 1 << 22
+	ItemsField                 FieldFlag = 1 << 23
+	MaxContainsField           FieldFlag = 1 << 24
+	MaxItemsField              FieldFlag = 1 << 25
+	MaxLengthField             FieldFlag = 1 << 26
+	MaxPropertiesField         FieldFlag = 1 << 27
+	MaximumField               FieldFlag = 1 << 28
+	MinContainsField           FieldFlag = 1 << 29
+	MinItemsField              FieldFlag = 1 << 30
+	MinLengthField             FieldFlag = 1 << 31
+	MinPropertiesField         FieldFlag = 1 << 32
+	MinimumField               FieldFlag = 1 << 33
+	MultipleOfField            FieldFlag = 1 << 34
+	NotField                   FieldFlag = 1 << 35
+	OneOfField                 FieldFlag = 1 << 36
+	PatternField               FieldFlag = 1 << 37
+	PatternPropertiesField     FieldFlag = 1 << 38
+	PropertiesField            FieldFlag = 1 << 39
+	PropertyNamesField         FieldFlag = 1 << 40
+	ReferenceField             FieldFlag = 1 << 41
+	RequiredField              FieldFlag = 1 << 42
+	ThenSchemaField            FieldFlag = 1 << 43
+	TypesField                 FieldFlag = 1 << 44
+	UnevaluatedItemsField      FieldFlag = 1 << 45
+	UnevaluatedPropertiesField FieldFlag = 1 << 46
+	UniqueItemsField           FieldFlag = 1 << 47
+	VocabularyField            FieldFlag = 1 << 48
 )
 
 type Schema struct {
@@ -68,13 +71,15 @@ type Schema struct {
 	anyOf                 []SchemaOrBool
 	comment               *string
 	constantValue         *interface{}
-	contains              *Schema
+	contains              SchemaOrBool
 	contentEncoding       *string
 	contentMediaType      *string
 	contentSchema         *Schema
 	defaultValue          *interface{}
 	definitions           map[string]*Schema
-	dependentSchemas      map[string]*Schema
+	dependentRequired     map[string][]string
+	dependentSchemas      map[string]SchemaOrBool
+	dynamicAnchor         *string
 	dynamicReference      *string
 	elseSchema            *Schema
 	enum                  []interface{}
@@ -109,6 +114,7 @@ type Schema struct {
 	unevaluatedItems      SchemaOrBool
 	unevaluatedProperties SchemaOrBool
 	uniqueItems           *bool
+	vocabulary            map[string]bool
 }
 
 func New() *Schema {
@@ -181,7 +187,7 @@ func (s *Schema) HasContains() bool {
 	return s.populatedFields&ContainsField != 0
 }
 
-func (s *Schema) Contains() *Schema {
+func (s *Schema) Contains() SchemaOrBool {
 	return s.contains
 }
 
@@ -225,12 +231,28 @@ func (s *Schema) Definitions() map[string]*Schema {
 	return s.definitions
 }
 
+func (s *Schema) HasDependentRequired() bool {
+	return s.populatedFields&DependentRequiredField != 0
+}
+
+func (s *Schema) DependentRequired() map[string][]string {
+	return s.dependentRequired
+}
+
 func (s *Schema) HasDependentSchemas() bool {
 	return s.populatedFields&DependentSchemasField != 0
 }
 
-func (s *Schema) DependentSchemas() map[string]*Schema {
+func (s *Schema) DependentSchemas() map[string]SchemaOrBool {
 	return s.dependentSchemas
+}
+
+func (s *Schema) HasDynamicAnchor() bool {
+	return s.populatedFields&DynamicAnchorField != 0
+}
+
+func (s *Schema) DynamicAnchor() string {
+	return *(s.dynamicAnchor)
 }
 
 func (s *Schema) HasDynamicReference() bool {
@@ -501,6 +523,14 @@ func (s *Schema) UniqueItems() bool {
 	return *(s.uniqueItems)
 }
 
+func (s *Schema) HasVocabulary() bool {
+	return s.populatedFields&VocabularyField != 0
+}
+
+func (s *Schema) Vocabulary() map[string]bool {
+	return s.vocabulary
+}
+
 func (s *Schema) ContainsType(typ PrimitiveType) bool {
 	if s.types == nil {
 		return false
@@ -521,7 +551,7 @@ type pair struct {
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	s.isRoot = true
 	defer func() { s.isRoot = false }()
-	fields := make([]pair, 0, 47)
+	fields := make([]pair, 0, 50)
 	if s.HasAdditionalProperties() {
 		fields = append(fields, pair{Name: "additionalProperties", Value: s.additionalProperties})
 	}
@@ -558,8 +588,14 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.HasDefinitions() {
 		fields = append(fields, pair{Name: "$defs", Value: s.definitions})
 	}
+	if s.HasDependentRequired() {
+		fields = append(fields, pair{Name: "dependentRequired", Value: s.dependentRequired})
+	}
 	if s.HasDependentSchemas() {
 		fields = append(fields, pair{Name: "dependentSchemas", Value: s.dependentSchemas})
+	}
+	if s.HasDynamicAnchor() {
+		fields = append(fields, pair{Name: "$dynamicAnchor", Value: *(s.dynamicAnchor)})
 	}
 	if s.HasDynamicReference() {
 		fields = append(fields, pair{Name: "$dynamicRef", Value: *(s.dynamicReference)})
@@ -663,6 +699,9 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.HasUniqueItems() {
 		fields = append(fields, pair{Name: "uniqueItems", Value: *(s.uniqueItems)})
 	}
+	if s.HasVocabulary() {
+		fields = append(fields, pair{Name: "$vocabulary", Value: s.vocabulary})
+	}
 	sort.Slice(fields, func(i, j int) bool {
 		return compareFieldNames(fields[i].Name, fields[j].Name)
 	})
@@ -762,12 +801,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					// Convert boolean to Schema object
-					if b {
-						s.contains = &Schema{} // true schema - allow everything
-					} else {
-						s.contains = &Schema{not: &Schema{}} // false schema - deny everything
-					}
+					s.contains = SchemaBool(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -857,40 +891,27 @@ LOOP:
 				}
 				s.definitions = v
 				s.populatedFields |= DefinitionsField
+			case "dependentRequired":
+				var v map[string][]string
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "dependentRequired" (attempting to unmarshal as map[string][]string): %w`, err)
+				}
+				s.dependentRequired = v
+				s.populatedFields |= DependentRequiredField
 			case "dependentSchemas":
-				var rawData json.RawMessage
-				if err := dec.Decode(&rawData); err != nil {
-					return fmt.Errorf(`json-schema: failed to decode raw data for field "dependentSchemas": %w`, err)
-				}
-				// First unmarshal as map[string]json.RawMessage
-				var rawMap map[string]json.RawMessage
-				if err := json.Unmarshal(rawData, &rawMap); err != nil {
-					return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" (attempting to unmarshal as map): %w`, err)
-				}
-				// Convert each value to *Schema
-				v := make(map[string]*Schema)
-				for key, rawValue := range rawMap {
-					// Try to decode as boolean first
-					var b bool
-					if err := json.Unmarshal(rawValue, &b); err == nil {
-						// Convert boolean to Schema object
-						if b {
-							v[key] = &Schema{} // true schema - allow everything
-						} else {
-							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
-						}
-					} else {
-						// Try to decode as Schema object
-						var schema Schema
-						if err := json.Unmarshal(rawValue, &schema); err == nil {
-							v[key] = &schema
-						} else {
-							return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" key %q (attempting to unmarshal as Schema after bool failed): %w`, key, err)
-						}
-					}
+				var v map[string]SchemaOrBool
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" (attempting to unmarshal as map[string]SchemaOrBool): %w`, err)
 				}
 				s.dependentSchemas = v
 				s.populatedFields |= DependentSchemasField
+			case "$dynamicAnchor":
+				var v string
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "$dynamicAnchor" (attempting to unmarshal as string): %w`, err)
+				}
+				s.dynamicAnchor = &v
+				s.populatedFields |= DynamicAnchorField
 			case "$dynamicRef":
 				var v string
 				if err := dec.Decode(&v); err != nil {
@@ -1303,6 +1324,13 @@ LOOP:
 				}
 				s.uniqueItems = &v
 				s.populatedFields |= UniqueItemsField
+			case "$vocabulary":
+				var v map[string]bool
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "$vocabulary" (attempting to unmarshal as map[string]bool): %w`, err)
+				}
+				s.vocabulary = v
+				s.populatedFields |= VocabularyField
 			default:
 				// Skip unknown fields by consuming their values
 				var discard json.RawMessage
