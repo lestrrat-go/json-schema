@@ -31,6 +31,31 @@ original := ...
 s, err := schema.NewBuilder().Clone(original).ResetReference().MustBuild()
 ```
 
+# Schema
+
+Due to the number of fields that need to be checked with HasXXX() calls, the Schema object should have a bit field to hold which fields have been set or not.
+
+This allows for a construct like
+
+```
+if s.HasAnchor() && s.HasDefinitions() && s.HasProperties() {
+  ...
+}
+```
+
+to be turned into
+
+```
+requiredFields := schema.AnchorField | schema.DefinitionsField | schema.PropertiesField
+if s.Has(requiredFields) {
+  ...
+}
+```
+
+which is more efficient.
+
+
+
 # Schemas and boolean Schemas
 
 There exists fields where they expect either a boolean or a Schema object.

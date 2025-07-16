@@ -507,197 +507,197 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		return b
 	}
 
-	if original.additionalProperties != nil {
+	if original.HasAdditionalProperties() {
 		b.additionalProperties = original.additionalProperties
 	}
 
-	if original.allOf != nil {
+	if original.HasAllOf() {
 		b.allOf = original.allOf
 	}
 
-	if original.anchor != nil {
+	if original.HasAnchor() {
 		b.anchor = original.anchor
 	}
 
-	if original.anyOf != nil {
+	if original.HasAnyOf() {
 		b.anyOf = original.anyOf
 	}
 
-	if original.comment != nil {
+	if original.HasComment() {
 		b.comment = original.comment
 	}
 
-	if original.constantValue != nil {
+	if original.HasConst() {
 		b.constantValue = original.constantValue
 	}
 
-	if original.contains != nil {
+	if original.HasContains() {
 		b.contains = original.contains
 	}
 
-	if original.contentEncoding != nil {
+	if original.HasContentEncoding() {
 		b.contentEncoding = original.contentEncoding
 	}
 
-	if original.contentMediaType != nil {
+	if original.HasContentMediaType() {
 		b.contentMediaType = original.contentMediaType
 	}
 
-	if original.contentSchema != nil {
+	if original.HasContentSchema() {
 		b.contentSchema = original.contentSchema
 	}
 
-	if original.defaultValue != nil {
+	if original.HasDefault() {
 		b.defaultValue = original.defaultValue
 	}
 
-	if original.definitions != nil {
+	if original.HasDefinitions() {
 		for name, schema := range original.definitions {
 			b.definitions = append(b.definitions, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.dependentSchemas != nil {
+	if original.HasDependentSchemas() {
 		for name, schema := range original.dependentSchemas {
 			b.dependentSchemas = append(b.dependentSchemas, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.dynamicReference != nil {
+	if original.HasDynamicReference() {
 		b.dynamicReference = original.dynamicReference
 	}
 
-	if original.elseSchema != nil {
+	if original.HasElseSchema() {
 		b.elseSchema = original.elseSchema
 	}
 
-	if original.enum != nil {
+	if original.HasEnum() {
 		b.enum = original.enum
 	}
 
-	if original.exclusiveMaximum != nil {
+	if original.HasExclusiveMaximum() {
 		b.exclusiveMaximum = original.exclusiveMaximum
 	}
 
-	if original.exclusiveMinimum != nil {
+	if original.HasExclusiveMinimum() {
 		b.exclusiveMinimum = original.exclusiveMinimum
 	}
 
-	if original.format != nil {
+	if original.HasFormat() {
 		b.format = original.format
 	}
 
-	if original.id != nil {
+	if original.HasID() {
 		b.id = original.id
 	}
 
-	if original.ifSchema != nil {
+	if original.HasIfSchema() {
 		b.ifSchema = original.ifSchema
 	}
 
-	if original.items != nil {
+	if original.HasItems() {
 		b.items = original.items
 	}
 
-	if original.maxContains != nil {
+	if original.HasMaxContains() {
 		b.maxContains = original.maxContains
 	}
 
-	if original.maxItems != nil {
+	if original.HasMaxItems() {
 		b.maxItems = original.maxItems
 	}
 
-	if original.maxLength != nil {
+	if original.HasMaxLength() {
 		b.maxLength = original.maxLength
 	}
 
-	if original.maxProperties != nil {
+	if original.HasMaxProperties() {
 		b.maxProperties = original.maxProperties
 	}
 
-	if original.maximum != nil {
+	if original.HasMaximum() {
 		b.maximum = original.maximum
 	}
 
-	if original.minContains != nil {
+	if original.HasMinContains() {
 		b.minContains = original.minContains
 	}
 
-	if original.minItems != nil {
+	if original.HasMinItems() {
 		b.minItems = original.minItems
 	}
 
-	if original.minLength != nil {
+	if original.HasMinLength() {
 		b.minLength = original.minLength
 	}
 
-	if original.minProperties != nil {
+	if original.HasMinProperties() {
 		b.minProperties = original.minProperties
 	}
 
-	if original.minimum != nil {
+	if original.HasMinimum() {
 		b.minimum = original.minimum
 	}
 
-	if original.multipleOf != nil {
+	if original.HasMultipleOf() {
 		b.multipleOf = original.multipleOf
 	}
 
-	if original.not != nil {
+	if original.HasNot() {
 		b.not = original.not
 	}
 
-	if original.oneOf != nil {
+	if original.HasOneOf() {
 		b.oneOf = original.oneOf
 	}
 
-	if original.pattern != nil {
+	if original.HasPattern() {
 		b.pattern = original.pattern
 	}
 
-	if original.patternProperties != nil {
+	if original.HasPatternProperties() {
 		for name, schema := range original.patternProperties {
 			b.patternProperties = append(b.patternProperties, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.properties != nil {
+	if original.HasProperties() {
 		for name, schema := range original.properties {
 			b.properties = append(b.properties, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.propertyNames != nil {
+	if original.HasPropertyNames() {
 		b.propertyNames = original.propertyNames
 	}
 
-	if original.reference != nil {
+	if original.HasReference() {
 		b.reference = original.reference
 	}
 
-	if original.required != nil {
+	if original.HasRequired() {
 		b.required = original.required
 	}
 
 	b.schema = original.schema
 
-	if original.thenSchema != nil {
+	if original.HasThenSchema() {
 		b.thenSchema = original.thenSchema
 	}
 
-	if original.types != nil {
+	if original.HasTypes() {
 		b.types = original.types
 	}
 
-	if original.unevaluatedItems != nil {
+	if original.HasUnevaluatedItems() {
 		b.unevaluatedItems = original.unevaluatedItems
 	}
 
-	if original.unevaluatedProperties != nil {
+	if original.HasUnevaluatedProperties() {
 		b.unevaluatedProperties = original.unevaluatedProperties
 	}
 
-	if original.uniqueItems != nil {
+	if original.HasUniqueItems() {
 		b.uniqueItems = original.uniqueItems
 	}
 	return b
@@ -1083,36 +1083,47 @@ func (b *Builder) Build() (*Schema, error) {
 	s := New()
 	if b.additionalProperties != nil {
 		s.additionalProperties = b.additionalProperties
+		s.populatedFields |= AdditionalPropertiesField
 	}
 	if b.allOf != nil {
 		s.allOf = b.allOf
+		s.populatedFields |= AllOfField
 	}
 	if b.anchor != nil {
 		s.anchor = b.anchor
+		s.populatedFields |= AnchorField
 	}
 	if b.anyOf != nil {
 		s.anyOf = b.anyOf
+		s.populatedFields |= AnyOfField
 	}
 	if b.comment != nil {
 		s.comment = b.comment
+		s.populatedFields |= CommentField
 	}
 	if b.constantValue != nil {
 		s.constantValue = b.constantValue
+		s.populatedFields |= ConstField
 	}
 	if b.contains != nil {
 		s.contains = b.contains
+		s.populatedFields |= ContainsField
 	}
 	if b.contentEncoding != nil {
 		s.contentEncoding = b.contentEncoding
+		s.populatedFields |= ContentEncodingField
 	}
 	if b.contentMediaType != nil {
 		s.contentMediaType = b.contentMediaType
+		s.populatedFields |= ContentMediaTypeField
 	}
 	if b.contentSchema != nil {
 		s.contentSchema = b.contentSchema
+		s.populatedFields |= ContentSchemaField
 	}
 	if b.defaultValue != nil {
 		s.defaultValue = b.defaultValue
+		s.populatedFields |= DefaultField
 	}
 
 	if b.definitions != nil {
@@ -1123,6 +1134,7 @@ func (b *Builder) Build() (*Schema, error) {
 			}
 			s.definitions[pair.Name] = pair.Schema
 		}
+		s.populatedFields |= DefinitionsField
 	}
 
 	if b.dependentSchemas != nil {
@@ -1133,75 +1145,99 @@ func (b *Builder) Build() (*Schema, error) {
 			}
 			s.dependentSchemas[pair.Name] = pair.Schema
 		}
+		s.populatedFields |= DependentSchemasField
 	}
 	if b.dynamicReference != nil {
 		s.dynamicReference = b.dynamicReference
+		s.populatedFields |= DynamicReferenceField
 	}
 	if b.elseSchema != nil {
 		s.elseSchema = b.elseSchema
+		s.populatedFields |= ElseSchemaField
 	}
 	if b.enum != nil {
 		s.enum = b.enum
+		s.populatedFields |= EnumField
 	}
 	if b.exclusiveMaximum != nil {
 		s.exclusiveMaximum = b.exclusiveMaximum
+		s.populatedFields |= ExclusiveMaximumField
 	}
 	if b.exclusiveMinimum != nil {
 		s.exclusiveMinimum = b.exclusiveMinimum
+		s.populatedFields |= ExclusiveMinimumField
 	}
 	if b.format != nil {
 		s.format = b.format
+		s.populatedFields |= FormatField
 	}
 	if b.id != nil {
 		s.id = b.id
+		s.populatedFields |= IDField
 	}
 	if b.ifSchema != nil {
 		s.ifSchema = b.ifSchema
+		s.populatedFields |= IfSchemaField
 	}
 	if b.items != nil {
 		s.items = b.items
+		s.populatedFields |= ItemsField
 	}
 	if b.maxContains != nil {
 		s.maxContains = b.maxContains
+		s.populatedFields |= MaxContainsField
 	}
 	if b.maxItems != nil {
 		s.maxItems = b.maxItems
+		s.populatedFields |= MaxItemsField
 	}
 	if b.maxLength != nil {
 		s.maxLength = b.maxLength
+		s.populatedFields |= MaxLengthField
 	}
 	if b.maxProperties != nil {
 		s.maxProperties = b.maxProperties
+		s.populatedFields |= MaxPropertiesField
 	}
 	if b.maximum != nil {
 		s.maximum = b.maximum
+		s.populatedFields |= MaximumField
 	}
 	if b.minContains != nil {
 		s.minContains = b.minContains
+		s.populatedFields |= MinContainsField
 	}
 	if b.minItems != nil {
 		s.minItems = b.minItems
+		s.populatedFields |= MinItemsField
 	}
 	if b.minLength != nil {
 		s.minLength = b.minLength
+		s.populatedFields |= MinLengthField
 	}
 	if b.minProperties != nil {
 		s.minProperties = b.minProperties
+		s.populatedFields |= MinPropertiesField
 	}
 	if b.minimum != nil {
 		s.minimum = b.minimum
+		s.populatedFields |= MinimumField
 	}
 	if b.multipleOf != nil {
 		s.multipleOf = b.multipleOf
+		s.populatedFields |= MultipleOfField
 	}
 	if b.not != nil {
 		s.not = b.not
+		s.populatedFields |= NotField
 	}
 	if b.oneOf != nil {
 		s.oneOf = b.oneOf
+		s.populatedFields |= OneOfField
 	}
 	if b.pattern != nil {
 		s.pattern = b.pattern
+		s.populatedFields |= PatternField
 	}
 
 	if b.patternProperties != nil {
@@ -1212,6 +1248,7 @@ func (b *Builder) Build() (*Schema, error) {
 			}
 			s.patternProperties[pair.Name] = pair.Schema
 		}
+		s.populatedFields |= PatternPropertiesField
 	}
 
 	if b.properties != nil {
@@ -1222,31 +1259,40 @@ func (b *Builder) Build() (*Schema, error) {
 			}
 			s.properties[pair.Name] = pair.Schema
 		}
+		s.populatedFields |= PropertiesField
 	}
 	if b.propertyNames != nil {
 		s.propertyNames = b.propertyNames
+		s.populatedFields |= PropertyNamesField
 	}
 	if b.reference != nil {
 		s.reference = b.reference
+		s.populatedFields |= ReferenceField
 	}
 	if b.required != nil {
 		s.required = b.required
+		s.populatedFields |= RequiredField
 	}
 	s.schema = b.schema
 	if b.thenSchema != nil {
 		s.thenSchema = b.thenSchema
+		s.populatedFields |= ThenSchemaField
 	}
 	if b.types != nil {
 		s.types = b.types
+		s.populatedFields |= TypesField
 	}
 	if b.unevaluatedItems != nil {
 		s.unevaluatedItems = b.unevaluatedItems
+		s.populatedFields |= UnevaluatedItemsField
 	}
 	if b.unevaluatedProperties != nil {
 		s.unevaluatedProperties = b.unevaluatedProperties
+		s.populatedFields |= UnevaluatedPropertiesField
 	}
 	if b.uniqueItems != nil {
 		s.uniqueItems = b.uniqueItems
+		s.populatedFields |= UniqueItemsField
 	}
 	return s, nil
 }

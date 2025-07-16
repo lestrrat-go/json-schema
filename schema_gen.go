@@ -7,8 +7,61 @@ import (
 	"sort"
 )
 
+// Field bit flags for tracking populated fields
+type FieldFlag uint64
+
+const (
+	AdditionalPropertiesField  FieldFlag = 1 << 0
+	AllOfField                 FieldFlag = 1 << 1
+	AnchorField                FieldFlag = 1 << 2
+	AnyOfField                 FieldFlag = 1 << 3
+	CommentField               FieldFlag = 1 << 4
+	ConstField                 FieldFlag = 1 << 5
+	ContainsField              FieldFlag = 1 << 6
+	ContentEncodingField       FieldFlag = 1 << 7
+	ContentMediaTypeField      FieldFlag = 1 << 8
+	ContentSchemaField         FieldFlag = 1 << 9
+	DefaultField               FieldFlag = 1 << 10
+	DefinitionsField           FieldFlag = 1 << 11
+	DependentSchemasField      FieldFlag = 1 << 12
+	DynamicReferenceField      FieldFlag = 1 << 13
+	ElseSchemaField            FieldFlag = 1 << 14
+	EnumField                  FieldFlag = 1 << 15
+	ExclusiveMaximumField      FieldFlag = 1 << 16
+	ExclusiveMinimumField      FieldFlag = 1 << 17
+	FormatField                FieldFlag = 1 << 18
+	IDField                    FieldFlag = 1 << 19
+	IfSchemaField              FieldFlag = 1 << 20
+	ItemsField                 FieldFlag = 1 << 21
+	MaxContainsField           FieldFlag = 1 << 22
+	MaxItemsField              FieldFlag = 1 << 23
+	MaxLengthField             FieldFlag = 1 << 24
+	MaxPropertiesField         FieldFlag = 1 << 25
+	MaximumField               FieldFlag = 1 << 26
+	MinContainsField           FieldFlag = 1 << 27
+	MinItemsField              FieldFlag = 1 << 28
+	MinLengthField             FieldFlag = 1 << 29
+	MinPropertiesField         FieldFlag = 1 << 30
+	MinimumField               FieldFlag = 1 << 31
+	MultipleOfField            FieldFlag = 1 << 32
+	NotField                   FieldFlag = 1 << 33
+	OneOfField                 FieldFlag = 1 << 34
+	PatternField               FieldFlag = 1 << 35
+	PatternPropertiesField     FieldFlag = 1 << 36
+	PropertiesField            FieldFlag = 1 << 37
+	PropertyNamesField         FieldFlag = 1 << 38
+	ReferenceField             FieldFlag = 1 << 39
+	RequiredField              FieldFlag = 1 << 40
+	ThenSchemaField            FieldFlag = 1 << 41
+	TypesField                 FieldFlag = 1 << 42
+	UnevaluatedItemsField      FieldFlag = 1 << 43
+	UnevaluatedPropertiesField FieldFlag = 1 << 44
+	UniqueItemsField           FieldFlag = 1 << 45
+)
+
 type Schema struct {
 	isRoot                bool
+	populatedFields       FieldFlag
 	additionalProperties  SchemaOrBool
 	allOf                 []SchemaOrBool
 	anchor                *string
@@ -64,8 +117,20 @@ func New() *Schema {
 	}
 }
 
+// Has checks if the specified field flags are set
+// Usage: schema.Has(AnchorField | PropertiesField) returns true if both anchor and properties are set
+func (s *Schema) Has(flags FieldFlag) bool {
+	return (s.populatedFields & flags) == flags
+}
+
+// HasAny checks if any of the specified field flags are set
+// Usage: schema.HasAny(AnchorField | PropertiesField) returns true if either anchor or properties (or both) are set
+func (s *Schema) HasAny(flags FieldFlag) bool {
+	return (s.populatedFields & flags) != 0
+}
+
 func (s *Schema) HasAdditionalProperties() bool {
-	return s.additionalProperties != nil
+	return s.populatedFields&AdditionalPropertiesField != 0
 }
 
 func (s *Schema) AdditionalProperties() SchemaOrBool {
@@ -73,7 +138,7 @@ func (s *Schema) AdditionalProperties() SchemaOrBool {
 }
 
 func (s *Schema) HasAllOf() bool {
-	return s.allOf != nil
+	return s.populatedFields&AllOfField != 0
 }
 
 func (s *Schema) AllOf() []SchemaOrBool {
@@ -81,7 +146,7 @@ func (s *Schema) AllOf() []SchemaOrBool {
 }
 
 func (s *Schema) HasAnchor() bool {
-	return s.anchor != nil
+	return s.populatedFields&AnchorField != 0
 }
 
 func (s *Schema) Anchor() string {
@@ -89,7 +154,7 @@ func (s *Schema) Anchor() string {
 }
 
 func (s *Schema) HasAnyOf() bool {
-	return s.anyOf != nil
+	return s.populatedFields&AnyOfField != 0
 }
 
 func (s *Schema) AnyOf() []SchemaOrBool {
@@ -97,7 +162,7 @@ func (s *Schema) AnyOf() []SchemaOrBool {
 }
 
 func (s *Schema) HasComment() bool {
-	return s.comment != nil
+	return s.populatedFields&CommentField != 0
 }
 
 func (s *Schema) Comment() string {
@@ -105,7 +170,7 @@ func (s *Schema) Comment() string {
 }
 
 func (s *Schema) HasConst() bool {
-	return s.constantValue != nil
+	return s.populatedFields&ConstField != 0
 }
 
 func (s *Schema) Const() interface{} {
@@ -113,7 +178,7 @@ func (s *Schema) Const() interface{} {
 }
 
 func (s *Schema) HasContains() bool {
-	return s.contains != nil
+	return s.populatedFields&ContainsField != 0
 }
 
 func (s *Schema) Contains() *Schema {
@@ -121,7 +186,7 @@ func (s *Schema) Contains() *Schema {
 }
 
 func (s *Schema) HasContentEncoding() bool {
-	return s.contentEncoding != nil
+	return s.populatedFields&ContentEncodingField != 0
 }
 
 func (s *Schema) ContentEncoding() string {
@@ -129,7 +194,7 @@ func (s *Schema) ContentEncoding() string {
 }
 
 func (s *Schema) HasContentMediaType() bool {
-	return s.contentMediaType != nil
+	return s.populatedFields&ContentMediaTypeField != 0
 }
 
 func (s *Schema) ContentMediaType() string {
@@ -137,7 +202,7 @@ func (s *Schema) ContentMediaType() string {
 }
 
 func (s *Schema) HasContentSchema() bool {
-	return s.contentSchema != nil
+	return s.populatedFields&ContentSchemaField != 0
 }
 
 func (s *Schema) ContentSchema() *Schema {
@@ -145,7 +210,7 @@ func (s *Schema) ContentSchema() *Schema {
 }
 
 func (s *Schema) HasDefault() bool {
-	return s.defaultValue != nil
+	return s.populatedFields&DefaultField != 0
 }
 
 func (s *Schema) Default() interface{} {
@@ -153,7 +218,7 @@ func (s *Schema) Default() interface{} {
 }
 
 func (s *Schema) HasDefinitions() bool {
-	return s.definitions != nil
+	return s.populatedFields&DefinitionsField != 0
 }
 
 func (s *Schema) Definitions() map[string]*Schema {
@@ -161,7 +226,7 @@ func (s *Schema) Definitions() map[string]*Schema {
 }
 
 func (s *Schema) HasDependentSchemas() bool {
-	return s.dependentSchemas != nil
+	return s.populatedFields&DependentSchemasField != 0
 }
 
 func (s *Schema) DependentSchemas() map[string]*Schema {
@@ -169,7 +234,7 @@ func (s *Schema) DependentSchemas() map[string]*Schema {
 }
 
 func (s *Schema) HasDynamicReference() bool {
-	return s.dynamicReference != nil
+	return s.populatedFields&DynamicReferenceField != 0
 }
 
 func (s *Schema) DynamicReference() string {
@@ -177,7 +242,7 @@ func (s *Schema) DynamicReference() string {
 }
 
 func (s *Schema) HasElseSchema() bool {
-	return s.elseSchema != nil
+	return s.populatedFields&ElseSchemaField != 0
 }
 
 func (s *Schema) ElseSchema() *Schema {
@@ -185,7 +250,7 @@ func (s *Schema) ElseSchema() *Schema {
 }
 
 func (s *Schema) HasEnum() bool {
-	return s.enum != nil
+	return s.populatedFields&EnumField != 0
 }
 
 func (s *Schema) Enum() []interface{} {
@@ -193,7 +258,7 @@ func (s *Schema) Enum() []interface{} {
 }
 
 func (s *Schema) HasExclusiveMaximum() bool {
-	return s.exclusiveMaximum != nil
+	return s.populatedFields&ExclusiveMaximumField != 0
 }
 
 func (s *Schema) ExclusiveMaximum() float64 {
@@ -201,7 +266,7 @@ func (s *Schema) ExclusiveMaximum() float64 {
 }
 
 func (s *Schema) HasExclusiveMinimum() bool {
-	return s.exclusiveMinimum != nil
+	return s.populatedFields&ExclusiveMinimumField != 0
 }
 
 func (s *Schema) ExclusiveMinimum() float64 {
@@ -209,7 +274,7 @@ func (s *Schema) ExclusiveMinimum() float64 {
 }
 
 func (s *Schema) HasFormat() bool {
-	return s.format != nil
+	return s.populatedFields&FormatField != 0
 }
 
 func (s *Schema) Format() string {
@@ -217,7 +282,7 @@ func (s *Schema) Format() string {
 }
 
 func (s *Schema) HasID() bool {
-	return s.id != nil
+	return s.populatedFields&IDField != 0
 }
 
 func (s *Schema) ID() string {
@@ -225,7 +290,7 @@ func (s *Schema) ID() string {
 }
 
 func (s *Schema) HasIfSchema() bool {
-	return s.ifSchema != nil
+	return s.populatedFields&IfSchemaField != 0
 }
 
 func (s *Schema) IfSchema() *Schema {
@@ -233,7 +298,7 @@ func (s *Schema) IfSchema() *Schema {
 }
 
 func (s *Schema) HasItems() bool {
-	return s.items != nil
+	return s.populatedFields&ItemsField != 0
 }
 
 func (s *Schema) Items() SchemaOrBool {
@@ -241,7 +306,7 @@ func (s *Schema) Items() SchemaOrBool {
 }
 
 func (s *Schema) HasMaxContains() bool {
-	return s.maxContains != nil
+	return s.populatedFields&MaxContainsField != 0
 }
 
 func (s *Schema) MaxContains() uint {
@@ -249,7 +314,7 @@ func (s *Schema) MaxContains() uint {
 }
 
 func (s *Schema) HasMaxItems() bool {
-	return s.maxItems != nil
+	return s.populatedFields&MaxItemsField != 0
 }
 
 func (s *Schema) MaxItems() uint {
@@ -257,7 +322,7 @@ func (s *Schema) MaxItems() uint {
 }
 
 func (s *Schema) HasMaxLength() bool {
-	return s.maxLength != nil
+	return s.populatedFields&MaxLengthField != 0
 }
 
 func (s *Schema) MaxLength() int {
@@ -265,7 +330,7 @@ func (s *Schema) MaxLength() int {
 }
 
 func (s *Schema) HasMaxProperties() bool {
-	return s.maxProperties != nil
+	return s.populatedFields&MaxPropertiesField != 0
 }
 
 func (s *Schema) MaxProperties() uint {
@@ -273,7 +338,7 @@ func (s *Schema) MaxProperties() uint {
 }
 
 func (s *Schema) HasMaximum() bool {
-	return s.maximum != nil
+	return s.populatedFields&MaximumField != 0
 }
 
 func (s *Schema) Maximum() float64 {
@@ -281,7 +346,7 @@ func (s *Schema) Maximum() float64 {
 }
 
 func (s *Schema) HasMinContains() bool {
-	return s.minContains != nil
+	return s.populatedFields&MinContainsField != 0
 }
 
 func (s *Schema) MinContains() uint {
@@ -289,7 +354,7 @@ func (s *Schema) MinContains() uint {
 }
 
 func (s *Schema) HasMinItems() bool {
-	return s.minItems != nil
+	return s.populatedFields&MinItemsField != 0
 }
 
 func (s *Schema) MinItems() uint {
@@ -297,7 +362,7 @@ func (s *Schema) MinItems() uint {
 }
 
 func (s *Schema) HasMinLength() bool {
-	return s.minLength != nil
+	return s.populatedFields&MinLengthField != 0
 }
 
 func (s *Schema) MinLength() int {
@@ -305,7 +370,7 @@ func (s *Schema) MinLength() int {
 }
 
 func (s *Schema) HasMinProperties() bool {
-	return s.minProperties != nil
+	return s.populatedFields&MinPropertiesField != 0
 }
 
 func (s *Schema) MinProperties() uint {
@@ -313,7 +378,7 @@ func (s *Schema) MinProperties() uint {
 }
 
 func (s *Schema) HasMinimum() bool {
-	return s.minimum != nil
+	return s.populatedFields&MinimumField != 0
 }
 
 func (s *Schema) Minimum() float64 {
@@ -321,7 +386,7 @@ func (s *Schema) Minimum() float64 {
 }
 
 func (s *Schema) HasMultipleOf() bool {
-	return s.multipleOf != nil
+	return s.populatedFields&MultipleOfField != 0
 }
 
 func (s *Schema) MultipleOf() float64 {
@@ -329,7 +394,7 @@ func (s *Schema) MultipleOf() float64 {
 }
 
 func (s *Schema) HasNot() bool {
-	return s.not != nil
+	return s.populatedFields&NotField != 0
 }
 
 func (s *Schema) Not() *Schema {
@@ -337,7 +402,7 @@ func (s *Schema) Not() *Schema {
 }
 
 func (s *Schema) HasOneOf() bool {
-	return s.oneOf != nil
+	return s.populatedFields&OneOfField != 0
 }
 
 func (s *Schema) OneOf() []SchemaOrBool {
@@ -345,7 +410,7 @@ func (s *Schema) OneOf() []SchemaOrBool {
 }
 
 func (s *Schema) HasPattern() bool {
-	return s.pattern != nil
+	return s.populatedFields&PatternField != 0
 }
 
 func (s *Schema) Pattern() string {
@@ -353,7 +418,7 @@ func (s *Schema) Pattern() string {
 }
 
 func (s *Schema) HasPatternProperties() bool {
-	return s.patternProperties != nil
+	return s.populatedFields&PatternPropertiesField != 0
 }
 
 func (s *Schema) PatternProperties() map[string]*Schema {
@@ -361,7 +426,7 @@ func (s *Schema) PatternProperties() map[string]*Schema {
 }
 
 func (s *Schema) HasProperties() bool {
-	return s.properties != nil
+	return s.populatedFields&PropertiesField != 0
 }
 
 func (s *Schema) Properties() map[string]*Schema {
@@ -369,7 +434,7 @@ func (s *Schema) Properties() map[string]*Schema {
 }
 
 func (s *Schema) HasPropertyNames() bool {
-	return s.propertyNames != nil
+	return s.populatedFields&PropertyNamesField != 0
 }
 
 func (s *Schema) PropertyNames() *Schema {
@@ -377,7 +442,7 @@ func (s *Schema) PropertyNames() *Schema {
 }
 
 func (s *Schema) HasReference() bool {
-	return s.reference != nil
+	return s.populatedFields&ReferenceField != 0
 }
 
 func (s *Schema) Reference() string {
@@ -385,7 +450,7 @@ func (s *Schema) Reference() string {
 }
 
 func (s *Schema) HasRequired() bool {
-	return s.required != nil
+	return s.populatedFields&RequiredField != 0
 }
 
 func (s *Schema) Required() []string {
@@ -397,7 +462,7 @@ func (s *Schema) Schema() string {
 }
 
 func (s *Schema) HasThenSchema() bool {
-	return s.thenSchema != nil
+	return s.populatedFields&ThenSchemaField != 0
 }
 
 func (s *Schema) ThenSchema() *Schema {
@@ -405,7 +470,7 @@ func (s *Schema) ThenSchema() *Schema {
 }
 
 func (s *Schema) HasTypes() bool {
-	return s.types != nil
+	return s.populatedFields&TypesField != 0
 }
 
 func (s *Schema) Types() PrimitiveTypes {
@@ -413,7 +478,7 @@ func (s *Schema) Types() PrimitiveTypes {
 }
 
 func (s *Schema) HasUnevaluatedItems() bool {
-	return s.unevaluatedItems != nil
+	return s.populatedFields&UnevaluatedItemsField != 0
 }
 
 func (s *Schema) UnevaluatedItems() SchemaOrBool {
@@ -421,7 +486,7 @@ func (s *Schema) UnevaluatedItems() SchemaOrBool {
 }
 
 func (s *Schema) HasUnevaluatedProperties() bool {
-	return s.unevaluatedProperties != nil
+	return s.populatedFields&UnevaluatedPropertiesField != 0
 }
 
 func (s *Schema) UnevaluatedProperties() SchemaOrBool {
@@ -429,7 +494,7 @@ func (s *Schema) UnevaluatedProperties() SchemaOrBool {
 }
 
 func (s *Schema) HasUniqueItems() bool {
-	return s.uniqueItems != nil
+	return s.populatedFields&UniqueItemsField != 0
 }
 
 func (s *Schema) UniqueItems() bool {
@@ -457,146 +522,146 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	s.isRoot = true
 	defer func() { s.isRoot = false }()
 	fields := make([]pair, 0, 47)
-	if v := s.additionalProperties; v != nil {
-		fields = append(fields, pair{Name: "additionalProperties", Value: v})
+	if s.HasAdditionalProperties() {
+		fields = append(fields, pair{Name: "additionalProperties", Value: s.additionalProperties})
 	}
-	if v := s.allOf; v != nil {
-		fields = append(fields, pair{Name: "allOf", Value: v})
+	if s.HasAllOf() {
+		fields = append(fields, pair{Name: "allOf", Value: s.allOf})
 	}
-	if v := s.anchor; v != nil {
-		fields = append(fields, pair{Name: "$anchor", Value: *v})
+	if s.HasAnchor() {
+		fields = append(fields, pair{Name: "$anchor", Value: *(s.anchor)})
 	}
-	if v := s.anyOf; v != nil {
-		fields = append(fields, pair{Name: "anyOf", Value: v})
+	if s.HasAnyOf() {
+		fields = append(fields, pair{Name: "anyOf", Value: s.anyOf})
 	}
-	if v := s.comment; v != nil {
-		fields = append(fields, pair{Name: "$comment", Value: *v})
+	if s.HasComment() {
+		fields = append(fields, pair{Name: "$comment", Value: *(s.comment)})
 	}
-	if v := s.constantValue; v != nil {
-		fields = append(fields, pair{Name: "const", Value: *v})
+	if s.HasConst() {
+		fields = append(fields, pair{Name: "const", Value: *(s.constantValue)})
 	}
-	if v := s.contains; v != nil {
-		fields = append(fields, pair{Name: "contains", Value: v})
+	if s.HasContains() {
+		fields = append(fields, pair{Name: "contains", Value: s.contains})
 	}
-	if v := s.contentEncoding; v != nil {
-		fields = append(fields, pair{Name: "contentEncoding", Value: *v})
+	if s.HasContentEncoding() {
+		fields = append(fields, pair{Name: "contentEncoding", Value: *(s.contentEncoding)})
 	}
-	if v := s.contentMediaType; v != nil {
-		fields = append(fields, pair{Name: "contentMediaType", Value: *v})
+	if s.HasContentMediaType() {
+		fields = append(fields, pair{Name: "contentMediaType", Value: *(s.contentMediaType)})
 	}
-	if v := s.contentSchema; v != nil {
-		fields = append(fields, pair{Name: "contentSchema", Value: v})
+	if s.HasContentSchema() {
+		fields = append(fields, pair{Name: "contentSchema", Value: s.contentSchema})
 	}
-	if v := s.defaultValue; v != nil {
-		fields = append(fields, pair{Name: "default", Value: *v})
+	if s.HasDefault() {
+		fields = append(fields, pair{Name: "default", Value: *(s.defaultValue)})
 	}
-	if v := s.definitions; v != nil {
-		fields = append(fields, pair{Name: "$defs", Value: v})
+	if s.HasDefinitions() {
+		fields = append(fields, pair{Name: "$defs", Value: s.definitions})
 	}
-	if v := s.dependentSchemas; v != nil {
-		fields = append(fields, pair{Name: "dependentSchemas", Value: v})
+	if s.HasDependentSchemas() {
+		fields = append(fields, pair{Name: "dependentSchemas", Value: s.dependentSchemas})
 	}
-	if v := s.dynamicReference; v != nil {
-		fields = append(fields, pair{Name: "$dynamicRef", Value: *v})
+	if s.HasDynamicReference() {
+		fields = append(fields, pair{Name: "$dynamicRef", Value: *(s.dynamicReference)})
 	}
-	if v := s.elseSchema; v != nil {
-		fields = append(fields, pair{Name: "else", Value: v})
+	if s.HasElseSchema() {
+		fields = append(fields, pair{Name: "else", Value: s.elseSchema})
 	}
-	if v := s.enum; v != nil {
-		fields = append(fields, pair{Name: "enum", Value: v})
+	if s.HasEnum() {
+		fields = append(fields, pair{Name: "enum", Value: s.enum})
 	}
-	if v := s.exclusiveMaximum; v != nil {
-		fields = append(fields, pair{Name: "exclusiveMaximum", Value: *v})
+	if s.HasExclusiveMaximum() {
+		fields = append(fields, pair{Name: "exclusiveMaximum", Value: *(s.exclusiveMaximum)})
 	}
-	if v := s.exclusiveMinimum; v != nil {
-		fields = append(fields, pair{Name: "exclusiveMinimum", Value: *v})
+	if s.HasExclusiveMinimum() {
+		fields = append(fields, pair{Name: "exclusiveMinimum", Value: *(s.exclusiveMinimum)})
 	}
-	if v := s.format; v != nil {
-		fields = append(fields, pair{Name: "format", Value: *v})
+	if s.HasFormat() {
+		fields = append(fields, pair{Name: "format", Value: *(s.format)})
 	}
-	if v := s.id; v != nil {
-		fields = append(fields, pair{Name: "$id", Value: *v})
+	if s.HasID() {
+		fields = append(fields, pair{Name: "$id", Value: *(s.id)})
 	}
-	if v := s.ifSchema; v != nil {
-		fields = append(fields, pair{Name: "if", Value: v})
+	if s.HasIfSchema() {
+		fields = append(fields, pair{Name: "if", Value: s.ifSchema})
 	}
-	if v := s.items; v != nil {
-		fields = append(fields, pair{Name: "items", Value: v})
+	if s.HasItems() {
+		fields = append(fields, pair{Name: "items", Value: s.items})
 	}
-	if v := s.maxContains; v != nil {
-		fields = append(fields, pair{Name: "maxContains", Value: *v})
+	if s.HasMaxContains() {
+		fields = append(fields, pair{Name: "maxContains", Value: *(s.maxContains)})
 	}
-	if v := s.maxItems; v != nil {
-		fields = append(fields, pair{Name: "maxItems", Value: *v})
+	if s.HasMaxItems() {
+		fields = append(fields, pair{Name: "maxItems", Value: *(s.maxItems)})
 	}
-	if v := s.maxLength; v != nil {
-		fields = append(fields, pair{Name: "maxLength", Value: *v})
+	if s.HasMaxLength() {
+		fields = append(fields, pair{Name: "maxLength", Value: *(s.maxLength)})
 	}
-	if v := s.maxProperties; v != nil {
-		fields = append(fields, pair{Name: "maxProperties", Value: *v})
+	if s.HasMaxProperties() {
+		fields = append(fields, pair{Name: "maxProperties", Value: *(s.maxProperties)})
 	}
-	if v := s.maximum; v != nil {
-		fields = append(fields, pair{Name: "maximum", Value: *v})
+	if s.HasMaximum() {
+		fields = append(fields, pair{Name: "maximum", Value: *(s.maximum)})
 	}
-	if v := s.minContains; v != nil {
-		fields = append(fields, pair{Name: "minContains", Value: *v})
+	if s.HasMinContains() {
+		fields = append(fields, pair{Name: "minContains", Value: *(s.minContains)})
 	}
-	if v := s.minItems; v != nil {
-		fields = append(fields, pair{Name: "minItems", Value: *v})
+	if s.HasMinItems() {
+		fields = append(fields, pair{Name: "minItems", Value: *(s.minItems)})
 	}
-	if v := s.minLength; v != nil {
-		fields = append(fields, pair{Name: "minLength", Value: *v})
+	if s.HasMinLength() {
+		fields = append(fields, pair{Name: "minLength", Value: *(s.minLength)})
 	}
-	if v := s.minProperties; v != nil {
-		fields = append(fields, pair{Name: "minProperties", Value: *v})
+	if s.HasMinProperties() {
+		fields = append(fields, pair{Name: "minProperties", Value: *(s.minProperties)})
 	}
-	if v := s.minimum; v != nil {
-		fields = append(fields, pair{Name: "minimum", Value: *v})
+	if s.HasMinimum() {
+		fields = append(fields, pair{Name: "minimum", Value: *(s.minimum)})
 	}
-	if v := s.multipleOf; v != nil {
-		fields = append(fields, pair{Name: "multipleOf", Value: *v})
+	if s.HasMultipleOf() {
+		fields = append(fields, pair{Name: "multipleOf", Value: *(s.multipleOf)})
 	}
-	if v := s.not; v != nil {
-		fields = append(fields, pair{Name: "not", Value: v})
+	if s.HasNot() {
+		fields = append(fields, pair{Name: "not", Value: s.not})
 	}
-	if v := s.oneOf; v != nil {
-		fields = append(fields, pair{Name: "oneOf", Value: v})
+	if s.HasOneOf() {
+		fields = append(fields, pair{Name: "oneOf", Value: s.oneOf})
 	}
-	if v := s.pattern; v != nil {
-		fields = append(fields, pair{Name: "pattern", Value: *v})
+	if s.HasPattern() {
+		fields = append(fields, pair{Name: "pattern", Value: *(s.pattern)})
 	}
-	if v := s.patternProperties; v != nil {
-		fields = append(fields, pair{Name: "patternProperties", Value: v})
+	if s.HasPatternProperties() {
+		fields = append(fields, pair{Name: "patternProperties", Value: s.patternProperties})
 	}
-	if v := s.properties; v != nil {
-		fields = append(fields, pair{Name: "properties", Value: v})
+	if s.HasProperties() {
+		fields = append(fields, pair{Name: "properties", Value: s.properties})
 	}
-	if v := s.propertyNames; v != nil {
-		fields = append(fields, pair{Name: "propertyNames", Value: v})
+	if s.HasPropertyNames() {
+		fields = append(fields, pair{Name: "propertyNames", Value: s.propertyNames})
 	}
-	if v := s.reference; v != nil {
-		fields = append(fields, pair{Name: "$ref", Value: *v})
+	if s.HasReference() {
+		fields = append(fields, pair{Name: "$ref", Value: *(s.reference)})
 	}
-	if v := s.required; v != nil {
-		fields = append(fields, pair{Name: "required", Value: v})
+	if s.HasRequired() {
+		fields = append(fields, pair{Name: "required", Value: s.required})
 	}
 	if v := s.schema; s.isRoot && v != "" {
 		fields = append(fields, pair{Name: "$schema", Value: v})
 	}
-	if v := s.thenSchema; v != nil {
-		fields = append(fields, pair{Name: "then", Value: v})
+	if s.HasThenSchema() {
+		fields = append(fields, pair{Name: "then", Value: s.thenSchema})
 	}
-	if v := s.types; v != nil {
-		fields = append(fields, pair{Name: "type", Value: v})
+	if s.HasTypes() {
+		fields = append(fields, pair{Name: "type", Value: s.types})
 	}
-	if v := s.unevaluatedItems; v != nil {
-		fields = append(fields, pair{Name: "unevaluatedItems", Value: v})
+	if s.HasUnevaluatedItems() {
+		fields = append(fields, pair{Name: "unevaluatedItems", Value: s.unevaluatedItems})
 	}
-	if v := s.unevaluatedProperties; v != nil {
-		fields = append(fields, pair{Name: "unevaluatedProperties", Value: v})
+	if s.HasUnevaluatedProperties() {
+		fields = append(fields, pair{Name: "unevaluatedProperties", Value: s.unevaluatedProperties})
 	}
-	if v := s.uniqueItems; v != nil {
-		fields = append(fields, pair{Name: "uniqueItems", Value: *v})
+	if s.HasUniqueItems() {
+		fields = append(fields, pair{Name: "uniqueItems", Value: *(s.uniqueItems)})
 	}
 	sort.Slice(fields, func(i, j int) bool {
 		return compareFieldNames(fields[i].Name, fields[j].Name)
@@ -653,36 +718,42 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "additionalProperties" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= AdditionalPropertiesField
 			case "allOf":
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "allOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.allOf = v
+				s.populatedFields |= AllOfField
 			case "$anchor":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$anchor" (attempting to unmarshal as string): %w`, err)
 				}
 				s.anchor = &v
+				s.populatedFields |= AnchorField
 			case "anyOf":
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "anyOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.anyOf = v
+				s.populatedFields |= AnyOfField
 			case "$comment":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$comment" (attempting to unmarshal as string): %w`, err)
 				}
 				s.comment = &v
+				s.populatedFields |= CommentField
 			case "const":
 				var v interface{}
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "const" (attempting to unmarshal as interface{}): %w`, err)
 				}
 				s.constantValue = &v
+				s.populatedFields |= ConstField
 			case "contains":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -706,18 +777,21 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "contains" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= ContainsField
 			case "contentEncoding":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "contentEncoding" (attempting to unmarshal as string): %w`, err)
 				}
 				s.contentEncoding = &v
+				s.populatedFields |= ContentEncodingField
 			case "contentMediaType":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "contentMediaType" (attempting to unmarshal as string): %w`, err)
 				}
 				s.contentMediaType = &v
+				s.populatedFields |= ContentMediaTypeField
 			case "contentSchema":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -741,12 +815,14 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "contentSchema" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= ContentSchemaField
 			case "default":
 				var v interface{}
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "default" (attempting to unmarshal as interface{}): %w`, err)
 				}
 				s.defaultValue = &v
+				s.populatedFields |= DefaultField
 			case "$defs":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -780,6 +856,7 @@ LOOP:
 					}
 				}
 				s.definitions = v
+				s.populatedFields |= DefinitionsField
 			case "dependentSchemas":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -813,12 +890,14 @@ LOOP:
 					}
 				}
 				s.dependentSchemas = v
+				s.populatedFields |= DependentSchemasField
 			case "$dynamicRef":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$dynamicRef" (attempting to unmarshal as string): %w`, err)
 				}
 				s.dynamicReference = &v
+				s.populatedFields |= DynamicReferenceField
 			case "else":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -842,36 +921,42 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "else" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= ElseSchemaField
 			case "enum":
 				var v []interface{}
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "enum" (attempting to unmarshal as []interface{}): %w`, err)
 				}
 				s.enum = v
+				s.populatedFields |= EnumField
 			case "exclusiveMaximum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "exclusiveMaximum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.exclusiveMaximum = &v
+				s.populatedFields |= ExclusiveMaximumField
 			case "exclusiveMinimum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "exclusiveMinimum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.exclusiveMinimum = &v
+				s.populatedFields |= ExclusiveMinimumField
 			case "format":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "format" (attempting to unmarshal as string): %w`, err)
 				}
 				s.format = &v
+				s.populatedFields |= FormatField
 			case "$id":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$id" (attempting to unmarshal as string): %w`, err)
 				}
 				s.id = &v
+				s.populatedFields |= IDField
 			case "if":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -895,6 +980,7 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "if" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= IfSchemaField
 			case "items":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -913,72 +999,84 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "items" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= ItemsField
 			case "maxContains":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxContains" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxContains = &v
+				s.populatedFields |= MaxContainsField
 			case "maxItems":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxItems" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxItems = &v
+				s.populatedFields |= MaxItemsField
 			case "maxLength":
 				var v int
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxLength" (attempting to unmarshal as int): %w`, err)
 				}
 				s.maxLength = &v
+				s.populatedFields |= MaxLengthField
 			case "maxProperties":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxProperties" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxProperties = &v
+				s.populatedFields |= MaxPropertiesField
 			case "maximum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maximum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.maximum = &v
+				s.populatedFields |= MaximumField
 			case "minContains":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minContains" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minContains = &v
+				s.populatedFields |= MinContainsField
 			case "minItems":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minItems" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minItems = &v
+				s.populatedFields |= MinItemsField
 			case "minLength":
 				var v int
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minLength" (attempting to unmarshal as int): %w`, err)
 				}
 				s.minLength = &v
+				s.populatedFields |= MinLengthField
 			case "minProperties":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minProperties" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minProperties = &v
+				s.populatedFields |= MinPropertiesField
 			case "minimum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minimum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.minimum = &v
+				s.populatedFields |= MinimumField
 			case "multipleOf":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "multipleOf" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.multipleOf = &v
+				s.populatedFields |= MultipleOfField
 			case "not":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1002,18 +1100,21 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "not" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= NotField
 			case "oneOf":
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "oneOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.oneOf = v
+				s.populatedFields |= OneOfField
 			case "pattern":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "pattern" (attempting to unmarshal as string): %w`, err)
 				}
 				s.pattern = &v
+				s.populatedFields |= PatternField
 			case "patternProperties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1047,6 +1148,7 @@ LOOP:
 					}
 				}
 				s.patternProperties = v
+				s.populatedFields |= PatternPropertiesField
 			case "properties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1080,6 +1182,7 @@ LOOP:
 					}
 				}
 				s.properties = v
+				s.populatedFields |= PropertiesField
 			case "propertyNames":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1103,18 +1206,21 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "propertyNames" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= PropertyNamesField
 			case "$ref":
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$ref" (attempting to unmarshal as string): %w`, err)
 				}
 				s.reference = &v
+				s.populatedFields |= ReferenceField
 			case "required":
 				var v []string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "required" (attempting to unmarshal as []string): %w`, err)
 				}
 				s.required = v
+				s.populatedFields |= RequiredField
 			case "$schema":
 				var v string
 				if err := dec.Decode(&v); err != nil {
@@ -1144,12 +1250,14 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "then" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= ThenSchemaField
 			case "type":
 				var v PrimitiveTypes
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "type" (attempting to unmarshal as PrimitiveTypes): %w`, err)
 				}
 				s.types = v
+				s.populatedFields |= TypesField
 			case "unevaluatedItems":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1168,6 +1276,7 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "unevaluatedItems" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= UnevaluatedItemsField
 			case "unevaluatedProperties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1186,12 +1295,14 @@ LOOP:
 						return fmt.Errorf(`json-schema: failed to decode value for field "unevaluatedProperties" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
+				s.populatedFields |= UnevaluatedPropertiesField
 			case "uniqueItems":
 				var v bool
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "uniqueItems" (attempting to unmarshal as bool): %w`, err)
 				}
 				s.uniqueItems = &v
+				s.populatedFields |= UniqueItemsField
 			}
 		}
 	}

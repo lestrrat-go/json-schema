@@ -96,16 +96,25 @@ func convertSchemaOrBool(v schema.SchemaOrBool) *schema.Schema {
 
 // hasOtherConstraints checks if a schema has constraints other than $ref/$dynamicRef
 func hasOtherConstraints(s *schema.Schema) bool {
-	return len(s.Types()) > 0 || s.HasAllOf() || s.HasAnyOf() || s.HasOneOf() || s.HasNot() ||
-		s.HasIfSchema() || s.HasThenSchema() || s.HasElseSchema() ||
-		s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() ||
-		s.HasUnevaluatedProperties() || s.HasRequired() || s.HasMinProperties() || s.HasMaxProperties() ||
-		s.HasDependentSchemas() || s.HasItems() || s.HasContains() || s.HasMinItems() || s.HasMaxItems() ||
-		s.HasUniqueItems() || s.HasUnevaluatedItems() || s.HasMinLength() || s.HasMaxLength() ||
-		s.HasPattern() || s.HasFormat() || s.HasMinimum() || s.HasMaximum() || s.HasExclusiveMinimum() ||
-		s.HasExclusiveMaximum() || s.HasMultipleOf() || s.HasEnum() || s.HasConst() ||
-		s.HasContentEncoding() || s.HasContentMediaType() || s.HasContentSchema() ||
-		s.HasPropertyNames()
+	// Check for types separately since it's not a bit field check
+	if len(s.Types()) > 0 {
+		return true
+	}
+
+	// Use bit field approach for efficient checking of multiple constraints
+	constraintFields := schema.AllOfField | schema.AnyOfField | schema.OneOfField | schema.NotField |
+		schema.IfSchemaField | schema.ThenSchemaField | schema.ElseSchemaField |
+		schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField |
+		schema.UnevaluatedPropertiesField | schema.RequiredField | schema.MinPropertiesField | schema.MaxPropertiesField |
+		schema.DependentSchemasField | schema.ItemsField | schema.ContainsField | schema.MinItemsField | schema.MaxItemsField |
+		schema.UniqueItemsField | schema.UnevaluatedItemsField | schema.MinLengthField | schema.MaxLengthField |
+		schema.PatternField | schema.FormatField | schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField |
+		schema.ExclusiveMaximumField | schema.MultipleOfField | schema.EnumField | schema.ConstField |
+		schema.ContentEncodingField | schema.ContentMediaTypeField | schema.ContentSchemaField |
+		schema.PropertyNamesField
+
+	// Returns true if ANY of the constraint fields are set
+	return s.HasAny(constraintFields)
 }
 
 // createSchemaWithoutRef creates a copy of the schema without the $ref/$dynamicRef constraint

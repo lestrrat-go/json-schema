@@ -62,9 +62,9 @@ func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
 	if err := dec.Decode(&rawArray); err != nil {
 		return nil, fmt.Errorf("failed to decode array: %w", err)
 	}
-	
+
 	result := make([]SchemaOrBool, 0, len(rawArray))
-	
+
 	for i, rawElement := range rawArray {
 		// Try to decode as boolean first
 		var b bool
@@ -72,17 +72,17 @@ func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
 			result = append(result, SchemaBool(b))
 			continue
 		}
-		
+
 		// Try to decode as Schema object
 		var schema Schema
 		if err := json.Unmarshal(rawElement, &schema); err == nil {
 			result = append(result, &schema)
 			continue
 		}
-		
+
 		return nil, fmt.Errorf("element at index %d is neither boolean nor valid schema object", i)
 	}
-	
+
 	return result, nil
 }
 
@@ -102,13 +102,13 @@ func (s *Schema) Accept(v interface{}) error {
 	return nil
 }
 
-// validateSchemaOrBool checks if a value is either a bool or *Schema
+// validateSchemaOrBool checks if a value is either a bool, SchemaBool, or *Schema
 func validateSchemaOrBool(v any) error {
 	switch v.(type) {
-	case bool, *Schema:
+	case bool, SchemaBool, *Schema:
 		return nil
 	default:
-		return fmt.Errorf(`expected bool or *Schema, got %T`, v)
+		return fmt.Errorf(`expected bool, SchemaBool, or *Schema, got %T`, v)
 	}
 }
 
