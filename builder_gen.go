@@ -14,6 +14,7 @@ type Builder struct {
 	contentEncoding       *string
 	contentMediaType      *string
 	contentSchema         *Schema
+	defaultValue          *interface{}
 	definitions           []*propPair
 	dependentSchemas      []*propPair
 	dynamicReference      *string
@@ -158,6 +159,15 @@ func (b *Builder) ContentSchema(v *Schema) *Builder {
 	}
 
 	b.contentSchema = v
+	return b
+}
+
+func (b *Builder) Default(v interface{}) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.defaultValue = &v
 	return b
 }
 
@@ -537,6 +547,10 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		b.contentSchema = original.contentSchema
 	}
 
+	if original.defaultValue != nil {
+		b.defaultValue = original.defaultValue
+	}
+
 	if original.definitions != nil {
 		for name, schema := range original.definitions {
 			b.definitions = append(b.definitions, &propPair{Name: name, Schema: schema})
@@ -766,6 +780,14 @@ func (b *Builder) ResetContentSchema() *Builder {
 		return b
 	}
 	b.contentSchema = nil
+	return b
+}
+
+func (b *Builder) ResetDefault() *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.defaultValue = nil
 	return b
 }
 
@@ -1088,6 +1110,9 @@ func (b *Builder) Build() (*Schema, error) {
 	}
 	if b.contentSchema != nil {
 		s.contentSchema = b.contentSchema
+	}
+	if b.defaultValue != nil {
+		s.defaultValue = b.defaultValue
 	}
 
 	if b.definitions != nil {

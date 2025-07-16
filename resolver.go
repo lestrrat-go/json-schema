@@ -85,14 +85,30 @@ func (r *Resolver) ResolveAnchor(dst *Schema, baseSchema *Schema, anchorName str
 // It automatically dispatches to the appropriate resolver based on the reference format.
 // Anchor references such as "#person" are handled by ResolveAnchor, while JSON pointer references such as "#/$defs/person" and external references such as "https://example.com/schema.json#..." are handled by ResolveJSONReference.
 func (r *Resolver) ResolveReference(dst *Schema, baseSchema *Schema, reference string) error {
+	return r.ResolveReferenceWithBaseURI(dst, baseSchema, reference, "")
+}
+
+// ResolveReferenceWithBaseURI resolves a reference with an optional base URI for relative reference resolution
+func (r *Resolver) ResolveReferenceWithBaseURI(dst *Schema, baseSchema *Schema, reference string, baseURI string) error {
 	// Check if this is an anchor reference (starts with # but no slash after)
 	if len(reference) > 1 && reference[0] == '#' && reference[1] != '/' {
 		anchorName := reference[1:] // Remove the '#' prefix
 		return r.ResolveAnchor(dst, baseSchema, anchorName)
 	}
 	
+	// Handle relative references with base URI
+	resolvedReference := reference
+	if baseURI != "" && !strings.HasPrefix(reference, "http://") && !strings.HasPrefix(reference, "https://") && !strings.HasPrefix(reference, "#") {
+		// This is a relative reference that should be resolved against base URI
+		if strings.HasSuffix(baseURI, "/") {
+			resolvedReference = baseURI + reference
+		} else {
+			resolvedReference = baseURI + "/" + reference
+		}
+	}
+	
 	// Otherwise, treat as JSON pointer reference
-	err := r.ResolveJSONReference(dst, baseSchema, reference)
+	err := r.ResolveJSONReference(dst, baseSchema, resolvedReference)
 	if err != nil {
 		// Convert the specific JSON pointer error to a more generic reference error
 		errStr := err.Error()
@@ -184,11 +200,23 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 		return schema, nil
 	}
 	
-	// Search in definitions
+	// Search in definitions, but be scope-aware
 	if schema.HasDefinitions() {
+		// First pass: search definitions that don't have their own $id (same scope)
 		for _, defSchema := range schema.Definitions() {
-			if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
-				return found, nil
+			if !defSchema.HasID() {
+				if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
+					return found, nil
+				}
+			}
+		}
+		
+		// Second pass: search definitions that have their own $id (different scope)
+		for _, defSchema := range schema.Definitions() {
+			if defSchema.HasID() {
+				if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
+					return found, nil
+				}
 			}
 		}
 	}

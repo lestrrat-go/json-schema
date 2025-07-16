@@ -247,6 +247,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				result.EvaluatedItems[i] = true
 			}
 		}
+		// Note: When c.items is nil, all items remain unevaluated (false in result.EvaluatedItems)
 
 		// Validate contains constraint and track evaluation
 		if c.contains != nil {

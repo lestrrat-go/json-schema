@@ -19,6 +19,7 @@ type Schema struct {
 	contentEncoding       *string
 	contentMediaType      *string
 	contentSchema         *Schema
+	defaultValue          *interface{}
 	definitions           map[string]*Schema
 	dependentSchemas      map[string]*Schema
 	dynamicReference      *string
@@ -141,6 +142,14 @@ func (s *Schema) HasContentSchema() bool {
 
 func (s *Schema) ContentSchema() *Schema {
 	return s.contentSchema
+}
+
+func (s *Schema) HasDefault() bool {
+	return s.defaultValue != nil
+}
+
+func (s *Schema) Default() interface{} {
+	return *(s.defaultValue)
 }
 
 func (s *Schema) HasDefinitions() bool {
@@ -447,7 +456,7 @@ type pair struct {
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	s.isRoot = true
 	defer func() { s.isRoot = false }()
-	fields := make([]pair, 0, 46)
+	fields := make([]pair, 0, 47)
 	if v := s.additionalProperties; v != nil {
 		fields = append(fields, pair{Name: "additionalProperties", Value: v})
 	}
@@ -477,6 +486,9 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 	if v := s.contentSchema; v != nil {
 		fields = append(fields, pair{Name: "contentSchema", Value: v})
+	}
+	if v := s.defaultValue; v != nil {
+		fields = append(fields, pair{Name: "default", Value: *v})
 	}
 	if v := s.definitions; v != nil {
 		fields = append(fields, pair{Name: "$defs", Value: v})
@@ -610,7 +622,7 @@ LOOP:
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			return fmt.Errorf(`error reading token: %w`, err)
+			return fmt.Errorf(`json-schema: failed to read JSON token: %w`, err)
 		}
 		switch tok := tok.(type) {
 		case json.Delim:
@@ -619,14 +631,14 @@ LOOP:
 			if tok == '}' { // End of object
 				break LOOP
 			} else if tok != '{' {
-				return fmt.Errorf(`expected '{', but got '%c'`, tok)
+				return fmt.Errorf(`json-schema: failed to parse JSON structure: expected '{', but got '%c'`, tok)
 			}
 		case string: // Objects can only have string keys
 			switch tok {
 			case "additionalProperties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
-					return fmt.Errorf(`failed to decode raw data for field "additionalProperties": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "additionalProperties": %w`, err)
 				}
 				// Try to decode as boolean first
 				var b bool
@@ -638,127 +650,255 @@ LOOP:
 					if err := json.Unmarshal(rawData, &schema); err == nil {
 						s.additionalProperties = &schema
 					} else {
-						return fmt.Errorf(`failed to decode value for field "additionalProperties": %w`, err)
+						return fmt.Errorf(`json-schema: failed to decode value for field "additionalProperties" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
 			case "allOf":
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
-					return fmt.Errorf(`failed to decode value for field "allOf": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "allOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.allOf = v
 			case "$anchor":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$anchor": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "$anchor" (attempting to unmarshal as string): %w`, err)
 				}
 				s.anchor = &v
 			case "anyOf":
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
-					return fmt.Errorf(`failed to decode value for field "anyOf": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "anyOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.anyOf = v
 			case "$comment":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$comment": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "$comment" (attempting to unmarshal as string): %w`, err)
 				}
 				s.comment = &v
 			case "const":
 				var v interface{}
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "const": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "const" (attempting to unmarshal as interface{}): %w`, err)
 				}
 				s.constantValue = &v
 			case "contains":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "contains": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "contains": %w`, err)
 				}
-				s.contains = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.contains = &Schema{} // true schema - allow everything
+					} else {
+						s.contains = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.contains = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "contains" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
 			case "contentEncoding":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "contentEncoding": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "contentEncoding" (attempting to unmarshal as string): %w`, err)
 				}
 				s.contentEncoding = &v
 			case "contentMediaType":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "contentMediaType": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "contentMediaType" (attempting to unmarshal as string): %w`, err)
 				}
 				s.contentMediaType = &v
 			case "contentSchema":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "contentSchema": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "contentSchema": %w`, err)
 				}
-				s.contentSchema = v
-			case "$defs":
-				var v map[string]*Schema
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.contentSchema = &Schema{} // true schema - allow everything
+					} else {
+						s.contentSchema = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.contentSchema = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "contentSchema" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
+			case "default":
+				var v interface{}
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$defs": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "default" (attempting to unmarshal as interface{}): %w`, err)
+				}
+				s.defaultValue = &v
+			case "$defs":
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "$defs": %w`, err)
+				}
+				// First unmarshal as map[string]json.RawMessage
+				var rawMap map[string]json.RawMessage
+				if err := json.Unmarshal(rawData, &rawMap); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "$defs" (attempting to unmarshal as map): %w`, err)
+				}
+				// Convert each value to *Schema
+				v := make(map[string]*Schema)
+				for key, rawValue := range rawMap {
+					// Try to decode as boolean first
+					var b bool
+					if err := json.Unmarshal(rawValue, &b); err == nil {
+						// Convert boolean to Schema object
+						if b {
+							v[key] = &Schema{} // true schema - allow everything
+						} else {
+							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+						}
+					} else {
+						// Try to decode as Schema object
+						var schema Schema
+						if err := json.Unmarshal(rawValue, &schema); err == nil {
+							v[key] = &schema
+						} else {
+							return fmt.Errorf(`json-schema: failed to decode value for field "$defs" key %q (attempting to unmarshal as Schema after bool failed): %w`, key, err)
+						}
+					}
 				}
 				s.definitions = v
 			case "dependentSchemas":
-				var v map[string]*Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "dependentSchemas": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "dependentSchemas": %w`, err)
+				}
+				// First unmarshal as map[string]json.RawMessage
+				var rawMap map[string]json.RawMessage
+				if err := json.Unmarshal(rawData, &rawMap); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" (attempting to unmarshal as map): %w`, err)
+				}
+				// Convert each value to *Schema
+				v := make(map[string]*Schema)
+				for key, rawValue := range rawMap {
+					// Try to decode as boolean first
+					var b bool
+					if err := json.Unmarshal(rawValue, &b); err == nil {
+						// Convert boolean to Schema object
+						if b {
+							v[key] = &Schema{} // true schema - allow everything
+						} else {
+							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+						}
+					} else {
+						// Try to decode as Schema object
+						var schema Schema
+						if err := json.Unmarshal(rawValue, &schema); err == nil {
+							v[key] = &schema
+						} else {
+							return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" key %q (attempting to unmarshal as Schema after bool failed): %w`, key, err)
+						}
+					}
 				}
 				s.dependentSchemas = v
 			case "$dynamicRef":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$dynamicRef": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "$dynamicRef" (attempting to unmarshal as string): %w`, err)
 				}
 				s.dynamicReference = &v
 			case "else":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "else": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "else": %w`, err)
 				}
-				s.elseSchema = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.elseSchema = &Schema{} // true schema - allow everything
+					} else {
+						s.elseSchema = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.elseSchema = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "else" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
 			case "enum":
 				var v []interface{}
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "enum": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "enum" (attempting to unmarshal as []interface{}): %w`, err)
 				}
 				s.enum = v
 			case "exclusiveMaximum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "exclusiveMaximum": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "exclusiveMaximum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.exclusiveMaximum = &v
 			case "exclusiveMinimum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "exclusiveMinimum": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "exclusiveMinimum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.exclusiveMinimum = &v
 			case "format":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "format": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "format" (attempting to unmarshal as string): %w`, err)
 				}
 				s.format = &v
 			case "$id":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$id": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "$id" (attempting to unmarshal as string): %w`, err)
 				}
 				s.id = &v
 			case "if":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "if": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "if": %w`, err)
 				}
-				s.ifSchema = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.ifSchema = &Schema{} // true schema - allow everything
+					} else {
+						s.ifSchema = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.ifSchema = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "if" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
 			case "items":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
-					return fmt.Errorf(`failed to decode raw data for field "items": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "items": %w`, err)
 				}
 				// Try to decode as boolean first
 				var b bool
@@ -770,145 +910,250 @@ LOOP:
 					if err := json.Unmarshal(rawData, &schema); err == nil {
 						s.items = &schema
 					} else {
-						return fmt.Errorf(`failed to decode value for field "items": %w`, err)
+						return fmt.Errorf(`json-schema: failed to decode value for field "items" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
 			case "maxContains":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "maxContains": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "maxContains" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxContains = &v
 			case "maxItems":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "maxItems": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "maxItems" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxItems = &v
 			case "maxLength":
 				var v int
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "maxLength": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "maxLength" (attempting to unmarshal as int): %w`, err)
 				}
 				s.maxLength = &v
 			case "maxProperties":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "maxProperties": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "maxProperties" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxProperties = &v
 			case "maximum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "maximum": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "maximum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.maximum = &v
 			case "minContains":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "minContains": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "minContains" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minContains = &v
 			case "minItems":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "minItems": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "minItems" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minItems = &v
 			case "minLength":
 				var v int
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "minLength": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "minLength" (attempting to unmarshal as int): %w`, err)
 				}
 				s.minLength = &v
 			case "minProperties":
 				var v uint
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "minProperties": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "minProperties" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minProperties = &v
 			case "minimum":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "minimum": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "minimum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.minimum = &v
 			case "multipleOf":
 				var v float64
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "multipleOf": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "multipleOf" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.multipleOf = &v
 			case "not":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "not": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "not": %w`, err)
 				}
-				s.not = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.not = &Schema{} // true schema - allow everything
+					} else {
+						s.not = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.not = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "not" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
 			case "oneOf":
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
-					return fmt.Errorf(`failed to decode value for field "oneOf": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "oneOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.oneOf = v
 			case "pattern":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "pattern": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "pattern" (attempting to unmarshal as string): %w`, err)
 				}
 				s.pattern = &v
 			case "patternProperties":
-				var v map[string]*Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "patternProperties": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "patternProperties": %w`, err)
+				}
+				// First unmarshal as map[string]json.RawMessage
+				var rawMap map[string]json.RawMessage
+				if err := json.Unmarshal(rawData, &rawMap); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "patternProperties" (attempting to unmarshal as map): %w`, err)
+				}
+				// Convert each value to *Schema
+				v := make(map[string]*Schema)
+				for key, rawValue := range rawMap {
+					// Try to decode as boolean first
+					var b bool
+					if err := json.Unmarshal(rawValue, &b); err == nil {
+						// Convert boolean to Schema object
+						if b {
+							v[key] = &Schema{} // true schema - allow everything
+						} else {
+							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+						}
+					} else {
+						// Try to decode as Schema object
+						var schema Schema
+						if err := json.Unmarshal(rawValue, &schema); err == nil {
+							v[key] = &schema
+						} else {
+							return fmt.Errorf(`json-schema: failed to decode value for field "patternProperties" key %q (attempting to unmarshal as Schema after bool failed): %w`, key, err)
+						}
+					}
 				}
 				s.patternProperties = v
 			case "properties":
-				var v map[string]*Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "properties": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "properties": %w`, err)
+				}
+				// First unmarshal as map[string]json.RawMessage
+				var rawMap map[string]json.RawMessage
+				if err := json.Unmarshal(rawData, &rawMap); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "properties" (attempting to unmarshal as map): %w`, err)
+				}
+				// Convert each value to *Schema
+				v := make(map[string]*Schema)
+				for key, rawValue := range rawMap {
+					// Try to decode as boolean first
+					var b bool
+					if err := json.Unmarshal(rawValue, &b); err == nil {
+						// Convert boolean to Schema object
+						if b {
+							v[key] = &Schema{} // true schema - allow everything
+						} else {
+							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+						}
+					} else {
+						// Try to decode as Schema object
+						var schema Schema
+						if err := json.Unmarshal(rawValue, &schema); err == nil {
+							v[key] = &schema
+						} else {
+							return fmt.Errorf(`json-schema: failed to decode value for field "properties" key %q (attempting to unmarshal as Schema after bool failed): %w`, key, err)
+						}
+					}
 				}
 				s.properties = v
 			case "propertyNames":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "propertyNames": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "propertyNames": %w`, err)
 				}
-				s.propertyNames = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.propertyNames = &Schema{} // true schema - allow everything
+					} else {
+						s.propertyNames = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.propertyNames = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "propertyNames" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
 			case "$ref":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$ref": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "$ref" (attempting to unmarshal as string): %w`, err)
 				}
 				s.reference = &v
 			case "required":
 				var v []string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "required": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "required" (attempting to unmarshal as []string): %w`, err)
 				}
 				s.required = v
 			case "$schema":
 				var v string
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "$schema": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "$schema" (attempting to unmarshal as string): %w`, err)
 				}
 				s.schema = v
 			case "then":
-				var v *Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "then": %w`, err)
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "then": %w`, err)
 				}
-				s.thenSchema = v
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					// Convert boolean to Schema object
+					if b {
+						s.thenSchema = &Schema{} // true schema - allow everything
+					} else {
+						s.thenSchema = &Schema{not: &Schema{}} // false schema - deny everything
+					}
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.thenSchema = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "then" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
 			case "type":
 				var v PrimitiveTypes
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "type": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "type" (attempting to unmarshal as PrimitiveTypes): %w`, err)
 				}
 				s.types = v
 			case "unevaluatedItems":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
-					return fmt.Errorf(`failed to decode raw data for field "unevaluatedItems": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "unevaluatedItems": %w`, err)
 				}
 				// Try to decode as boolean first
 				var b bool
@@ -920,13 +1165,13 @@ LOOP:
 					if err := json.Unmarshal(rawData, &schema); err == nil {
 						s.unevaluatedItems = &schema
 					} else {
-						return fmt.Errorf(`failed to decode value for field "unevaluatedItems": %w`, err)
+						return fmt.Errorf(`json-schema: failed to decode value for field "unevaluatedItems" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
 			case "unevaluatedProperties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
-					return fmt.Errorf(`failed to decode raw data for field "unevaluatedProperties": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "unevaluatedProperties": %w`, err)
 				}
 				// Try to decode as boolean first
 				var b bool
@@ -938,13 +1183,13 @@ LOOP:
 					if err := json.Unmarshal(rawData, &schema); err == nil {
 						s.unevaluatedProperties = &schema
 					} else {
-						return fmt.Errorf(`failed to decode value for field "unevaluatedProperties": %w`, err)
+						return fmt.Errorf(`json-schema: failed to decode value for field "unevaluatedProperties" (attempting to unmarshal as Schema after bool failed): %w`, err)
 					}
 				}
 			case "uniqueItems":
 				var v bool
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`failed to decode value for field "uniqueItems": %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "uniqueItems" (attempting to unmarshal as bool): %w`, err)
 				}
 				s.uniqueItems = &v
 			}

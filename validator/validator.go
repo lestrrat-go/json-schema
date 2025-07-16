@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -101,7 +102,7 @@ func CompileSchema(s *schema.Schema) (Interface, error) {
 	return Compile(ctx, s)
 }
 
-// hasOtherConstraints checks if a schema has constraints other than $ref
+// hasOtherConstraints checks if a schema has constraints other than $ref/$dynamicRef
 func hasOtherConstraints(s *schema.Schema) bool {
 	return len(s.Types()) > 0 || s.HasAllOf() || s.HasAnyOf() || s.HasOneOf() || s.HasNot() ||
 		s.HasIfSchema() || s.HasThenSchema() || s.HasElseSchema() ||
@@ -115,15 +116,38 @@ func hasOtherConstraints(s *schema.Schema) bool {
 		s.HasPropertyNames()
 }
 
-// createSchemaWithoutRef creates a copy of the schema without the $ref constraint
+// createSchemaWithoutRef creates a copy of the schema without the $ref/$dynamicRef constraint
 func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
-	// Use the new Clone Builder pattern to create a copy without the $ref field
-	return schema.NewBuilder().Clone(s).ResetReference().MustBuild()
+	// Use the new Clone Builder pattern to create a copy without the $ref/$dynamicRef field
+	builder := schema.NewBuilder().Clone(s).ResetReference()
+	if s.HasDynamicReference() {
+		builder = builder.ResetDynamicReference()
+	}
+	return builder.MustBuild()
 }
 
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
-	// Handle $ref first - if schema has a reference, resolve it immediately
+	// Set up base URI context from schema's $id field if present
+	if s.HasID() {
+		schemaID := s.ID()
+		if schemaID != "" {
+			// Extract base URI from $id for resolving relative references within this schema
+			if baseURI := extractBaseURI(schemaID); baseURI != "" {
+				ctx = WithBaseURI(ctx, baseURI)
+			}
+		}
+	}
+	
+	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
+	var reference string
 	if s.HasReference() {
+		reference = s.Reference()
+	} else if s.HasDynamicReference() {
+		// For now, treat $dynamicRef like a normal $ref (simple case)
+		reference = s.DynamicReference()
+	}
+	
+	if reference != "" {
 		// Get resolver from context - create default if none provided
 		resolver := ResolverFromContext(ctx)
 		if resolver == nil {
@@ -138,7 +162,6 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 		
 		// Check for circular references by looking at context
-		reference := s.Reference()
 		if stack := ctx.Value(referenceStackKey); stack != nil {
 			refStack := stack.([]string)
 			for _, ref := range refStack {
@@ -158,13 +181,37 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		
 		// Resolve the reference to get the target schema
 		var targetSchema schema.Schema
-		if err := resolver.ResolveReference(&targetSchema, rootSchema, reference); err != nil {
+		baseURI := BaseURIFromContext(ctx)
+		if err := resolver.ResolveReferenceWithBaseURI(&targetSchema, rootSchema, reference, baseURI); err != nil {
 			return nil, fmt.Errorf("failed to resolve reference %s: %w", reference, err)
+		}
+		
+		// If the target schema has relative references, we need to ensure they're resolved
+		// against the correct base URI. For metaschema, this is crucial.
+		if targetSchema.HasID() && targetSchema.ID() != "" {
+			// Set the base URI from the target schema's $id
+			if baseURI := extractBaseURI(targetSchema.ID()); baseURI != "" {
+				ctx = WithBaseURI(ctx, baseURI)
+			}
 		}
 		
 		// Compile the reference validator with the target schema as the new root
 		// This ensures that relative references within the target schema are resolved correctly
 		refCtx := WithRootSchema(ctx, &targetSchema)
+		
+		// Set base URI context for resolving relative references within the target schema
+		// This is crucial for metaschema which has relative references like "meta/validation"
+		if targetSchema.HasID() && targetSchema.ID() != "" {
+			if baseURI := extractBaseURI(targetSchema.ID()); baseURI != "" {
+				refCtx = WithBaseURI(refCtx, baseURI)
+			}
+		} else if len(reference) > 0 && reference[0] != '#' {
+			// Extract base URI from remote reference if target schema has no $id
+			if baseURI := extractBaseURI(reference); baseURI != "" {
+				refCtx = WithBaseURI(refCtx, baseURI)
+			}
+		}
+		
 		refValidator, err := Compile(refCtx, &targetSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile reference validator: %w", err)
@@ -172,6 +219,13 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		
 		// Check if the schema has other constraints besides $ref
 		if hasOtherConstraints(s) {
+			// Special handling for $ref + unevaluatedProperties
+			if s.HasUnevaluatedProperties() && (s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties()) {
+				// Create a composition validator that properly handles annotation flow
+				compositionValidator := NewRefUnevaluatedPropertiesCompositionValidator(ctx, s, refValidator)
+				return compositionValidator, nil
+			}
+			
 			// Create a composite validator that combines $ref with other constraints
 			// First, create a schema without the $ref for other constraints
 			otherSchema := createSchemaWithoutRef(s)
@@ -332,7 +386,13 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// If no types are specified but type-specific constraints are present,
 	// infer the type from the constraints
 	// Skip this if allOf is present and has base constraints (they'll be handled in allOf)
-	if len(types) == 0 && !(s.HasAllOf() && hasBaseConstraints(s)) {
+	// Also skip if we have anyOf/oneOf composition validators that will handle these constraints
+	hasCompositionValidator := (s.HasAllOf() && hasBaseConstraints(s)) ||
+		(s.HasAnyOf() && hasBaseConstraints(s) && s.HasUnevaluatedProperties()) ||
+		(s.HasOneOf() && hasBaseConstraints(s) && s.HasUnevaluatedProperties()) ||
+		(s.HasIfSchema() && hasBaseConstraints(s) && s.HasUnevaluatedProperties())
+	
+	if len(types) == 0 && !hasCompositionValidator {
 		if s.HasMinLength() || s.HasMaxLength() || s.HasPattern() {
 			types = append(types, schema.StringType)
 			inferredTypes[schema.StringType] = true
@@ -345,7 +405,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, v)
 		}
-		if s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() {
+		if s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() || s.HasUnevaluatedItems() {
 			// For inferred array types, create a non-strict array validator
 			v, err := compileArrayValidator(ctx, s, false)
 			if err != nil {
@@ -364,8 +424,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	// Handle general enum/const validation when no specific type is set
-	// Skip this if allOf is present and has base constraints (they'll be handled in allOf)
-	if len(types) == 0 && (s.HasEnum() || s.HasConst()) && !(s.HasAllOf() && hasBaseConstraints(s)) {
+	// Skip this if we have composition validators that will handle these constraints
+	if len(types) == 0 && (s.HasEnum() || s.HasConst()) && !hasCompositionValidator {
 		validator, err := compileGeneralValidator(ctx, s)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile general validator: %w`, err)
@@ -624,7 +684,8 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 	
 	// Resolve the reference to get the target schema
 	var targetSchema schema.Schema
-	if err := resolver.ResolveReference(&targetSchema, rootSchema, r.reference); err != nil {
+	baseURI := BaseURIFromContext(ctx)
+	if err := resolver.ResolveReferenceWithBaseURI(&targetSchema, rootSchema, r.reference, baseURI); err != nil {
 		return nil, fmt.Errorf("failed to resolve reference %s: %w", r.reference, err)
 	}
 	
@@ -636,10 +697,12 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 type resolverKeyType struct{}
 type rootSchemaKeyType struct{}
 type referenceStackKeyType struct{}
+type baseURIKeyType struct{}
 
 var resolverKey = resolverKeyType{}
 var rootSchemaKey = rootSchemaKeyType{}
 var referenceStackKey = referenceStackKeyType{}
+var baseURIKey = baseURIKeyType{}
 
 // WithResolver adds a resolver to the context
 func WithResolver(ctx context.Context, resolver *schema.Resolver) context.Context {
@@ -665,6 +728,39 @@ func RootSchemaFromContext(ctx context.Context) *schema.Schema {
 		return rootSchema
 	}
 	return nil
+}
+
+// WithBaseURI adds a base URI to the context for reference resolution
+func WithBaseURI(ctx context.Context, baseURI string) context.Context {
+	return context.WithValue(ctx, baseURIKey, baseURI)
+}
+
+// BaseURIFromContext extracts the base URI from context, returns empty string if not present
+func BaseURIFromContext(ctx context.Context) string {
+	if baseURI, ok := ctx.Value(baseURIKey).(string); ok {
+		return baseURI
+	}
+	return ""
+}
+
+// extractBaseURI extracts the base URI from a reference for context resolution
+func extractBaseURI(reference string) string {
+	// Handle absolute URIs
+	if strings.HasPrefix(reference, "http://") || strings.HasPrefix(reference, "https://") {
+		// Split on '#' to get the URI part without fragment
+		parts := strings.Split(reference, "#")
+		uri := parts[0]
+		
+		// Find the last '/' to get the directory path
+		lastSlash := strings.LastIndex(uri, "/")
+		if lastSlash != -1 {
+			return uri[:lastSlash+1] // Include the trailing slash
+		}
+		return uri + "/" // Add trailing slash if not present
+	}
+	
+	// For relative references, we can't determine base URI without context
+	return ""
 }
 
 type MultiValidator struct {
@@ -1190,6 +1286,61 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 	}
 }
 
+// RefUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with $ref
+type RefUnevaluatedPropertiesCompositionValidator struct {
+	refValidator  Interface
+	baseValidator Interface
+	schema        *schema.Schema
+}
+
+func NewRefUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, refValidator Interface) *RefUnevaluatedPropertiesCompositionValidator {
+	v := &RefUnevaluatedPropertiesCompositionValidator{
+		schema:       s,
+		refValidator: refValidator,
+	}
+	
+	// Compile base validator (everything except $ref)
+	baseSchema := createSchemaWithoutRef(s)
+	baseValidator, err := Compile(ctx, baseSchema)
+	if err != nil {
+		panic(fmt.Sprintf("failed to compile base schema: %v", err))
+	}
+	v.baseValidator = baseValidator
+	
+	return v
+}
+
+func (v *RefUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context, in any) (Result, error) {
+	// First, validate the $ref and collect its annotations
+	refResult, err := v.refValidator.Validate(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("$ref validation failed: %w", err)
+	}
+	
+	// Now validate base constraints, passing the evaluated properties from $ref
+	baseResult, err := v.validateBaseWithContext(ctx, in, refResult)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Merge the base result with $ref result
+	return mergeResults(refResult, baseResult), nil
+}
+
+// validateBaseWithContext validates the base schema with annotation context from $ref
+func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, refResult Result) (Result, error) {
+	// Create context with stash if we have evaluation results from $ref
+	var currentCtx context.Context
+	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil && len(objResult.EvaluatedProperties) > 0 {
+		stash := &Stash{EvaluatedProperties: objResult.EvaluatedProperties}
+		currentCtx = WithStash(ctx, stash)
+	} else {
+		currentCtx = ctx
+	}
+	
+	return v.baseValidator.Validate(currentCtx, in)
+}
+
 func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 	if v.and {
 		// For allOf, collect all results and merge them while passing context between validators
@@ -1201,18 +1352,17 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 			var currentCtx context.Context
 			stash := &Stash{}
 			
-			// Add evaluated properties if we have them
-			if mergedObjectResult != nil && len(mergedObjectResult.EvaluatedProperties) > 0 {
-				stash.EvaluatedProperties = mergedObjectResult.EvaluatedProperties
-			}
-			
-			// Add evaluated items if we have them
+			// Add evaluated items if we have them (items annotations flow between allOf subschemas)
 			if mergedArrayResult != nil && len(mergedArrayResult.EvaluatedItems) > 0 {
 				stash.EvaluatedItems = mergedArrayResult.EvaluatedItems
 			}
 			
+			// NOTE: We do NOT pass evaluated properties between allOf subschemas
+			// This implements the "cousin" semantics where properties evaluated by one
+			// subschema are not visible to other subschemas in the same allOf
+			
 			// Only create stash context if we have something to pass
-			if len(stash.EvaluatedProperties) > 0 || len(stash.EvaluatedItems) > 0 {
+			if len(stash.EvaluatedItems) > 0 {
 				currentCtx = WithStash(ctx, stash)
 			} else {
 				currentCtx = ctx
@@ -1222,7 +1372,6 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 			if err != nil {
 				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 			}
-			
 			// Merge object results for property evaluation tracking
 			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 				if mergedObjectResult == nil {
@@ -1449,23 +1598,97 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 }
 
 func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, error) {
-	// First, check the 'if' condition
-	_, ifErr := v.ifValidator.Validate(ctx, in)
+	// First, check the 'if' condition and collect its annotations
+	ifResult, ifErr := v.ifValidator.Validate(ctx, in)
+	
+	// The 'if' schema contributes annotations regardless of whether it passes or fails
+	var conditionalResult Result
 	
 	if ifErr == nil {
 		// 'if' condition passed, validate against 'then' if it exists
 		if v.thenValidator != nil {
-			return v.thenValidator.Validate(ctx, in)
+			thenResult, err := v.thenValidator.Validate(ctx, in)
+			if err != nil {
+				return nil, err
+			}
+			// Merge 'if' and 'then' results
+			conditionalResult = mergeResults(ifResult, thenResult)
+		} else {
+			// Only 'if' result
+			conditionalResult = ifResult
 		}
 	} else {
 		// 'if' condition failed, validate against 'else' if it exists
 		if v.elseValidator != nil {
-			return v.elseValidator.Validate(ctx, in)
+			elseResult, err := v.elseValidator.Validate(ctx, in)
+			if err != nil {
+				return nil, err
+			}
+			// Merge 'if' and 'else' results
+			conditionalResult = mergeResults(ifResult, elseResult)
+		} else {
+			// Only 'if' result (even though it failed validation, it may have annotations)
+			conditionalResult = ifResult
 		}
 	}
 	
-	// If neither then nor else apply, validation passes
-	return nil, nil
+	return conditionalResult, nil
+}
+
+// mergeResults combines two validation results, merging their annotations
+func mergeResults(result1, result2 Result) Result {
+	// Handle nil results
+	if result1 == nil {
+		return result2
+	}
+	if result2 == nil {
+		return result1
+	}
+	
+	// Try to merge object results
+	if objResult1, ok := result1.(*ObjectResult); ok {
+		if objResult2, ok := result2.(*ObjectResult); ok {
+			merged := &ObjectResult{EvaluatedProperties: make(map[string]bool)}
+			// Merge properties from both results
+			for prop := range objResult1.EvaluatedProperties {
+				merged.EvaluatedProperties[prop] = true
+			}
+			for prop := range objResult2.EvaluatedProperties {
+				merged.EvaluatedProperties[prop] = true
+			}
+			return merged
+		}
+	}
+	
+	// Try to merge array results
+	if arrResult1, ok := result1.(*ArrayResult); ok {
+		if arrResult2, ok := result2.(*ArrayResult); ok {
+			// Determine the length for the merged result
+			maxLen := len(arrResult1.EvaluatedItems)
+			if len(arrResult2.EvaluatedItems) > maxLen {
+				maxLen = len(arrResult2.EvaluatedItems)
+			}
+			
+			merged := &ArrayResult{EvaluatedItems: make([]bool, maxLen)}
+			
+			// Merge items from first result
+			for i := 0; i < len(arrResult1.EvaluatedItems) && i < maxLen; i++ {
+				merged.EvaluatedItems[i] = arrResult1.EvaluatedItems[i]
+			}
+			
+			// Merge items from second result
+			for i := 0; i < len(arrResult2.EvaluatedItems) && i < maxLen; i++ {
+				if arrResult2.EvaluatedItems[i] {
+					merged.EvaluatedItems[i] = true
+				}
+			}
+			
+			return merged
+		}
+	}
+	
+	// If we can't merge, return the first result
+	return result1
 }
 
 // IfThenElseUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with if/then/else
