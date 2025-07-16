@@ -135,7 +135,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if s.HasAllOf() {
 		fmt.Printf("DEBUG: Schema has allOf with %d entries before resolver setup\n", len(s.AllOf()))
 	}
-	
+
 	// Set up context with default resolver if none provided
 	if ResolverFromContext(ctx) == nil {
 		ctx = WithResolver(ctx, schema.NewResolver())
@@ -197,7 +197,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		if err := resolver.ResolveReferenceWithBaseURI(&targetSchema, rootSchema, reference, baseURI); err != nil {
 			return nil, fmt.Errorf("failed to resolve reference %s: %w", reference, err)
 		}
-		
+
 		fmt.Printf("DEBUG: After resolution - targetSchema HasAllOf: %v, HasReference: %v\n", targetSchema.HasAllOf(), targetSchema.HasReference())
 		if targetSchema.HasAllOf() {
 			fmt.Printf("DEBUG: Target schema allOf length: %d\n", len(targetSchema.AllOf()))
@@ -910,63 +910,6 @@ func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx 
 	}
 
 	return v.baseValidator.Validate(currentCtx, in)
-}
-
-// validateMultiValidatorWithContext handles MultiValidator with annotation context
-func (v *UnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *MultiValidator, in any, previousResult *ObjectResult) (Result, error) {
-	if mv.and {
-		// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
-		var mergedResult *ObjectResult
-		if previousResult != nil {
-			mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-			for prop := range previousResult.EvaluatedProperties {
-				mergedResult.EvaluatedProperties[prop] = true
-			}
-		}
-
-		for i, subValidator := range mv.validators {
-			var result Result
-			var err error
-
-			// Each cousin validator should be validated independently
-			// without seeing evaluated properties from other cousins
-			// Only pass the original previousResult context, not accumulated cousin results
-			if objValidator, ok := subValidator.(*objectValidator); ok {
-				var previouslyEvaluated map[string]bool
-				if previousResult != nil {
-					previouslyEvaluated = previousResult.EvaluatedProperties
-				}
-				var currentCtx context.Context
-				if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-					stash := &Stash{EvaluatedProperties: previouslyEvaluated}
-					currentCtx = WithStash(ctx, stash)
-				} else {
-					currentCtx = ctx
-				}
-				result, err = objValidator.Validate(currentCtx, in)
-			} else {
-				result, err = subValidator.Validate(ctx, in)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
-			}
-
-			// Merge object results
-			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-				if mergedResult == nil {
-					mergedResult = &ObjectResult{EvaluatedProperties: make(map[string]bool)}
-				}
-				for prop := range objResult.EvaluatedProperties {
-					mergedResult.EvaluatedProperties[prop] = true
-				}
-			}
-		}
-		return mergedResult, nil
-	} else {
-		// For OR mode, just validate normally
-		return mv.Validate(ctx, in)
-	}
 }
 
 // AnyOfUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with anyOf
