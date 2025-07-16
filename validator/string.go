@@ -14,6 +14,15 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
+// Format constants for string validation
+const (
+	FormatEmail    = "email"
+	FormatDate     = "date"
+	FormatDateTime = "date-time"
+	FormatURI      = "uri"
+	FormatUUID     = "uuid"
+)
+
 var _ Builder = (*StringValidatorBuilder)(nil)
 var _ Interface = (*stringValidator)(nil)
 
@@ -24,12 +33,12 @@ func String() *StringValidatorBuilder {
 }
 
 type stringValidator struct {
-	maxLength      *uint
-	minLength      *uint
-	pattern        *regexp.Regexp
-	format         *string
-	enum           []string
-	constantValue  *string
+	maxLength        *uint
+	minLength        *uint
+	pattern          *regexp.Regexp
+	format           *string
+	enum             []string
+	constantValue    *string
 	strictStringType bool // true when schema explicitly declares type: string
 }
 
@@ -97,17 +106,17 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 // validateFormat validates a string against the specified format
 func validateFormat(value, format string) error {
 	switch format {
-	case "email":
+	case FormatEmail:
 		_, err := mail.ParseAddress(value)
 		if err != nil {
 			return fmt.Errorf("invalid email format")
 		}
-	case "date":
+	case FormatDate:
 		_, err := time.Parse("2006-01-02", value)
 		if err != nil {
 			return fmt.Errorf("invalid date format")
 		}
-	case "date-time":
+	case FormatDateTime:
 		// Try RFC3339 format first (with timezone)
 		_, err := time.Parse(time.RFC3339, value)
 		if err != nil {
@@ -117,12 +126,12 @@ func validateFormat(value, format string) error {
 				return fmt.Errorf("invalid date-time format")
 			}
 		}
-	case "uri":
+	case FormatURI:
 		_, err := url.ParseRequestURI(value)
 		if err != nil {
 			return fmt.Errorf("invalid URI format")
 		}
-	case "uuid":
+	case FormatUUID:
 		// UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 		uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 		if !uuidRegex.MatchString(value) {
