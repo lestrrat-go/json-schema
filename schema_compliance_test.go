@@ -17,13 +17,16 @@ import (
 
 // Test JSON Schema 2020-12 Core Specification Compliance
 func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
+	t.Parallel()
 	t.Run("Schema Version Declaration", func(t *testing.T) {
+		t.Parallel()
 		// Test that schemas declare the correct version
 		s := schema.New()
 		require.Equal(t, schema.Version, s.Schema(), "Schema should declare 2020-12 version")
 	})
 
 	t.Run("Schema ID and Identification", func(t *testing.T) {
+		t.Parallel()
 		testCases := []struct {
 			name string
 			id   string
@@ -35,6 +38,7 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				s, err := schema.NewBuilder().
 					ID(tc.id).
 					Build()
@@ -45,6 +49,7 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 	})
 
 	t.Run("Core Keywords Support", func(t *testing.T) {
+		t.Parallel()
 		// Test all core keywords are supported
 		s, err := schema.NewBuilder().
 			ID("https://example.com/test").
@@ -63,6 +68,7 @@ func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 }
 
 func TestPrimitiveTypes(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		typeStr  string
@@ -81,6 +87,7 @@ func TestPrimitiveTypes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			pt, err := schema.NewPrimitiveType(tc.typeStr)
 			if tc.valid {
 				require.NoError(t, err)
@@ -93,7 +100,9 @@ func TestPrimitiveTypes(t *testing.T) {
 }
 
 func TestSchemaComposition(t *testing.T) {
+	t.Parallel()
 	t.Run("AllOf Composition", func(t *testing.T) {
+		t.Parallel()
 		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -108,6 +117,7 @@ func TestSchemaComposition(t *testing.T) {
 	})
 
 	t.Run("AnyOf Composition", func(t *testing.T) {
+		t.Parallel()
 		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -122,6 +132,7 @@ func TestSchemaComposition(t *testing.T) {
 	})
 
 	t.Run("OneOf Composition", func(t *testing.T) {
+		t.Parallel()
 		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -136,6 +147,7 @@ func TestSchemaComposition(t *testing.T) {
 	})
 
 	t.Run("Not Composition", func(t *testing.T) {
+		t.Parallel()
 		stringSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -148,7 +160,9 @@ func TestSchemaComposition(t *testing.T) {
 }
 
 func TestSchemaConstraints(t *testing.T) {
+	t.Parallel()
 	t.Run("String Constraints", func(t *testing.T) {
+		t.Parallel()
 		s, err := schema.NewBuilder().
 			Types(schema.StringType).
 			MinLength(1).
@@ -162,6 +176,7 @@ func TestSchemaConstraints(t *testing.T) {
 	})
 
 	t.Run("Numeric Constraints", func(t *testing.T) {
+		t.Parallel()
 		s, err := schema.NewBuilder().
 			Types(schema.NumberType).
 			Minimum(0.0).
@@ -179,6 +194,7 @@ func TestSchemaConstraints(t *testing.T) {
 	})
 
 	t.Run("Array Constraints", func(t *testing.T) {
+		t.Parallel()
 		itemSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -197,6 +213,7 @@ func TestSchemaConstraints(t *testing.T) {
 	})
 
 	t.Run("Object Constraints", func(t *testing.T) {
+		t.Parallel()
 		propSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -214,7 +231,9 @@ func TestSchemaConstraints(t *testing.T) {
 }
 
 func TestEnumAndConst(t *testing.T) {
+	t.Parallel()
 	t.Run("Enum Values", func(t *testing.T) {
+		t.Parallel()
 		enumValues := []any{"red", "green", "blue"}
 		s, err := schema.NewBuilder().
 			Types(schema.StringType).
@@ -225,6 +244,7 @@ func TestEnumAndConst(t *testing.T) {
 	})
 
 	t.Run("Const Value", func(t *testing.T) {
+		t.Parallel()
 		constValue := "constant"
 		s, err := schema.NewBuilder().
 			Types(schema.StringType).
@@ -236,7 +256,9 @@ func TestEnumAndConst(t *testing.T) {
 }
 
 func TestAdvancedFeatures(t *testing.T) {
+	t.Parallel()
 	t.Run("Pattern Properties", func(t *testing.T) {
+		t.Parallel()
 		propSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -249,6 +271,7 @@ func TestAdvancedFeatures(t *testing.T) {
 	})
 
 	t.Run("Additional Properties", func(t *testing.T) {
+		t.Parallel()
 		additionalPropSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -261,6 +284,7 @@ func TestAdvancedFeatures(t *testing.T) {
 	})
 
 	t.Run("Contains", func(t *testing.T) {
+		t.Parallel()
 		containsSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -277,6 +301,7 @@ func TestAdvancedFeatures(t *testing.T) {
 	})
 
 	t.Run("Unevaluated Properties and Items", func(t *testing.T) {
+		t.Parallel()
 		unevalPropSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -295,7 +320,9 @@ func TestAdvancedFeatures(t *testing.T) {
 }
 
 func TestSchemaBasicReferences(t *testing.T) {
+	t.Parallel()
 	t.Run("Schema Reference", func(t *testing.T) {
+		t.Parallel()
 		s, err := schema.NewBuilder().
 			Reference("#/definitions/person").
 			Build()
@@ -304,6 +331,7 @@ func TestSchemaBasicReferences(t *testing.T) {
 	})
 
 	t.Run("Dynamic Reference", func(t *testing.T) {
+		t.Parallel()
 		s, err := schema.NewBuilder().
 			DynamicReference("#person").
 			Build()
@@ -312,6 +340,7 @@ func TestSchemaBasicReferences(t *testing.T) {
 	})
 
 	t.Run("Definitions", func(t *testing.T) {
+		t.Parallel()
 		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
 
@@ -376,6 +405,7 @@ func initializeTestSuite() error {
 
 // TestSpecificationCompliance runs the official JSON Schema Test Suite tests
 func TestSpecificationCompliance(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping specification compliance tests in short mode")
 	}
@@ -415,6 +445,7 @@ func TestSpecificationCompliance(t *testing.T) {
 
 		relPath, _ := filepath.Rel(testDir, path)
 		t.Run(relPath, func(t *testing.T) {
+			t.Parallel()
 			runTestFile(t, path)
 		})
 
@@ -450,6 +481,7 @@ func runTestFile(t *testing.T, filePath string) {
 
 	for _, testSuite := range testSuites {
 		t.Run(testSuite.Description, func(t *testing.T) {
+			t.Parallel()
 			t.Helper()
 			runTestSuite(t, testSuite)
 		})
@@ -512,6 +544,7 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 	// Run each test case
 	for _, testCase := range testSuite.Tests {
 		t.Run(testCase.Description, func(t *testing.T) {
+			t.Parallel()
 			t.Helper()
 
 			// Log test data in verbose mode

@@ -33,6 +33,7 @@ func Example_schema_builder() {
 }
 
 func TestPrimitiveType(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		Input    string
 		Expected schema.PrimitiveType
@@ -75,6 +76,7 @@ func TestPrimitiveType(t *testing.T) {
 	for _, tc := range testcases {
 		tc := tc
 		t.Run(tc.Input, func(t *testing.T) {
+			t.Parallel()
 			pt, err := schema.NewPrimitiveType(tc.Input)
 			if tc.Error {
 				if !assert.Error(t, err, `schema.NewPrimitiveType should fail`) {

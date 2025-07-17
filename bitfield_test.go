@@ -6,7 +6,9 @@ import (
 )
 
 func TestBitFieldFunctionality(t *testing.T) {
+	t.Parallel()
 	t.Run("Has method returns correct bit flags", func(t *testing.T) {
+		t.Parallel()
 		// Test with an empty schema
 		schema := New()
 		if schema.Has(AnchorField) {
@@ -47,6 +49,7 @@ func TestBitFieldFunctionality(t *testing.T) {
 	})
 
 	t.Run("Bit field operations work correctly", func(t *testing.T) {
+		t.Parallel()
 		schema := NewBuilder().
 			Anchor("test").
 			Property("foo", New()).
@@ -71,6 +74,7 @@ func TestBitFieldFunctionality(t *testing.T) {
 	})
 
 	t.Run("JSON unmarshaling sets bit fields", func(t *testing.T) {
+		t.Parallel()
 		jsonData := `{
 			"$anchor": "test-anchor",
 			"type": "string",
@@ -113,6 +117,7 @@ func TestBitFieldFunctionality(t *testing.T) {
 	})
 
 	t.Run("Clone preserves bit fields", func(t *testing.T) {
+		t.Parallel()
 		original := NewBuilder().
 			Anchor("original").
 			Maximum(50.0).
@@ -140,6 +145,7 @@ func TestBitFieldFunctionality(t *testing.T) {
 	})
 
 	t.Run("Reset methods clear bit fields", func(t *testing.T) {
+		t.Parallel()
 		schema := NewBuilder().
 			Anchor("test").
 			Maximum(100.0).
@@ -162,6 +168,7 @@ func TestBitFieldFunctionality(t *testing.T) {
 }
 
 func TestBitFieldEfficiency(t *testing.T) {
+	t.Parallel()
 	// This demonstrates the efficiency improvement mentioned in the spec
 	schema := NewBuilder().
 		Anchor("test").
