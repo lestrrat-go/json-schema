@@ -885,7 +885,10 @@ LOOP:
 					if b {
 						s.contentSchema = &Schema{} // true schema - allow everything
 					} else {
-						s.contentSchema = &Schema{not: &Schema{}} // false schema - deny everything
+						// false schema - deny everything using "not": {}
+						falseSchema := &Schema{not: &Schema{}}
+						falseSchema.populatedFields |= NotField
+						s.contentSchema = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object
@@ -924,7 +927,10 @@ LOOP:
 						if b {
 							v[key] = &Schema{} // true schema - allow everything
 						} else {
-							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+							// false schema - deny everything using "not": {}
+							falseSchema := &Schema{not: &Schema{}}
+							falseSchema.populatedFields |= NotField
+							v[key] = falseSchema
 						}
 					} else {
 						// Try to decode as Schema object
@@ -1147,7 +1153,10 @@ LOOP:
 					if b {
 						s.not = &Schema{} // true schema - allow everything
 					} else {
-						s.not = &Schema{not: &Schema{}} // false schema - deny everything
+						// false schema - deny everything using "not": {}
+						falseSchema := &Schema{not: &Schema{}}
+						falseSchema.populatedFields |= NotField
+						s.not = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object
@@ -1193,7 +1202,10 @@ LOOP:
 						if b {
 							v[key] = &Schema{} // true schema - allow everything
 						} else {
-							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+							// false schema - deny everything using "not": {}
+							falseSchema := &Schema{not: &Schema{}}
+							falseSchema.populatedFields |= NotField
+							v[key] = falseSchema
 						}
 					} else {
 						// Try to decode as Schema object
@@ -1263,7 +1275,10 @@ LOOP:
 					if b {
 						s.propertyNames = &Schema{} // true schema - allow everything
 					} else {
-						s.propertyNames = &Schema{not: &Schema{}} // false schema - deny everything
+						// false schema - deny everything using "not": {}
+						falseSchema := &Schema{not: &Schema{}}
+						falseSchema.populatedFields |= NotField
+						s.propertyNames = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object
