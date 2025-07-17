@@ -293,6 +293,12 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Initialize result for tracking evaluated items
 		result := NewArrayResult()
 
+		// Merge evaluated items from previous validators (via stash context)
+		stash := StashFromContext(ctx)
+		if stash != nil && stash.EvaluatedItems != nil {
+			result.SetEvaluatedItems(stash.EvaluatedItems)
+		}
+
 		// Validate items according to prefixItems and items
 		arrayLength := rv.Len()
 		prefixItemsCount := len(c.prefixItems)
@@ -375,33 +381,6 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 		// Handle unevaluatedItems validation
 		if c.unevaluatedItems != nil {
-			// Get stash from context to see what items were already evaluated by other validators
-			stash := StashFromContext(ctx)
-			if stash != nil && stash.EvaluatedItems != nil {
-				// Merge stash evaluated items with our current result
-				currentEvaluated := result.EvaluatedItems()
-				maxLen := len(currentEvaluated)
-				if len(stash.EvaluatedItems) > maxLen {
-					maxLen = len(stash.EvaluatedItems)
-				}
-
-				// Extend our result if necessary
-				if len(currentEvaluated) < maxLen {
-					newEvaluated := make([]bool, maxLen)
-					copy(newEvaluated, currentEvaluated)
-					currentEvaluated = newEvaluated
-				}
-
-				// Mark items as evaluated if they were evaluated by previous validators
-				for i := 0; i < len(stash.EvaluatedItems) && i < maxLen; i++ {
-					if stash.EvaluatedItems[i] {
-						currentEvaluated[i] = true
-					}
-				}
-
-				// Update the result with the merged evaluated items
-				result.SetEvaluatedItems(currentEvaluated)
-			}
 
 			// Validate unevaluated items
 			for i := 0; i < rv.Len(); i++ {
