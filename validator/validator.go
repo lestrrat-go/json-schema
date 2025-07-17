@@ -348,7 +348,15 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			return nil, fmt.Errorf("failed to compile resolved schema for reference %s: %w", reference, err)
 		}
 
-		return &ReferenceValidator{reference: reference, resolved: resolved}, nil
+		refValidator := &ReferenceValidator{
+			reference:  reference,
+			resolved:   resolved,
+			resolver:   resolver,
+			rootSchema: rootSchema,
+		}
+		// Mark as already resolved to prevent lazy resolution from overwriting
+		refValidator.resolvedOnce.Do(func() {})
+		return refValidator, nil
 	} else if s.HasDynamicReference() {
 		// Handle $dynamicRef with lazy dynamic scope resolution
 		dynamicRef := s.DynamicReference()
@@ -761,6 +769,8 @@ type ReferenceValidator struct {
 	resolvedOnce sync.Once
 	resolved     Interface
 	resolveErr   error
+	resolver     *schema.Resolver
+	rootSchema   *schema.Schema
 }
 
 func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
@@ -777,16 +787,21 @@ func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error
 }
 
 func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, error) {
-	// Get resolver from context - create default if none provided
-	resolver := ResolverFromContext(ctx)
+	// Use stored resolver and root schema, fall back to context if not available
+	resolver := r.resolver
 	if resolver == nil {
-		resolver = schema.NewResolver()
+		resolver = ResolverFromContext(ctx)
+		if resolver == nil {
+			resolver = schema.NewResolver()
+		}
 	}
 
-	// Get root schema from context
-	rootSchema := RootSchemaFromContext(ctx)
+	rootSchema := r.rootSchema
 	if rootSchema == nil {
-		return nil, fmt.Errorf("no root schema available in context for reference resolution: %s", r.reference)
+		rootSchema = RootSchemaFromContext(ctx)
+		if rootSchema == nil {
+			return nil, fmt.Errorf("no root schema available in context for reference resolution: %s", r.reference)
+		}
 	}
 
 	// Check for circular references by looking at context
