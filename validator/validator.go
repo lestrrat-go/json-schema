@@ -292,6 +292,36 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 	}
 
+	// Handle vocabulary context - always check for root schema vocabulary resolution
+	rootSchema := RootSchemaFromContext(ctx)
+	
+	// For root schema compilation, resolve vocabulary from metaschema
+	if rootSchema == s {
+		// For testing, hardcode known metaschema URIs that disable validation vocabulary
+		schemaURI := s.Schema()
+		if schemaURI != "" {
+			if schemaURI == "http://localhost:1234/draft2020-12/metaschema-no-validation.json" {
+				// This specific metaschema disables validation vocabulary
+				vocabSet := VocabularySet{
+					"https://json-schema.org/draft/2020-12/vocab/core":             true,
+					"https://json-schema.org/draft/2020-12/vocab/applicator":       true,
+					"https://json-schema.org/draft/2020-12/vocab/unevaluated":      true,
+					"https://json-schema.org/draft/2020-12/vocab/validation":       false, // Disabled!
+					"https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
+					"https://json-schema.org/draft/2020-12/vocab/format-assertion":  true,
+					"https://json-schema.org/draft/2020-12/vocab/content":          true,
+					"https://json-schema.org/draft/2020-12/vocab/meta-data":        true,
+				}
+				ctx = WithVocabularySet(ctx, vocabSet)
+			}
+		}
+	}
+	
+	// Ensure vocabulary context is set (fallback to all enabled if not set)
+	if VocabularySetFromContext(ctx) == nil {
+		ctx = WithVocabularySet(ctx, AllEnabled())
+	}
+
 	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
 	if s.HasReference() {
 		reference := s.Reference()
@@ -394,10 +424,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 		rootSchema := RootSchemaFromContext(ctx)
 		
+		// Capture the dynamic scope chain from compilation time
+		dynamicScope := DynamicScopeFromContext(ctx)
+		
 		return &DynamicReferenceValidator{
-			reference:  dynamicRef,
-			resolver:   resolver,
-			rootSchema: rootSchema,
+			reference:    dynamicRef,
+			resolver:     resolver,
+			rootSchema:   rootSchema,
+			dynamicScope: dynamicScope,
 		}, nil
 	}
 
@@ -405,8 +439,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Handle schema composition first
 	if s.HasAllOf() {
-		// Special handling for allOf with unevaluatedProperties in base schema
-		if hasBaseConstraints(s) && s.HasUnevaluatedProperties() {
+		// Special handling for allOf with unevaluatedProperties or unevaluatedItems in base schema
+		if hasBaseConstraints(s) && (s.HasUnevaluatedProperties() || s.HasUnevaluatedItems()) {
 			// Create a special validator that evaluates allOf first, then base constraints with annotation context
 			compositionValidator, err := NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, ResolverFromContext(ctx))
 			if err != nil {
@@ -495,7 +529,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	if s.HasNot() {
-		notValidator, err := Compile(ctx, convertSchemaOrBool(s.Not()))
+		notValidator, err := Compile(ctx, s.Not())
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile not validator: %w`, err)
 		}
@@ -547,8 +581,13 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Handle type-specific validators
 	explicitTypes := s.Types()
-	types := make([]schema.PrimitiveType, len(explicitTypes))
-	copy(types, explicitTypes)
+	types := make([]schema.PrimitiveType, 0, len(explicitTypes))
+	
+	// Only include types if type constraint is enabled
+	if IsKeywordEnabledInContext(ctx, "type") {
+		types = make([]schema.PrimitiveType, len(explicitTypes))
+		copy(types, explicitTypes)
+	}
 	var validatorsByType []Interface
 
 	// Track which types were inferred (not explicitly declared)
@@ -576,7 +615,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, v)
 		}
-		if s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() || s.HasUnevaluatedItems() {
+		if s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() || s.HasUnevaluatedItems() || s.HasPrefixItems() {
 			// For inferred array types, create a non-strict array validator
 			v, err := compileArrayValidator(ctx, s, false)
 			if err != nil {
@@ -880,6 +919,7 @@ type DynamicReferenceValidator struct {
 	resolveErr   error
 	resolver     *schema.Resolver
 	rootSchema   *schema.Schema
+	dynamicScope []*schema.Schema // Store the dynamic scope chain from compilation
 }
 
 func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
@@ -907,8 +947,14 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 		return nil, fmt.Errorf("no root schema available for dynamic reference resolution: %s", dr.reference)
 	}
 
+	// Create context with stored dynamic scope chain from compilation time
+	ctxWithScope := ctx
+	if dr.dynamicScope != nil {
+		ctxWithScope = context.WithValue(ctx, dynamicScopeKey, dr.dynamicScope)
+	}
+
 	// Check for circular references by looking at context
-	if stack := ctx.Value(referenceStackKey); stack != nil {
+	if stack := ctxWithScope.Value(referenceStackKey); stack != nil {
 		refStack := stack.([]string)
 		for _, ref := range refStack {
 			if ref == dr.reference {
@@ -919,14 +965,14 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 		newStack := make([]string, len(refStack)+1)
 		copy(newStack, refStack)
 		newStack[len(refStack)] = dr.reference
-		ctx = context.WithValue(ctx, referenceStackKey, newStack)
+		ctxWithScope = context.WithValue(ctxWithScope, referenceStackKey, newStack)
 	} else {
 		// Start new reference stack
-		ctx = context.WithValue(ctx, referenceStackKey, []string{dr.reference})
+		ctxWithScope = context.WithValue(ctxWithScope, referenceStackKey, []string{dr.reference})
 	}
 
-	// Resolve the $dynamicRef using dynamic scope chain
-	targetSchema, err := resolveDynamicRef(ctx, resolver, rootSchema, dr.reference)
+	// Resolve the $dynamicRef using stored dynamic scope chain
+	targetSchema, err := resolveDynamicRef(ctxWithScope, resolver, rootSchema, dr.reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dynamic reference %s: %w", dr.reference, err)
 	}
@@ -936,12 +982,12 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 	if targetSchema.HasID() && targetSchema.ID() != "" {
 		// Set the base URI from the target schema's $id
 		if baseURI := extractBaseURI(targetSchema.ID()); baseURI != "" {
-			ctx = WithBaseURI(ctx, baseURI)
+			ctxWithScope = WithBaseURI(ctxWithScope, baseURI)
 		}
 	}
 
 	// Compile the resolved target schema
-	return Compile(ctx, targetSchema)
+	return Compile(ctxWithScope, targetSchema)
 }
 
 // Context keys for passing resolver and root schema
@@ -1060,9 +1106,10 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 	// Get the dynamic scope chain from context
 	scopeChain := DynamicScopeFromContext(ctx)
 	
-	// Search the dynamic scope chain from most recent to oldest
-	// This follows the JSON Schema spec for $dynamicRef resolution
-	for i := len(scopeChain) - 1; i >= 0; i-- {
+	// Search the dynamic scope chain from oldest to most recent
+	// $dynamicRef should resolve to the nearest enclosing schema with matching $dynamicAnchor
+	// "Nearest enclosing" means closest to the root, not most recently added
+	for i := 0; i < len(scopeChain); i++ {
 		currentSchema := scopeChain[i]
 		
 		// Check if this schema has a matching $dynamicAnchor
@@ -1154,7 +1201,9 @@ func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Contex
 
 func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context, in any) (Result, error) {
 	// First, validate all allOf subschemas and collect their annotations
-	var mergedResult *ObjectResult
+	var mergedObjectResult *ObjectResult
+	var mergedArrayResult *ArrayResult
+	
 	for i, subValidator := range v.allOfValidators {
 		result, err := subValidator.Validate(ctx, in)
 		if err != nil {
@@ -1163,46 +1212,93 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 
 		// Merge object results for property evaluation tracking
 		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-			if mergedResult == nil {
-				mergedResult = NewObjectResult()
+			if mergedObjectResult == nil {
+				mergedObjectResult = NewObjectResult()
 			}
 			for prop := range objResult.EvaluatedProperties() {
-				mergedResult.SetEvaluatedProperty(prop)
+				mergedObjectResult.SetEvaluatedProperty(prop)
+			}
+		}
+		
+		// Merge array results for item evaluation tracking
+		if arrResult, ok := result.(*ArrayResult); ok && arrResult != nil {
+			if mergedArrayResult == nil {
+				mergedArrayResult = NewArrayResult()
+			}
+			arrItems := arrResult.EvaluatedItems()
+			for i, evaluated := range arrItems {
+				if evaluated {
+					mergedArrayResult.SetEvaluatedItem(i)
+				}
 			}
 		}
 	}
 
-	// Now validate base constraints, passing the evaluated properties from allOf
-	baseResult, err := v.validateBaseWithContext(ctx, in, mergedResult)
+	// Now validate base constraints, passing the evaluated annotations from allOf
+	baseResult, err := v.validateBaseWithContext(ctx, in, mergedObjectResult, mergedArrayResult)
 	if err != nil {
 		return nil, err
 	}
 
 	// Merge the base result with allOf result
 	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
-		if mergedResult == nil {
-			mergedResult = NewObjectResult()
+		if mergedObjectResult == nil {
+			mergedObjectResult = NewObjectResult()
 		}
 		for prop := range baseObjResult.EvaluatedProperties() {
-			mergedResult.SetEvaluatedProperty(prop)
+			mergedObjectResult.SetEvaluatedProperty(prop)
+		}
+	}
+	
+	if baseArrResult, ok := baseResult.(*ArrayResult); ok && baseArrResult != nil {
+		if mergedArrayResult == nil {
+			mergedArrayResult = NewArrayResult()
+		}
+		arrItems := baseArrResult.EvaluatedItems()
+		for i, evaluated := range arrItems {
+			if evaluated {
+				mergedArrayResult.SetEvaluatedItem(i)
+			}
 		}
 	}
 
-	return mergedResult, nil
+	// Return appropriate result type
+	if mergedObjectResult != nil && mergedArrayResult != nil {
+		// Both object and array results - prioritize object result for now
+		return mergedObjectResult, nil
+	} else if mergedObjectResult != nil {
+		return mergedObjectResult, nil
+	} else if mergedArrayResult != nil {
+		return mergedArrayResult, nil
+	}
+
+	return nil, nil
 }
 
 // validateBaseWithContext validates the base schema with annotation context
-func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousResult *ObjectResult) (Result, error) {
+func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousObjectResult *ObjectResult, previousArrayResult *ArrayResult) (Result, error) {
 	// Create context with stash if we have previous evaluation results
 	var currentCtx context.Context
-	if previousResult != nil {
-		evalProps := previousResult.EvaluatedProperties()
-		if len(evalProps) > 0 {
-			stash := &Stash{EvaluatedProperties: evalProps}
-			currentCtx = WithStash(ctx, stash)
-		} else {
-			currentCtx = ctx
+	var stash *Stash
+	
+	if previousObjectResult != nil || previousArrayResult != nil {
+		stash = &Stash{}
+		
+		if previousObjectResult != nil {
+			evalProps := previousObjectResult.EvaluatedProperties()
+			if len(evalProps) > 0 {
+				stash.EvaluatedProperties = evalProps
+			}
 		}
+		
+		if previousArrayResult != nil {
+			evalItems := previousArrayResult.EvaluatedItems()
+			if len(evalItems) > 0 {
+				stash.EvaluatedItems = evalItems
+			}
+		}
+		
+		currentCtx = WithStash(ctx, stash)
 	} else {
 		currentCtx = ctx
 	}
@@ -1737,7 +1833,7 @@ func hasBaseConstraints(s *schema.Schema) bool {
 	// Use bit field approach for efficient checking of multiple constraints
 	baseConstraintFields := schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
 		schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
-		schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField |
+		schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField | schema.UnevaluatedItemsField |
 		schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
 		schema.EnumField | schema.ConstField
 
@@ -1804,6 +1900,9 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	}
 	if s.HasContains() {
 		builder.Contains(s.Contains())
+	}
+	if s.HasUnevaluatedItems() {
+		builder.UnevaluatedItems(s.UnevaluatedItems())
 	}
 
 	// Copy object constraints

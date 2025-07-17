@@ -14,13 +14,13 @@ var _ Interface = (*arrayValidator)(nil)
 func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := Array()
 
-	if s.HasMinItems() {
+	if s.HasMinItems() && IsKeywordEnabledInContext(ctx, "minItems") {
 		v.MinItems(s.MinItems())
 	}
-	if s.HasMaxItems() {
+	if s.HasMaxItems() && IsKeywordEnabledInContext(ctx, "maxItems") {
 		v.MaxItems(s.MaxItems())
 	}
-	if s.HasUniqueItems() {
+	if s.HasUniqueItems() && IsKeywordEnabledInContext(ctx, "uniqueItems") {
 		v.UniqueItems(s.UniqueItems())
 	}
 	if s.HasPrefixItems() {

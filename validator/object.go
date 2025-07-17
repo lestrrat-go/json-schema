@@ -15,16 +15,16 @@ var _ Interface = (*objectValidator)(nil)
 func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := Object()
 
-	if s.HasMinProperties() {
+	if s.HasMinProperties() && IsKeywordEnabledInContext(ctx, "minProperties") {
 		v.MinProperties(s.MinProperties())
 	}
-	if s.HasMaxProperties() {
+	if s.HasMaxProperties() && IsKeywordEnabledInContext(ctx, "maxProperties") {
 		v.MaxProperties(s.MaxProperties())
 	}
-	if s.HasRequired() {
+	if s.HasRequired() && IsKeywordEnabledInContext(ctx, "required") {
 		v.Required(s.Required())
 	}
-	if s.HasDependentRequired() {
+	if s.HasDependentRequired() && IsKeywordEnabledInContext(ctx, "dependentRequired") {
 		v.DependentRequired(s.DependentRequired())
 	}
 	if s.HasProperties() {

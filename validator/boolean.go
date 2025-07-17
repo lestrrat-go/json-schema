@@ -13,14 +13,14 @@ var _ Interface = (*booleanValidator)(nil)
 
 func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Boolean()
-	if s.HasConst() {
+	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
 		c, ok := s.Const().(bool)
 		if !ok {
 			return nil, fmt.Errorf(`invalid element in const: expected boolean element, got %T`, s.Const())
 		}
 		v.Const(c)
 	}
-	if s.HasEnum() {
+	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
 		enums := s.Enum()
 		l := make([]bool, 0, len(enums))
 		for i, e := range s.Enum() {

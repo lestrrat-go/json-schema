@@ -440,6 +440,7 @@ type TestCase struct {
 
 // runTestFile runs all test suites in a single JSON file
 func runTestFile(t *testing.T, filePath string) {
+	t.Helper()
 	data, err := os.ReadFile(filePath)
 	require.NoError(t, err)
 
@@ -449,6 +450,7 @@ func runTestFile(t *testing.T, filePath string) {
 
 	for _, testSuite := range testSuites {
 		t.Run(testSuite.Description, func(t *testing.T) {
+			t.Helper()
 			runTestSuite(t, testSuite)
 		})
 	}
@@ -456,8 +458,19 @@ func runTestFile(t *testing.T, filePath string) {
 
 // runTestSuite runs a single test suite
 func runTestSuite(t *testing.T, testSuite TestSuite) {
+	t.Helper()
 	var s *schema.Schema
 	var err error
+
+	// Log schema in verbose mode
+	if testing.Verbose() {
+		schemaJSON, err := json.MarshalIndent(testSuite.Schema, "", "  ")
+		if err != nil {
+			t.Logf("Schema (failed to marshal): %+v", testSuite.Schema)
+		} else {
+			t.Logf("Schema:\n%s", string(schemaJSON))
+		}
+	}
 
 	// Handle boolean schemas (true/false) and object schemas
 	switch schemaValue := testSuite.Schema.(type) {
@@ -499,6 +512,19 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 	// Run each test case
 	for _, testCase := range testSuite.Tests {
 		t.Run(testCase.Description, func(t *testing.T) {
+			t.Helper()
+
+			// Log test data in verbose mode
+			if testing.Verbose() {
+				dataJSON, err := json.MarshalIndent(testCase.Data, "", "  ")
+				if err != nil {
+					t.Logf("Test data (failed to marshal): %+v", testCase.Data)
+				} else {
+					t.Logf("Test data:\n%s", string(dataJSON))
+				}
+				t.Logf("Expected valid: %t", testCase.Valid)
+			}
+
 			_, err := v.Validate(context.Background(), testCase.Data)
 			if testCase.Valid {
 				require.NoError(t, err, "Expected validation to pass but got error: %v", err)

@@ -1234,7 +1234,10 @@ LOOP:
 						if b {
 							v[key] = &Schema{} // true schema - allow everything
 						} else {
-							v[key] = &Schema{not: &Schema{}} // false schema - deny everything
+							// false schema - deny everything using "not": {}
+							falseSchema := &Schema{not: &Schema{}}
+							falseSchema.populatedFields |= NotField
+							v[key] = falseSchema
 						}
 					} else {
 						// Try to decode as Schema object

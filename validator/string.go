@@ -147,26 +147,26 @@ func validateFormat(value, format string) error {
 func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := String()
 	v.StrictStringType(strictType)
-	if s.HasConst() {
+	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
 		c, ok := s.Const().(string)
 		if !ok {
 			return nil, fmt.Errorf(`invalid element in const: expected string element, got %T`, s.Const())
 		}
 		v.Const(c)
 	}
-	if s.HasMaxLength() {
+	if s.HasMaxLength() && IsKeywordEnabledInContext(ctx, "maxLength") {
 		v.MaxLength(s.MaxLength())
 	}
-	if s.HasMinLength() {
+	if s.HasMinLength() && IsKeywordEnabledInContext(ctx, "minLength") {
 		v.MinLength(s.MinLength())
 	}
-	if s.HasPattern() {
+	if s.HasPattern() && IsKeywordEnabledInContext(ctx, "pattern") {
 		v.Pattern(s.Pattern())
 	}
-	if s.HasFormat() {
+	if s.HasFormat() && IsKeywordEnabledInContext(ctx, "format") {
 		v.Format(s.Format())
 	}
-	if s.HasEnum() {
+	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
 		enums := s.Enum()
 		l := make([]string, 0, len(enums))
 		for i, e := range s.Enum() {

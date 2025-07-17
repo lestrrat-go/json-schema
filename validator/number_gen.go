@@ -15,7 +15,7 @@ var _ Interface = (*numberValidator)(nil)
 func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	b := Number()
 
-	if s.HasMultipleOf() {
+	if s.HasMultipleOf() && IsKeywordEnabledInContext(ctx, "multipleOf") {
 		rv := reflect.ValueOf(s.MultipleOf())
 		var tmp float64
 		switch rv.Kind() {
@@ -29,7 +29,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.MultipleOf(tmp)
 	}
 
-	if s.HasMaximum() {
+	if s.HasMaximum() && IsKeywordEnabledInContext(ctx, "maximum") {
 		rv := reflect.ValueOf(s.Maximum())
 		var tmp float64
 		switch rv.Kind() {
@@ -43,7 +43,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.Maximum(tmp)
 	}
 
-	if s.HasExclusiveMaximum() {
+	if s.HasExclusiveMaximum() && IsKeywordEnabledInContext(ctx, "exclusiveMaximum") {
 		rv := reflect.ValueOf(s.ExclusiveMaximum())
 		var tmp float64
 		switch rv.Kind() {
@@ -57,7 +57,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.ExclusiveMaximum(tmp)
 	}
 
-	if s.HasMinimum() {
+	if s.HasMinimum() && IsKeywordEnabledInContext(ctx, "minimum") {
 		rv := reflect.ValueOf(s.Minimum())
 		var tmp float64
 		switch rv.Kind() {
@@ -71,7 +71,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.Minimum(tmp)
 	}
 
-	if s.HasExclusiveMinimum() {
+	if s.HasExclusiveMinimum() && IsKeywordEnabledInContext(ctx, "exclusiveMinimum") {
 		rv := reflect.ValueOf(s.ExclusiveMinimum())
 		var tmp float64
 		switch rv.Kind() {
@@ -85,7 +85,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.ExclusiveMinimum(tmp)
 	}
 
-	if s.HasConst() {
+	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
 		rv := reflect.ValueOf(s.Const())
 		var tmp float64
 		switch rv.Kind() {
@@ -99,7 +99,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.Const(tmp)
 	}
 
-	if s.HasEnum() {
+	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
 		enums := s.Enum()
 		l := make([]float64, 0, len(enums))
 		for i, e := range s.Enum() {
