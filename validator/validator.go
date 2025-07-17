@@ -339,9 +339,21 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 		}
 
-		// Compile the reference validator with the target schema as the new root
-		// This ensures that relative references within the target schema are resolved correctly
-		refCtx := WithRootSchema(ctx, &targetSchema)
+		// Compile the reference validator with appropriate context
+		refCtx := ctx
+		
+		// For local references within the same document (starting with #), keep the original root schema
+		// For external references or references with different $id, set the target as new root
+		if strings.HasPrefix(reference, "#") {
+			// Local reference - keep original root schema to access $defs in the same document
+			refCtx = ctx
+		} else if targetSchema.HasID() && targetSchema.ID() != "" {
+			// External reference with its own $id - set it as the new root
+			refCtx = WithRootSchema(ctx, &targetSchema)
+		} else {
+			// External reference without $id - keep original root but update base URI
+			refCtx = ctx
+		}
 
 		// Set base URI context for resolving relative references within the target schema
 		// This is crucial for metaschema which has relative references like "meta/validation"
@@ -849,6 +861,7 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 	}
 
 	// Compile the resolved schema into a validator
+	// IMPORTANT: Keep the original root schema context to ensure nested references can be resolved
 	return Compile(ctx, &targetSchema)
 }
 

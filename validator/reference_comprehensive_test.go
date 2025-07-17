@@ -65,7 +65,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		ctx := context.Background()
 		ctx = validator.WithResolver(ctx, schema.NewResolver())
 		ctx = validator.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
@@ -75,18 +75,18 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 				"name": "John Doe",
 				"address": map[string]any{
 					"street": "123 Main St",
-					"city": "Anytown",
+					"city":   "Anytown",
 				},
 			},
 			"manager": map[string]any{
-				"name": "Jane Smith",
+				"name":       "Jane Smith",
 				"employeeId": "EMP123",
 				"address": map[string]any{
 					"street": "456 Oak Ave",
-					"city": "Somewhere",
+					"city":   "Somewhere",
 				},
 				"department": map[string]any{
-					"name": "Engineering",
+					"name":   "Engineering",
 					"budget": 50000.0,
 				},
 			},
@@ -176,7 +176,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		ctx := context.Background()
 		ctx = validator.WithResolver(ctx, schema.NewResolver())
 		ctx = validator.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
@@ -189,10 +189,10 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 			"metadata": map[string]any{
 				"meta_string": "hello",
 				"meta_number": 42,
-				"meta_bool": true,
+				"meta_bool":   true,
 			},
 			"config": map[string]any{
-				"type": "advanced",
+				"type":     "advanced",
 				"features": []any{"feature1", "feature2"},
 			},
 		}
@@ -236,7 +236,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		ctx := context.Background()
 		ctx = validator.WithResolver(ctx, schema.NewResolver())
 		ctx = validator.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
@@ -257,29 +257,6 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("circular reference detection", func(t *testing.T) {
-		// Schema with circular references should be detected during compilation
-		jsonSchema := `{
-			"$ref": "#/$defs/a",
-			"$defs": {
-				"a": {"$ref": "#/$defs/b"},
-				"b": {"$ref": "#/$defs/c"},
-				"c": {"$ref": "#/$defs/a"}
-			}
-		}`
-
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
-
-		ctx := context.Background()
-		ctx = validator.WithResolver(ctx, schema.NewResolver())
-		ctx = validator.WithRootSchema(ctx, &s)
-		
-		_, err := validator.Compile(ctx, &s)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "circular reference")
-	})
-
 	t.Run("self-referencing schema", func(t *testing.T) {
 		// Schema that references itself directly
 		jsonSchema := `{
@@ -295,7 +272,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		ctx := context.Background()
 		ctx = validator.WithResolver(ctx, schema.NewResolver())
 		ctx = validator.WithRootSchema(ctx, &s)
-		
+
 		_, err := validator.Compile(ctx, &s)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "circular reference")
@@ -352,17 +329,17 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		ctx := context.Background()
 		ctx = validator.WithResolver(ctx, schema.NewResolver())
 		ctx = validator.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
 		// Valid data - type A
 		validDataA := map[string]any{
 			"data": map[string]any{
-				"id": "test123",
+				"id":        "test123",
 				"timestamp": 1234567890.0,
-				"type": "A",
-				"valueA": "hello",
+				"type":      "A",
+				"valueA":    "hello",
 			},
 		}
 
@@ -372,8 +349,8 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		// Valid data - type B
 		validDataB := map[string]any{
 			"data": map[string]any{
-				"id": "test456",
-				"type": "B",
+				"id":     "test456",
+				"type":   "B",
 				"valueB": 42.0,
 			},
 		}
@@ -384,7 +361,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		// Invalid data - missing required field from base
 		invalidData := map[string]any{
 			"data": map[string]any{
-				"type": "A",
+				"type":   "A",
 				"valueA": "hello",
 				// missing "id" from base
 			},
@@ -439,15 +416,15 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		ctx := context.Background()
 		ctx = validator.WithResolver(ctx, schema.NewResolver())
 		ctx = validator.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
 		// Valid document
 		validDocument := map[string]any{
 			"item": map[string]any{
-				"type": "document",
-				"title": "My Document",
+				"type":    "document",
+				"title":   "My Document",
 				"content": "Document content here",
 			},
 		}
@@ -459,7 +436,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		validMedia := map[string]any{
 			"item": map[string]any{
 				"type": "image",
-				"url": "https://example.com/image.jpg",
+				"url":  "https://example.com/image.jpg",
 				"size": 1024.0,
 			},
 		}
@@ -470,7 +447,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		// Invalid document - missing required field
 		invalidDocument := map[string]any{
 			"item": map[string]any{
-				"type": "document",
+				"type":  "document",
 				"title": "My Document",
 				// missing "content"
 			},
@@ -479,4 +456,27 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		_, err = v.Validate(context.Background(), invalidDocument)
 		require.Error(t, err)
 	})
+}
+
+func TestCircularReferenceDetection(t *testing.T) {
+	// Schema with circular references should be detected during compilation
+	jsonSchema := `{
+		"$ref": "#/$defs/a",
+		"$defs": {
+			"a": {"$ref": "#/$defs/b"},
+			"b": {"$ref": "#/$defs/c"},
+			"c": {"$ref": "#/$defs/a"}
+		}
+	}`
+
+	var s schema.Schema
+	require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+
+	ctx := context.Background()
+	ctx = validator.WithResolver(ctx, schema.NewResolver())
+	ctx = validator.WithRootSchema(ctx, &s)
+
+	_, err := validator.Compile(ctx, &s)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "circular reference")
 }
