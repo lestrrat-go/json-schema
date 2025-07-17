@@ -234,7 +234,7 @@ func (v *integerValidator) Validate(ctx context.Context, in any) (Result, error)
 	case reflect.Float32, reflect.Float64:
 		f := rv.Float()
 		if f != float64(int(f)) {
-			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: float value %g is not an integer`, f)
+			return nil, fmt.Errorf(`expected integer, got float value %g`, f)
 		}
 		n = int(f)
 	default:

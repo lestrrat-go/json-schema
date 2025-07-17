@@ -356,6 +356,32 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 		// Mark as already resolved to prevent lazy resolution from overwriting
 		refValidator.resolvedOnce.Do(func() {})
+
+		// Check if the schema has other constraints besides $ref
+		if hasOtherConstraints(s) {
+			// Special handling for $ref + unevaluatedProperties
+			if s.HasUnevaluatedProperties() && (s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties()) {
+				// Create a composition validator that properly handles annotation flow
+				compositionValidator := NewRefUnevaluatedPropertiesCompositionValidator(ctx, s, refValidator)
+				return compositionValidator, nil
+			}
+
+			// Create a composite validator that combines $ref with other constraints
+			// First, create a schema without the $ref for other constraints
+			otherSchema := createSchemaWithoutRef(s)
+			otherValidator, err := Compile(ctx, otherSchema)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile other constraints validator: %w", err)
+			}
+
+			// Create a MultiValidator with allOf logic to combine both
+			compositeValidator := NewMultiValidator(AndMode)
+			compositeValidator.Append(refValidator)
+			compositeValidator.Append(otherValidator)
+			return compositeValidator, nil
+		}
+
+		// Only $ref constraint, return the reference validator
 		return refValidator, nil
 	} else if s.HasDynamicReference() {
 		// Handle $dynamicRef with lazy dynamic scope resolution

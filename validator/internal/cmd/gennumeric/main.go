@@ -246,7 +246,7 @@ func generateValidator(def definition, outputDir string) error {
 		o.L("case reflect.Float32, reflect.Float64:")
 		o.L("f := rv.Float()")
 		o.L("if f != float64(int(f)) {")
-		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: float value %%g is not an integer`, f)")
+		o.L("return nil, fmt.Errorf(`expected integer, got float value %%g`, f)")
 		o.L("}")
 		o.L("n = int(f)")
 		o.L("default:")
