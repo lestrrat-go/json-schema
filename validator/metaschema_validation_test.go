@@ -25,11 +25,15 @@ func setupMetaschemaServer(t *testing.T) *httptest.Server {
 	
 	// Map metaschema paths to template files 
 	metaschemaFiles := map[string]string{
-		"/draft/2020-12/schema":           "meta/schema.json.tpl",
-		"/draft/2020-12/meta/core":       "meta/core.json.tpl", 
-		"/draft/2020-12/meta/validation": "meta/validation.json.tpl",
-		"/draft/2020-12/meta/content":    "meta/content.json.tpl",
-		"/draft/2020-12/meta/format":     "meta/format.json.tpl",
+		"/draft/2020-12/schema":              "meta/schema.json.tpl",
+		"/draft/2020-12/meta/core":           "meta/core.json.tpl", 
+		"/draft/2020-12/meta/applicator":     "meta/applicator.json.tpl",
+		"/draft/2020-12/meta/unevaluated":    "meta/unevaluated.json.tpl",
+		"/draft/2020-12/meta/validation":     "meta/validation.json.tpl",
+		"/draft/2020-12/meta/meta-data":      "meta/meta-data.json.tpl",
+		"/draft/2020-12/meta/format-annotation": "meta/format-annotation.json.tpl",
+		"/draft/2020-12/meta/content":        "meta/content.json.tpl",
+		"/draft/2020-12/meta/format":         "meta/format.json.tpl",
 	}
 	
 	for path, templateFile := range metaschemaFiles {
