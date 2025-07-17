@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/lestrrat-go/codegen"
 	"github.com/lestrrat-go/xstrings"
@@ -17,13 +19,16 @@ type definition struct {
 
 // Generate type NumberValidator and type IntegerValidator
 func main() {
-	if err := _main(); err != nil {
+	var outputDir = flag.String("output", ".", "output directory for generated files")
+	flag.Parse()
+	
+	if err := _main(*outputDir); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }
 
-func _main() error {
+func _main(outputDir string) error {
 	defs := []definition{
 		{
 			typ:      "int",
@@ -38,14 +43,14 @@ func _main() error {
 	}
 
 	for _, def := range defs {
-		if err := generateValidator(def); err != nil {
+		if err := generateValidator(def, outputDir); err != nil {
 			return fmt.Errorf(`failed to generate validator for %s: %w`, def.typ, err)
 		}
 	}
 	return nil
 }
 
-func generateValidator(def definition) error {
+func generateValidator(def definition, outputDir string) error {
 	props := []string{
 		"multipleOf",
 		"maximum",
@@ -62,6 +67,7 @@ func generateValidator(def definition) error {
 	o.L("package validator")
 	o.L("")
 	o.L("import (")
+	o.L("\t\"context\"")
 	o.L("\t\"fmt\"")
 	o.L("\t\"math\"")
 	o.L("\t\"reflect\"")
@@ -72,7 +78,7 @@ func generateValidator(def definition) error {
 	o.L("var _ Builder = (*%sValidatorBuilder)(nil)", def.class)
 	o.L("var _ Interface = (*%sValidator)(nil)", xstrings.Snake(def.class))
 
-	o.LL("func compile%sValidator(s *schema.Schema) (Interface, error) {", def.class)
+	o.LL("func compile%sValidator(ctx context.Context, s *schema.Schema) (Interface, error) {", def.class)
 	o.L("b := %s()", def.class)
 	for _, prop := range props {
 		var methodName string
@@ -122,14 +128,33 @@ func generateValidator(def definition) error {
 			}
 			o.L("case reflect.Float32, reflect.Float64:")
 			if def.typ == "int" {
-				o.L("tmp = int(rv.Float())")
+				if prop == "multipleOf" {
+					o.L("f := rv.Float()")
+					o.L("if f > 0 && f < 1 {")
+					o.L("// Skip multipleOf constraint for very small values with integer type")
+					o.L("// Any integer is a multiple of very small numbers like 1e-8")
+					o.L("} else {")
+					o.L("tmp = int(f)")
+					o.L("b.%s(tmp)", methodName)
+					o.L("}")
+				} else {
+					o.L("tmp = int(rv.Float())")
+				}
 			} else {
 				o.L("tmp = rv.Float()")
 			}
-			o.L("default:")
-			o.L("panic(`poop`)")
-			o.L("}") // switch
-			o.L("b.%s(tmp)", methodName)
+			if def.typ != "int" || prop != "multipleOf" {
+				o.L("default:")
+				o.L("return nil, fmt.Errorf(`invalid type for %s field: expected numeric type, got %%T`, rv.Interface())", prop)
+				o.L("}") // switch
+				if def.typ != "int" || prop != "multipleOf" {
+					o.L("b.%s(tmp)", methodName)
+				}
+			} else {
+				o.L("default:")
+				o.L("return nil, fmt.Errorf(`invalid type for %s field: expected numeric type, got %%T`, rv.Interface())", prop)
+				o.L("}") // switch
+			}
 			o.L("}") // if s.Has
 		}
 	}
@@ -209,7 +234,7 @@ func generateValidator(def definition) error {
 	} else {
 		template = "f"
 	}
-	o.LL("func (v *%sValidator) Validate(in any) error {", xstrings.Snake(def.class))
+	o.LL("func (v *%sValidator) Validate(ctx context.Context, in any) (Result, error) {", xstrings.Snake(def.class))
 	o.L("rv := reflect.ValueOf(in)")
 	if def.typ == "int" {
 		o.LL("var n int")
@@ -218,8 +243,14 @@ func generateValidator(def definition) error {
 		o.L("n = int(rv.Int())")
 		o.L("case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:")
 		o.L("n = int(rv.Uint())")
+		o.L("case reflect.Float32, reflect.Float64:")
+		o.L("f := rv.Float()")
+		o.L("if f != float64(int(f)) {")
+		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: float value %%g is not an integer`, f)")
+		o.L("}")
+		o.L("n = int(f)")
 		o.L("default:")
-		o.L("return fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %%T`, in)")
+		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %%T`, in)")
 		o.L("}")
 	} else {
 		o.LL("var n float64")
@@ -231,47 +262,50 @@ func generateValidator(def definition) error {
 		o.L("case reflect.Float32, reflect.Float64:")
 		o.L("n = rv.Float()")
 		o.L("default:")
-		o.L("return fmt.Errorf(`invalid value passed to NumberValidator: expected number, got %%T`, in)")
+		o.L("return nil, fmt.Errorf(`invalid value passed to NumberValidator: expected number, got %%T`, in)")
 		o.L("}")
 		o.L("")
 		o.L("// Reject NaN but allow infinity")
 		o.L("if math.IsNaN(n) {")
-		o.L("return fmt.Errorf(`invalid value passed to NumberValidator: value is not a valid number (NaN)`)")
+		o.L("return nil, fmt.Errorf(`invalid value passed to NumberValidator: value is not a valid number (NaN)`)")
 		o.L("}")
 	}
 	o.LL("if m := v.maximum; m != nil {")
 	o.L("if n > *m {")
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value is greater than maximum %%%s`, *m)", def.class, template)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value is greater than maximum %%%s`, *m)", def.class, template)
 	o.L("}")
 	o.L("}")
 	o.LL("if em := v.exclusiveMaximum; em != nil {")
 	o.L("if n >= *em {")
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value is greater than or equal to exclusiveMaximum %%%s`, *em)", def.class, template)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value is greater than or equal to exclusiveMaximum %%%s`, *em)", def.class, template)
 	o.L("}")
 	o.L("}")
 	o.LL("if m := v.minimum; m != nil {")
 	o.L("if n < *m {")
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value is less than minimum %%%s`, *m)", def.class, template)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value is less than minimum %%%s`, *m)", def.class, template)
 	o.L("}")
 	o.L("}")
 	o.LL("if em := v.exclusiveMinimum; em != nil {")
 	o.L("if n <= *em {")
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value is less than or equal to exclusiveMinimum %%%s`, *em)", def.class, template)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value is less than or equal to exclusiveMinimum %%%s`, *em)", def.class, template)
 	o.L("}")
 	o.L("}")
 	o.LL("if mo := v.multipleOf; mo != nil {")
 	if def.typ == "int" {
+		o.L("if *mo == 0 {")
+		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: multipleOf cannot be zero`)")
+		o.L("}")
 		o.L("if math.Mod(float64(n), float64(*mo)) != 0 {")
 	} else {
 		o.L("remainder := math.Mod(n, *mo)")
 		o.L("if math.Abs(remainder) > 1e-9 && math.Abs(remainder - *mo) > 1e-9 {")
 	}
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value is not multiple of %%%s`, *mo)", def.class, template)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value is not multiple of %%%s`, *mo)", def.class, template)
 	o.L("}")
 	o.L("}")
 	o.LL("if c := v.constantValue; c != nil {")
 	o.L("if *c != n {")
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value must be const value %%%s`, *c)", def.class, template)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value must be const value %%%s`, *c)", def.class, template)
 	o.L("}")
 	o.L("}")
 	o.LL("if enums := v.enum; len(enums) > 0 {")
@@ -283,13 +317,13 @@ func generateValidator(def definition) error {
 	o.L("}")
 	o.L("}")
 	o.L("if !found {")
-	o.L("return fmt.Errorf(`invalid value passed to %sValidator: value not found in enum`)", def.class)
+	o.L("return nil, fmt.Errorf(`invalid value passed to %sValidator: value not found in enum`)", def.class)
 	o.L("}")
 	o.L("}")
-	o.L("return nil")
+	o.L("return nil, nil")
 	o.L("}")
 
-	fn := def.filename
+	fn := filepath.Join(outputDir, def.filename)
 	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
 		if cfe, ok := err.(codegen.CodeFormatError); ok {
 			fmt.Fprint(os.Stderr, cfe.Source())

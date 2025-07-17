@@ -305,20 +305,26 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 
 	// Search in if/then/else schemas
 	if schema.HasIfSchema() {
-		if found, err := r.findSchemaByAnchor(schema.IfSchema(), anchorName); err == nil {
-			return found, nil
+		if ifSchema, ok := schema.IfSchema().(*Schema); ok {
+			if found, err := r.findSchemaByAnchor(ifSchema, anchorName); err == nil {
+				return found, nil
+			}
 		}
 	}
 
 	if schema.HasThenSchema() {
-		if found, err := r.findSchemaByAnchor(schema.ThenSchema(), anchorName); err == nil {
-			return found, nil
+		if thenSchema, ok := schema.ThenSchema().(*Schema); ok {
+			if found, err := r.findSchemaByAnchor(thenSchema, anchorName); err == nil {
+				return found, nil
+			}
 		}
 	}
 
 	if schema.HasElseSchema() {
-		if found, err := r.findSchemaByAnchor(schema.ElseSchema(), anchorName); err == nil {
-			return found, nil
+		if elseSchema, ok := schema.ElseSchema().(*Schema); ok {
+			if found, err := r.findSchemaByAnchor(elseSchema, anchorName); err == nil {
+				return found, nil
+			}
 		}
 	}
 

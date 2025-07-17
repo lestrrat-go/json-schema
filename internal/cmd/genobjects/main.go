@@ -289,6 +289,16 @@ func genObject(obj *codegen.Object) error {
 				if field.Name(false) != "schema" {
 					o.L("s.populatedFields |= %sField", field.Name(true))
 				}
+			} else if field.Type() == "map[string]SchemaOrBool" {
+				// Special handling for map[string]SchemaOrBool fields - use token-based parsing
+				o.L("v, err := unmarshalSchemaOrBoolMap(dec)")
+				o.L("if err != nil {")
+				o.L("return fmt.Errorf(`json-schema: failed to decode value for field %q (attempting to unmarshal as map[string]SchemaOrBool): %%w`, err)", field.JSON())
+				o.L("}")
+				o.L("s.%s = v", field.Name(false))
+				if field.Name(false) != "schema" {
+					o.L("s.populatedFields |= %sField", field.Name(true))
+				}
 			} else if field.Type() == "SchemaOrBool" {
 				// Special handling for SchemaOrBool fields - decode as raw JSON values
 				o.L("var v %s", field.Type())

@@ -4,7 +4,8 @@ package field
 type Flag uint64
 
 const (
-	AdditionalProperties Flag = 1 << iota
+	AdditionalItems Flag = 1 << iota
+	AdditionalProperties
 	AllOf
 	Anchor
 	AnyOf
@@ -43,6 +44,7 @@ const (
 	OneOf
 	Pattern
 	PatternProperties
+	PrefixItems
 	Properties
 	PropertyNames
 	Reference

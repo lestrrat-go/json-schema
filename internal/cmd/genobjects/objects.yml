@@ -31,14 +31,18 @@ objects:
       # if/then/else conditional validation
       - name: ifSchema
         json: 'if'
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: thenSchema
         json: 'then'
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: elseSchema
         json: 'else'
-        type: '*Schema'
+        type: 'SchemaOrBool'
+      - name: prefixItems
+        type: '[]*Schema'
       - name: items
+        type: 'SchemaOrBool'
+      - name: additionalItems
         type: 'SchemaOrBool'
       - name: contains
         type: 'SchemaOrBool'

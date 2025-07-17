@@ -5,10 +5,11 @@
 
 set -e
 
-pushd internal/cmd/gennumeric
+dir=$(cd $(dirname $0); pwd -P)
+pushd $dir/internal/cmd/gennumeric
 go build -o gennumeric main.go
 popd
 
-./internal/cmd/gennumeric/gennumeric 
+$dir/internal/cmd/gennumeric/gennumeric -output $dir
 
-rm internal/cmd/gennumeric/gennumeric
+rm $dir/internal/cmd/gennumeric/gennumeric

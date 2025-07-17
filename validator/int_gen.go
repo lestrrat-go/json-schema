@@ -23,18 +23,15 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 			tmp = int(rv.Int())
 		case reflect.Float32, reflect.Float64:
 			f := rv.Float()
-			if f < 1.0 && f > 0 {
-				// For very small positive fractions like 1e-8, any integer is a multiple
-				// Skip adding multipleOf constraint as all integers pass
-				tmp = 0 // This will be ignored due to the <= 0 check in validation
+			if f > 0 && f < 1 {
+				// Skip multipleOf constraint for very small values with integer type
+				// Any integer is a multiple of very small numbers like 1e-8
 			} else {
 				tmp = int(f)
+				b.MultipleOf(tmp)
 			}
 		default:
-			panic(`poop`)
-		}
-		if tmp > 0 { // Only set multipleOf if it's a positive integer
-			b.MultipleOf(tmp)
+			return nil, fmt.Errorf(`invalid type for multipleOf field: expected numeric type, got %T`, rv.Interface())
 		}
 	}
 
@@ -47,7 +44,7 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 		case reflect.Float32, reflect.Float64:
 			tmp = int(rv.Float())
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for maximum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.Maximum(tmp)
 	}
@@ -61,7 +58,7 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 		case reflect.Float32, reflect.Float64:
 			tmp = int(rv.Float())
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for exclusiveMaximum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.ExclusiveMaximum(tmp)
 	}
@@ -75,7 +72,7 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 		case reflect.Float32, reflect.Float64:
 			tmp = int(rv.Float())
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for minimum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.Minimum(tmp)
 	}
@@ -89,7 +86,7 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 		case reflect.Float32, reflect.Float64:
 			tmp = int(rv.Float())
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for exclusiveMinimum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.ExclusiveMinimum(tmp)
 	}
@@ -103,7 +100,7 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 		case reflect.Float32, reflect.Float64:
 			tmp = int(rv.Float())
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for constantValue field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.Const(tmp)
 	}
@@ -236,13 +233,8 @@ func (v *integerValidator) Validate(ctx context.Context, in any) (Result, error)
 		n = int(rv.Uint())
 	case reflect.Float32, reflect.Float64:
 		f := rv.Float()
-		// Check if the float represents a whole number
-		if f != math.Trunc(f) {
-			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T with non-integer value %g`, in, f)
-		}
-		// Check if the float is within integer range
-		if f > math.MaxInt || f < math.MinInt || math.IsInf(f, 0) || math.IsNaN(f) {
-			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value %g is out of integer range`, f)
+		if f != float64(int(f)) {
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: float value %g is not an integer`, f)
 		}
 		n = int(f)
 	default:
@@ -274,11 +266,10 @@ func (v *integerValidator) Validate(ctx context.Context, in any) (Result, error)
 	}
 
 	if mo := v.multipleOf; mo != nil {
-		if *mo <= 0 {
-			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: multipleOf must be positive`)
+		if *mo == 0 {
+			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: multipleOf cannot be zero`)
 		}
-		remainder := math.Mod(float64(n), float64(*mo))
-		if math.Abs(remainder) > 1e-9 && math.Abs(remainder-float64(*mo)) > 1e-9 {
+		if math.Mod(float64(n), float64(*mo)) != 0 {
 			return nil, fmt.Errorf(`invalid value passed to IntegerValidator: value is not multiple of %d`, *mo)
 		}
 	}

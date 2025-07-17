@@ -4,6 +4,7 @@ import "fmt"
 
 type Builder struct {
 	err                   error
+	additionalItems       SchemaOrBool
 	additionalProperties  SchemaOrBool
 	allOf                 []SchemaOrBool
 	anchor                *string
@@ -20,13 +21,13 @@ type Builder struct {
 	dependentSchemas      map[string]SchemaOrBool
 	dynamicAnchor         *string
 	dynamicReference      *string
-	elseSchema            *Schema
+	elseSchema            SchemaOrBool
 	enum                  []interface{}
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
 	format                *string
 	id                    *string
-	ifSchema              *Schema
+	ifSchema              SchemaOrBool
 	items                 SchemaOrBool
 	maxContains           *uint
 	maxItems              *uint
@@ -43,12 +44,13 @@ type Builder struct {
 	oneOf                 []SchemaOrBool
 	pattern               *string
 	patternProperties     []*propPair
+	prefixItems           []*Schema
 	properties            []*propPair
 	propertyNames         *Schema
 	reference             *string
 	required              []string
 	schema                string
-	thenSchema            *Schema
+	thenSchema            SchemaOrBool
 	types                 PrimitiveTypes
 	unevaluatedItems      SchemaOrBool
 	unevaluatedProperties SchemaOrBool
@@ -60,6 +62,14 @@ func NewBuilder() *Builder {
 	return &Builder{
 		schema: Version,
 	}
+}
+
+func (b *Builder) AdditionalItems(v SchemaOrBool) *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.additionalItems = v
+	return b
 }
 
 func (b *Builder) AdditionalProperties(v SchemaOrBool) *Builder {
@@ -218,11 +228,10 @@ func (b *Builder) DynamicReference(v string) *Builder {
 	return b
 }
 
-func (b *Builder) ElseSchema(v *Schema) *Builder {
+func (b *Builder) ElseSchema(v SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
 	}
-
 	b.elseSchema = v
 	return b
 }
@@ -272,11 +281,10 @@ func (b *Builder) ID(v string) *Builder {
 	return b
 }
 
-func (b *Builder) IfSchema(v *Schema) *Builder {
+func (b *Builder) IfSchema(v SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
 	}
-
 	b.ifSchema = v
 	return b
 }
@@ -431,6 +439,15 @@ func (b *Builder) PatternProperty(n string, v *Schema) *Builder {
 	return b
 }
 
+func (b *Builder) PrefixItems(v ...*Schema) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.prefixItems = v
+	return b
+}
+
 func (b *Builder) Property(n string, v *Schema) *Builder {
 	if b.err != nil {
 		return b
@@ -476,11 +493,10 @@ func (b *Builder) Schema(v string) *Builder {
 	return b
 }
 
-func (b *Builder) ThenSchema(v *Schema) *Builder {
+func (b *Builder) ThenSchema(v SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
 	}
-
 	b.thenSchema = v
 	return b
 }
@@ -534,6 +550,10 @@ func (b *Builder) Clone(original *Schema) *Builder {
 	}
 	if original == nil {
 		return b
+	}
+
+	if original.HasAdditionalItems() {
+		b.additionalItems = original.additionalItems
 	}
 
 	if original.HasAdditionalProperties() {
@@ -696,6 +716,10 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		}
 	}
 
+	if original.HasPrefixItems() {
+		b.prefixItems = original.prefixItems
+	}
+
 	if original.HasProperties() {
 		for name, schema := range original.properties {
 			b.properties = append(b.properties, &propPair{Name: name, Schema: schema})
@@ -739,6 +763,14 @@ func (b *Builder) Clone(original *Schema) *Builder {
 	if original.HasVocabulary() {
 		b.vocabulary = original.vocabulary
 	}
+	return b
+}
+
+func (b *Builder) ResetAdditionalItems() *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.additionalItems = nil
 	return b
 }
 
@@ -1054,6 +1086,14 @@ func (b *Builder) ResetPatternProperties() *Builder {
 	return b
 }
 
+func (b *Builder) ResetPrefixItems() *Builder {
+	if b.err != nil {
+		return b
+	}
+	b.prefixItems = nil
+	return b
+}
+
 func (b *Builder) ResetProperties() *Builder {
 	if b.err != nil {
 		return b
@@ -1144,6 +1184,10 @@ func (b *Builder) ResetVocabulary() *Builder {
 
 func (b *Builder) Build() (*Schema, error) {
 	s := New()
+	if b.additionalItems != nil {
+		s.additionalItems = b.additionalItems
+		s.populatedFields |= AdditionalItemsField
+	}
 	if b.additionalProperties != nil {
 		s.additionalProperties = b.additionalProperties
 		s.populatedFields |= AdditionalPropertiesField
@@ -1313,6 +1357,10 @@ func (b *Builder) Build() (*Schema, error) {
 			s.patternProperties[pair.Name] = pair.Schema
 		}
 		s.populatedFields |= PatternPropertiesField
+	}
+	if b.prefixItems != nil {
+		s.prefixItems = b.prefixItems
+		s.populatedFields |= PrefixItemsField
 	}
 
 	if b.properties != nil {

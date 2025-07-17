@@ -13,6 +13,7 @@ import (
 type FieldFlag = field.Flag
 
 const (
+	AdditionalItemsField       = field.AdditionalItems
 	AdditionalPropertiesField  = field.AdditionalProperties
 	AllOfField                 = field.AllOf
 	AnchorField                = field.Anchor
@@ -52,6 +53,7 @@ const (
 	OneOfField                 = field.OneOf
 	PatternField               = field.Pattern
 	PatternPropertiesField     = field.PatternProperties
+	PrefixItemsField           = field.PrefixItems
 	PropertiesField            = field.Properties
 	PropertyNamesField         = field.PropertyNames
 	ReferenceField             = field.Reference
@@ -67,6 +69,7 @@ const (
 type Schema struct {
 	isRoot                bool
 	populatedFields       field.Flag
+	additionalItems       SchemaOrBool
 	additionalProperties  SchemaOrBool
 	allOf                 []SchemaOrBool
 	anchor                *string
@@ -83,13 +86,13 @@ type Schema struct {
 	dependentSchemas      map[string]SchemaOrBool
 	dynamicAnchor         *string
 	dynamicReference      *string
-	elseSchema            *Schema
+	elseSchema            SchemaOrBool
 	enum                  []interface{}
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
 	format                *string
 	id                    *string
-	ifSchema              *Schema
+	ifSchema              SchemaOrBool
 	items                 SchemaOrBool
 	maxContains           *uint
 	maxItems              *uint
@@ -106,12 +109,13 @@ type Schema struct {
 	oneOf                 []SchemaOrBool
 	pattern               *string
 	patternProperties     map[string]*Schema
+	prefixItems           []*Schema
 	properties            map[string]*Schema
 	propertyNames         *Schema
 	reference             *string
 	required              []string
 	schema                string
-	thenSchema            *Schema
+	thenSchema            SchemaOrBool
 	types                 PrimitiveTypes
 	unevaluatedItems      SchemaOrBool
 	unevaluatedProperties SchemaOrBool
@@ -135,6 +139,14 @@ func (s *Schema) Has(flags FieldFlag) bool {
 // Usage: schema.HasAny(AnchorField | PropertiesField) returns true if either anchor or properties (or both) are set
 func (s *Schema) HasAny(flags FieldFlag) bool {
 	return (s.populatedFields & flags) != 0
+}
+
+func (s *Schema) HasAdditionalItems() bool {
+	return s.populatedFields&AdditionalItemsField != 0
+}
+
+func (s *Schema) AdditionalItems() SchemaOrBool {
+	return s.additionalItems
 }
 
 func (s *Schema) HasAdditionalProperties() bool {
@@ -269,7 +281,7 @@ func (s *Schema) HasElseSchema() bool {
 	return s.populatedFields&ElseSchemaField != 0
 }
 
-func (s *Schema) ElseSchema() *Schema {
+func (s *Schema) ElseSchema() SchemaOrBool {
 	return s.elseSchema
 }
 
@@ -317,7 +329,7 @@ func (s *Schema) HasIfSchema() bool {
 	return s.populatedFields&IfSchemaField != 0
 }
 
-func (s *Schema) IfSchema() *Schema {
+func (s *Schema) IfSchema() SchemaOrBool {
 	return s.ifSchema
 }
 
@@ -449,6 +461,14 @@ func (s *Schema) PatternProperties() map[string]*Schema {
 	return s.patternProperties
 }
 
+func (s *Schema) HasPrefixItems() bool {
+	return s.populatedFields&PrefixItemsField != 0
+}
+
+func (s *Schema) PrefixItems() []*Schema {
+	return s.prefixItems
+}
+
 func (s *Schema) HasProperties() bool {
 	return s.populatedFields&PropertiesField != 0
 }
@@ -489,7 +509,7 @@ func (s *Schema) HasThenSchema() bool {
 	return s.populatedFields&ThenSchemaField != 0
 }
 
-func (s *Schema) ThenSchema() *Schema {
+func (s *Schema) ThenSchema() SchemaOrBool {
 	return s.thenSchema
 }
 
@@ -553,7 +573,10 @@ type pair struct {
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	s.isRoot = true
 	defer func() { s.isRoot = false }()
-	fields := make([]pair, 0, 50)
+	fields := make([]pair, 0, 52)
+	if s.HasAdditionalItems() {
+		fields = append(fields, pair{Name: "additionalItems", Value: s.additionalItems})
+	}
 	if s.HasAdditionalProperties() {
 		fields = append(fields, pair{Name: "additionalProperties", Value: s.additionalProperties})
 	}
@@ -671,6 +694,9 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.HasPatternProperties() {
 		fields = append(fields, pair{Name: "patternProperties", Value: s.patternProperties})
 	}
+	if s.HasPrefixItems() {
+		fields = append(fields, pair{Name: "prefixItems", Value: s.prefixItems})
+	}
 	if s.HasProperties() {
 		fields = append(fields, pair{Name: "properties", Value: s.properties})
 	}
@@ -741,6 +767,25 @@ LOOP:
 			}
 		case string: // Objects can only have string keys
 			switch tok {
+			case "additionalItems":
+				var rawData json.RawMessage
+				if err := dec.Decode(&rawData); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode raw data for field "additionalItems": %w`, err)
+				}
+				// Try to decode as boolean first
+				var b bool
+				if err := json.Unmarshal(rawData, &b); err == nil {
+					s.additionalItems = SchemaBool(b)
+				} else {
+					// Try to decode as Schema object
+					var schema Schema
+					if err := json.Unmarshal(rawData, &schema); err == nil {
+						s.additionalItems = &schema
+					} else {
+						return fmt.Errorf(`json-schema: failed to decode value for field "additionalItems" (attempting to unmarshal as Schema after bool failed): %w`, err)
+					}
+				}
+				s.populatedFields |= AdditionalItemsField
 			case "additionalProperties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -901,8 +946,8 @@ LOOP:
 				s.dependentRequired = v
 				s.populatedFields |= DependentRequiredField
 			case "dependentSchemas":
-				var v map[string]SchemaOrBool
-				if err := dec.Decode(&v); err != nil {
+				v, err := unmarshalSchemaOrBoolMap(dec)
+				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" (attempting to unmarshal as map[string]SchemaOrBool): %w`, err)
 				}
 				s.dependentSchemas = v
@@ -929,12 +974,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					// Convert boolean to Schema object
-					if b {
-						s.elseSchema = &Schema{} // true schema - allow everything
-					} else {
-						s.elseSchema = &Schema{not: &Schema{}} // false schema - deny everything
-					}
+					s.elseSchema = SchemaBool(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -988,12 +1028,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					// Convert boolean to Schema object
-					if b {
-						s.ifSchema = &Schema{} // true schema - allow everything
-					} else {
-						s.ifSchema = &Schema{not: &Schema{}} // false schema - deny everything
-					}
+					s.ifSchema = SchemaBool(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -1172,6 +1207,13 @@ LOOP:
 				}
 				s.patternProperties = v
 				s.populatedFields |= PatternPropertiesField
+			case "prefixItems":
+				var v []*Schema
+				if err := dec.Decode(&v); err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "prefixItems" (attempting to unmarshal as []*Schema): %w`, err)
+				}
+				s.prefixItems = v
+				s.populatedFields |= PrefixItemsField
 			case "properties":
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
@@ -1258,12 +1300,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					// Convert boolean to Schema object
-					if b {
-						s.thenSchema = &Schema{} // true schema - allow everything
-					} else {
-						s.thenSchema = &Schema{not: &Schema{}} // false schema - deny everything
-					}
+					s.thenSchema = SchemaBool(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema

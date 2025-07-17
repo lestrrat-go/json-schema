@@ -483,7 +483,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	if s.HasNot() {
-		notValidator, err := Compile(ctx, s.Not())
+		notValidator, err := Compile(ctx, convertSchemaOrBool(s.Not()))
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile not validator: %w`, err)
 		}
@@ -1704,7 +1704,8 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	v := &IfThenElseValidator{}
 
 	// Compile 'if' validator (required)
-	ifValidator, err := Compile(ctx, s.IfSchema())
+	ifSchema := convertSchemaOrBool(s.IfSchema())
+	ifValidator, err := Compile(ctx, ifSchema)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to compile if validator: %w`, err)
 	}
@@ -1712,7 +1713,8 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 
 	// Compile 'then' validator (optional)
 	if s.HasThenSchema() {
-		thenValidator, err := Compile(ctx, s.ThenSchema())
+		thenSchema := convertSchemaOrBool(s.ThenSchema())
+		thenValidator, err := Compile(ctx, thenSchema)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile then validator: %w`, err)
 		}
@@ -1721,7 +1723,8 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 
 	// Compile 'else' validator (optional)
 	if s.HasElseSchema() {
-		elseValidator, err := Compile(ctx, s.ElseSchema())
+		elseSchema := convertSchemaOrBool(s.ElseSchema())
+		elseValidator, err := Compile(ctx, elseSchema)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile else validator: %w`, err)
 		}
@@ -1810,7 +1813,8 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	}
 
 	// Compile if validator
-	ifValidator, err := Compile(ctx, s.IfSchema())
+	ifSchema := convertSchemaOrBool(s.IfSchema())
+	ifValidator, err := Compile(ctx, ifSchema)
 	if err != nil {
 		panic(fmt.Sprintf("failed to compile if validator: %v", err))
 	}
@@ -1818,7 +1822,8 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 
 	// Compile then validator if it exists
 	if s.HasThenSchema() {
-		thenValidator, err := Compile(ctx, s.ThenSchema())
+		thenSchema := convertSchemaOrBool(s.ThenSchema())
+		thenValidator, err := Compile(ctx, thenSchema)
 		if err != nil {
 			panic(fmt.Sprintf("failed to compile then validator: %v", err))
 		}
@@ -1827,7 +1832,8 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 
 	// Compile else validator if it exists
 	if s.HasElseSchema() {
-		elseValidator, err := Compile(ctx, s.ElseSchema())
+		elseSchema := convertSchemaOrBool(s.ElseSchema())
+		elseValidator, err := Compile(ctx, elseSchema)
 		if err != nil {
 			panic(fmt.Sprintf("failed to compile else validator: %v", err))
 		}

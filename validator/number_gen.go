@@ -24,7 +24,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for multipleOf field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.MultipleOf(tmp)
 	}
@@ -38,7 +38,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for maximum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.Maximum(tmp)
 	}
@@ -52,7 +52,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for exclusiveMaximum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.ExclusiveMaximum(tmp)
 	}
@@ -66,7 +66,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for minimum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.Minimum(tmp)
 	}
@@ -80,7 +80,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for exclusiveMinimum field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.ExclusiveMinimum(tmp)
 	}
@@ -94,7 +94,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
-			panic(`poop`)
+			return nil, fmt.Errorf(`invalid type for constantValue field: expected numeric type, got %T`, rv.Interface())
 		}
 		b.Const(tmp)
 	}
@@ -261,9 +261,6 @@ func (v *numberValidator) Validate(ctx context.Context, in any) (Result, error) 
 	}
 
 	if mo := v.multipleOf; mo != nil {
-		if *mo <= 0 || math.IsNaN(*mo) || math.IsInf(*mo, 0) {
-			return nil, fmt.Errorf(`invalid value passed to NumberValidator: invalid multipleOf value`)
-		}
 		remainder := math.Mod(n, *mo)
 		if math.Abs(remainder) > 1e-9 && math.Abs(remainder-*mo) > 1e-9 {
 			return nil, fmt.Errorf(`invalid value passed to NumberValidator: value is not multiple of %f`, *mo)

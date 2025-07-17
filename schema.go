@@ -86,6 +86,37 @@ func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
 	return result, nil
 }
 
+// unmarshalSchemaOrBoolMap parses a JSON map using token-based decoding
+func unmarshalSchemaOrBoolMap(dec *json.Decoder) (map[string]SchemaOrBool, error) {
+	// We need to decode the map as raw JSON first, then handle each value
+	var rawMap map[string]json.RawMessage
+	if err := dec.Decode(&rawMap); err != nil {
+		return nil, fmt.Errorf("failed to decode map: %w", err)
+	}
+
+	result := make(map[string]SchemaOrBool)
+
+	for key, rawValue := range rawMap {
+		// Try to decode as boolean first
+		var b bool
+		if err := json.Unmarshal(rawValue, &b); err == nil {
+			result[key] = SchemaBool(b)
+			continue
+		}
+
+		// Try to decode as Schema object
+		var schema Schema
+		if err := json.Unmarshal(rawValue, &schema); err == nil {
+			result[key] = &schema
+			continue
+		}
+
+		return nil, fmt.Errorf("value for key %q is neither boolean nor valid schema object", key)
+	}
+
+	return result, nil
+}
+
 // validateSchemaOrBool checks if a value is either a bool, SchemaBool, or *Schema
 func validateSchemaOrBool(v any) error {
 	switch v.(type) {

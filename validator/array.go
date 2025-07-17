@@ -23,6 +23,20 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasUniqueItems() {
 		v.UniqueItems(s.UniqueItems())
 	}
+	if s.HasPrefixItems() {
+		prefixItems := s.PrefixItems()
+		if len(prefixItems) > 0 {
+			prefixValidators := make([]Interface, len(prefixItems))
+			for i, prefixSchema := range prefixItems {
+				prefixValidator, err := Compile(ctx, prefixSchema)
+				if err != nil {
+					return nil, fmt.Errorf("failed to compile prefixItems[%d] validator: %w", i, err)
+				}
+				prefixValidators[i] = prefixValidator
+			}
+			v.PrefixItems(prefixValidators)
+		}
+	}
 	if s.HasItems() {
 		itemsSchema := s.Items()
 		if itemsSchema != nil {
@@ -31,6 +45,16 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				return nil, fmt.Errorf("failed to compile items validator: %w", err)
 			}
 			v.Items(itemValidator)
+		}
+	}
+	if s.HasAdditionalItems() {
+		additionalItemsSchema := s.AdditionalItems()
+		if additionalItemsSchema != nil {
+			additionalItemsValidator, err := Compile(ctx, convertSchemaOrBool(additionalItemsSchema))
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile additionalItems validator: %w", err)
+			}
+			v.AdditionalItems(additionalItemsValidator)
 		}
 	}
 	if s.HasContains() {
@@ -97,7 +121,9 @@ type arrayValidator struct {
 	minItems         *uint
 	maxItems         *uint
 	uniqueItems      bool
+	prefixItems      []Interface
 	items            Interface
+	additionalItems  Interface
 	contains         Interface
 	minContains      *uint
 	maxContains      *uint
@@ -138,11 +164,27 @@ func (b *ArrayValidatorBuilder) UniqueItems(v bool) *ArrayValidatorBuilder {
 	return b
 }
 
+func (b *ArrayValidatorBuilder) PrefixItems(v []Interface) *ArrayValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.c.prefixItems = v
+	return b
+}
+
 func (b *ArrayValidatorBuilder) Items(v Interface) *ArrayValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
 	b.c.items = v
+	return b
+}
+
+func (b *ArrayValidatorBuilder) AdditionalItems(v Interface) *ArrayValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.c.additionalItems = v
 	return b
 }
 
@@ -251,26 +293,34 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Initialize result for tracking evaluated items
 		result := NewArrayResult()
 
-		// Validate each item and track evaluation
+		// Validate items according to prefixItems and items
+		arrayLength := rv.Len()
+		prefixItemsCount := len(c.prefixItems)
+		
+		// First, validate items covered by prefixItems
+		for i := 0; i < arrayLength && i < prefixItemsCount; i++ {
+			item := rv.Index(i).Interface()
+			_, err := c.prefixItems[i].Validate(ctx, item)
+			if err != nil {
+				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: prefixItems[%d] validation failed: %w`, i, err)
+			}
+			// Mark this item as evaluated by prefixItems
+			result.SetEvaluatedItem(i)
+		}
+		
+		// Then, validate remaining items with the items schema (if present)
 		if c.items != nil {
-			for i := 0; i < rv.Len(); i++ {
+			for i := prefixItemsCount; i < arrayLength; i++ {
 				item := rv.Index(i).Interface()
 				_, err := c.items.Validate(ctx, item)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: item validation failed: %w`, err)
 				}
-				// Mark this item as evaluated
-				evaluatedItems := result.EvaluatedItems()
-				if len(evaluatedItems) <= i {
-					newEvaluated := make([]bool, i+1)
-					copy(newEvaluated, evaluatedItems)
-					evaluatedItems = newEvaluated
-				}
-				evaluatedItems[i] = true
-				result.SetEvaluatedItems(evaluatedItems)
+				// Mark this item as evaluated by items
+				result.SetEvaluatedItem(i)
 			}
 		}
-		// Note: When c.items is nil, all items remain unevaluated (false in result.EvaluatedItems)
+		// Note: Items beyond prefixItems that are not validated by items remain unevaluated
 
 		// Validate contains constraint and track evaluation
 		if c.contains != nil {
@@ -303,6 +353,23 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			// Check minContains and maxContains without contains schema
 			if c.minContains != nil && *c.minContains > 0 {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: minimum contains constraint failed: found 0, expected at least %d`, *c.minContains)
+			}
+		}
+
+		// Validate additionalItems for items beyond the defined items schema
+		if c.additionalItems != nil {
+			for i := 0; i < rv.Len(); i++ {
+				// For now, assuming items is a single schema that applies to all items
+				// If items is nil or the item hasn't been evaluated yet, additionalItems applies
+				if c.items == nil {
+					// If no items schema, additionalItems applies to all items
+					item := rv.Index(i).Interface()
+					_, err := c.additionalItems.Validate(ctx, item)
+					if err != nil {
+						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: additionalItems validation failed: %w`, err)
+					}
+					result.SetEvaluatedItem(i)
+				}
 			}
 		}
 
