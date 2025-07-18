@@ -398,7 +398,8 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 						// false means unevaluated items are not allowed
 						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item at index %d not allowed`, i)
 					}
-					// true means unevaluated items are allowed - no validation needed
+					// true means unevaluated items are allowed - mark as evaluated
+					result.SetEvaluatedItem(i)
 					continue
 				}
 
@@ -408,6 +409,8 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 					if err != nil {
 						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item validation failed at index %d: %w`, i, err)
 					}
+					// Mark as evaluated when schema validation passes
+					result.SetEvaluatedItem(i)
 				}
 			}
 		}

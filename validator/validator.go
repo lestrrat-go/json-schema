@@ -1101,6 +1101,32 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 		return &targetSchema, nil
 	}
 	
+	// Check if this is a JSON pointer reference (starts with #/)
+	if strings.HasPrefix(dynamicRef, "#/") {
+		// For JSON pointer references, try dynamic anchor lookup first, then fall back to normal reference
+		// Get the dynamic scope chain from context
+		scopeChain := DynamicScopeFromContext(ctx)
+		
+		// Search the dynamic scope chain from oldest to most recent for matching $dynamicAnchor
+		anchorName := dynamicRef[1:] // Remove the '#' prefix
+		for i := 0; i < len(scopeChain); i++ {
+			currentSchema := scopeChain[i]
+			
+			// Check if this schema has a matching $dynamicAnchor
+			if currentSchema.HasDynamicAnchor() && currentSchema.DynamicAnchor() == anchorName {
+				return currentSchema, nil
+			}
+		}
+		
+		// No matching $dynamicAnchor found, fall back to normal JSON pointer resolution
+		var targetSchema schema.Schema
+		if err := resolver.ResolveReference(&targetSchema, rootSchema, dynamicRef); err != nil {
+			return nil, fmt.Errorf("failed to resolve dynamic reference %s: %w", dynamicRef, err)
+		}
+		return &targetSchema, nil
+	}
+	
+	// This is a plain anchor reference (e.g., "#anchorName")
 	anchorName := dynamicRef[1:] // Remove the '#' prefix
 	
 	// Get the dynamic scope chain from context
@@ -1951,6 +1977,38 @@ func createBaseSchema(s *schema.Schema) *schema.Schema {
 	return builder.MustBuild()
 }
 
+// mergeGenericResults merges two results, handling both ObjectResult and ArrayResult types
+func mergeGenericResults(result1, result2 Result) Result {
+	// If either result is nil, return the other
+	if result1 == nil {
+		return result2
+	}
+	if result2 == nil {
+		return result1
+	}
+	
+	// Try to merge as ObjectResult first
+	if objResult1, ok := result1.(*ObjectResult); ok {
+		if objResult2, ok := result2.(*ObjectResult); ok {
+			return mergeObjectResults(objResult1, objResult2)
+		}
+		// Only first is ObjectResult
+		return objResult1
+	}
+	
+	// Try to merge as ArrayResult
+	if arrResult1, ok := result1.(*ArrayResult); ok {
+		if arrResult2, ok := result2.(*ArrayResult); ok {
+			return mergeArrayResults(arrResult1, arrResult2)
+		}
+		// Only first is ArrayResult
+		return arrResult1
+	}
+	
+	// If neither is a known type, return the second one
+	return result2
+}
+
 // IfThenElseValidator handles if/then/else conditional validation
 type IfThenElseValidator struct {
 	ifValidator   Interface
@@ -2007,20 +2065,7 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 				return nil, err
 			}
 			// Merge 'if' and 'then' results
-			var mergedResult *ObjectResult
-			if err := MergeResults(&mergedResult, ifResult, thenResult); err != nil {
-				// Fall back to simple merging
-				if objIfResult, ok := ifResult.(*ObjectResult); ok {
-					if objThenResult, ok := thenResult.(*ObjectResult); ok {
-						mergedResult = mergeObjectResults(objIfResult, objThenResult)
-					} else {
-						mergedResult = objIfResult
-					}
-				} else if objThenResult, ok := thenResult.(*ObjectResult); ok {
-					mergedResult = objThenResult
-				}
-			}
-			conditionalResult = mergedResult
+			conditionalResult = mergeGenericResults(ifResult, thenResult)
 		} else {
 			// Only 'if' result
 			conditionalResult = ifResult
@@ -2033,20 +2078,7 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 				return nil, err
 			}
 			// Merge 'if' and 'else' results
-			var mergedResult *ObjectResult
-			if err := MergeResults(&mergedResult, ifResult, elseResult); err != nil {
-				// Fall back to simple merging
-				if objIfResult, ok := ifResult.(*ObjectResult); ok {
-					if objElseResult, ok := elseResult.(*ObjectResult); ok {
-						mergedResult = mergeObjectResults(objIfResult, objElseResult)
-					} else {
-						mergedResult = objIfResult
-					}
-				} else if objElseResult, ok := elseResult.(*ObjectResult); ok {
-					mergedResult = objElseResult
-				}
-			}
-			conditionalResult = mergedResult
+			conditionalResult = mergeGenericResults(ifResult, elseResult)
 		} else {
 			// Only 'if' result (even though it failed validation, it may have annotations)
 			conditionalResult = ifResult
