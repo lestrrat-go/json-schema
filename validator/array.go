@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 var _ Builder = (*ArrayValidatorBuilder)(nil)
@@ -293,16 +294,18 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Initialize result for tracking evaluated items
 		result := NewArrayResult()
 
-		// Merge evaluated items from previous validators (via stash context)
-		stash := StashFromContext(ctx)
-		if stash != nil && stash.EvaluatedItems != nil {
-			result.SetEvaluatedItems(stash.EvaluatedItems)
+		// Merge evaluated items from previous validators
+		var evaluatedItems []bool
+		if err := schemactx.EvaluatedItemsFromContext(ctx, &evaluatedItems); err == nil {
+			if evaluatedItems != nil {
+				result.SetEvaluatedItems(evaluatedItems)
+			}
 		}
 
 		// Validate items according to prefixItems and items
 		arrayLength := rv.Len()
 		prefixItemsCount := len(c.prefixItems)
-		
+
 		// First, validate items covered by prefixItems
 		for i := 0; i < arrayLength && i < prefixItemsCount; i++ {
 			item := rv.Index(i).Interface()
@@ -313,7 +316,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			// Mark this item as evaluated by prefixItems
 			result.SetEvaluatedItem(i)
 		}
-		
+
 		// Then, validate remaining items with the items schema (if present)
 		if c.items != nil {
 			for i := prefixItemsCount; i < arrayLength; i++ {

@@ -34,8 +34,8 @@ func TestAnchorResolution(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = validator.WithResolver(ctx, schema.NewResolver())
-		ctx = validator.WithRootSchema(ctx, &s)
+		ctx = schema.WithResolver(ctx, schema.NewResolver())
+		ctx = schema.WithRootSchema(ctx, &s)
 		
 		v, err := validator.Compile(ctx, &s)
 		if err != nil {
@@ -101,8 +101,8 @@ func TestAnchorResolution(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = validator.WithResolver(ctx, schema.NewResolver())
-		ctx = validator.WithRootSchema(ctx, &s)
+		ctx = schema.WithResolver(ctx, schema.NewResolver())
+		ctx = schema.WithRootSchema(ctx, &s)
 		
 		v, err := validator.Compile(ctx, &s)
 		if err != nil {
@@ -154,8 +154,8 @@ func TestAnchorResolution(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = validator.WithResolver(ctx, schema.NewResolver())
-		ctx = validator.WithRootSchema(ctx, &s)
+		ctx = schema.WithResolver(ctx, schema.NewResolver())
+		ctx = schema.WithRootSchema(ctx, &s)
 		
 		v, err := validator.Compile(ctx, &s)
 		if err != nil {

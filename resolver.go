@@ -1,11 +1,13 @@
 package schema
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/jsref/v2"
 )
 
@@ -30,12 +32,20 @@ func NewResolver() *Resolver {
 	return &Resolver{resolver: resolver}
 }
 
-// ResolveJSONReference resolves JSON pointer references against a base schema.
+// ResolveJSONReference resolves JSON pointer references against a base schema from context.
 // This method supports local JSON pointer references such as "#/$defs/person", relative references such as "person.json#/$defs/person", and absolute references such as "https://example.com/schemas/person.json#/$defs/person".
 // This method only handles JSON pointer references, not anchor references.
-func (r *Resolver) ResolveJSONReference(dst *Schema, baseSchema *Schema, reference string) error {
+func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, reference string) error {
+	var baseSchema *Schema
+	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+		baseSchema = nil
+	}
 	// If the reference is a pure local JSON pointer reference (starts with #/)
 	if len(reference) > 1 && reference[0] == '#' && reference[1] == '/' {
+		if baseSchema == nil {
+			return fmt.Errorf("no base schema provided in context for resolving local reference %s", reference)
+		}
+
 		// Convert base schema to interface{} for jsref resolution
 		schemaData, err := r.schemaToData(baseSchema)
 		if err != nil {
@@ -69,10 +79,15 @@ func (r *Resolver) ResolveJSONReference(dst *Schema, baseSchema *Schema, referen
 	return r.dataToSchema(resolved, dst)
 }
 
-// ResolveAnchor resolves anchor references against a base schema.
-// It searches for schemas with the specified $anchor value within the provided base schema.
+// ResolveAnchor resolves anchor references against a base schema from context.
+// It searches for schemas with the specified $anchor value within the base schema.
 // The anchorName parameter should not include the # prefix.
-func (r *Resolver) ResolveAnchor(dst *Schema, baseSchema *Schema, anchorName string) error {
+func (r *Resolver) ResolveAnchor(ctx context.Context, dst *Schema, anchorName string) error {
+	var baseSchema *Schema
+	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+		return fmt.Errorf("no base schema provided in context for resolving anchor %s: %w", anchorName, err)
+	}
+
 	anchorSchema, err := r.findSchemaByAnchor(baseSchema, anchorName)
 	if err != nil {
 		return fmt.Errorf("failed to find anchor %s: %w", anchorName, err)
@@ -81,23 +96,25 @@ func (r *Resolver) ResolveAnchor(dst *Schema, baseSchema *Schema, anchorName str
 	return nil
 }
 
-// ResolveReference resolves any type of JSON Schema reference against a base schema.
+// ResolveReference resolves any type of JSON Schema reference against a base schema from context.
 // It automatically dispatches to the appropriate resolver based on the reference format.
 // Anchor references such as "#person" are handled by ResolveAnchor, while JSON pointer references such as "#/$defs/person" and external references such as "https://example.com/schema.json#..." are handled by ResolveJSONReference.
-func (r *Resolver) ResolveReference(dst *Schema, baseSchema *Schema, reference string) error {
-	return r.ResolveReferenceWithBaseURI(dst, baseSchema, reference, "")
-}
-
-// ResolveReferenceWithBaseURI resolves a reference with an optional base URI for relative reference resolution
-func (r *Resolver) ResolveReferenceWithBaseURI(dst *Schema, baseSchema *Schema, reference string, baseURI string) error {
+// Base URI for relative references can be provided through context using WithBaseURI.
+func (r *Resolver) ResolveReference(ctx context.Context, dst *Schema, reference string) error {
 	// Check if this is an anchor reference (starts with # but no slash after)
 	if len(reference) > 1 && reference[0] == '#' && reference[1] != '/' {
 		anchorName := reference[1:] // Remove the '#' prefix
-		return r.ResolveAnchor(dst, baseSchema, anchorName)
+		return r.ResolveAnchor(ctx, dst, anchorName)
 	}
 
-	// Handle relative references with base URI
+	// Handle relative references with base URI from context
 	resolvedReference := reference
+	// Note: BaseURIFromContext is defined in validator package, but we can't import it here due to circular imports
+	// For now, we'll implement a simple version here
+	var baseURI string
+	if err := schemactx.BaseURIFromContext(ctx, &baseURI); err != nil {
+		baseURI = ""
+	}
 	if baseURI != "" && !strings.HasPrefix(reference, "http://") && !strings.HasPrefix(reference, "https://") && !strings.HasPrefix(reference, "#") {
 		// This is a relative reference that should be resolved against base URI
 		if strings.HasSuffix(baseURI, "/") {
@@ -108,7 +125,7 @@ func (r *Resolver) ResolveReferenceWithBaseURI(dst *Schema, baseSchema *Schema, 
 	}
 
 	// Otherwise, treat as JSON pointer reference
-	err := r.ResolveJSONReference(dst, baseSchema, resolvedReference)
+	err := r.ResolveJSONReference(ctx, dst, resolvedReference)
 	if err != nil {
 		// Wrap the error with appropriate context based on reference type
 		if strings.HasPrefix(resolvedReference, "#") {
@@ -184,7 +201,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	if schema.HasAnchor() && schema.Anchor() == anchorName {
 		return schema, nil
 	}
-	
+
 	// Check if current schema has the dynamic anchor
 	if schema.HasDynamicAnchor() && schema.DynamicAnchor() == anchorName {
 		return schema, nil

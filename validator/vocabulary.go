@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // VocabularyRegistry maps vocabulary URIs to their enabled keywords
@@ -99,27 +100,27 @@ func (vs VocabularySet) IsKeywordEnabled(keyword string) bool {
 	if vs == nil {
 		return true // Default to enabled if no vocabulary set
 	}
-	
+
 	// Find which vocabulary contains this keyword
 	vocabularyURI := DefaultVocabularyRegistry.GetVocabularyForKeyword(keyword)
 	if vocabularyURI == "" {
 		return true // Unknown keywords are allowed by default
 	}
-	
+
 	return vs.IsEnabled(vocabularyURI)
 }
 
 // AllEnabled returns a vocabulary set where all standard vocabularies are enabled
 func AllEnabled() VocabularySet {
 	return VocabularySet{
-		"https://json-schema.org/draft/2020-12/vocab/core":             true,
-		"https://json-schema.org/draft/2020-12/vocab/applicator":       true,
-		"https://json-schema.org/draft/2020-12/vocab/unevaluated":      true,
-		"https://json-schema.org/draft/2020-12/vocab/validation":       true,
+		"https://json-schema.org/draft/2020-12/vocab/core":              true,
+		"https://json-schema.org/draft/2020-12/vocab/applicator":        true,
+		"https://json-schema.org/draft/2020-12/vocab/unevaluated":       true,
+		"https://json-schema.org/draft/2020-12/vocab/validation":        true,
 		"https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
 		"https://json-schema.org/draft/2020-12/vocab/format-assertion":  true,
-		"https://json-schema.org/draft/2020-12/vocab/content":          true,
-		"https://json-schema.org/draft/2020-12/vocab/meta-data":        true,
+		"https://json-schema.org/draft/2020-12/vocab/content":           true,
+		"https://json-schema.org/draft/2020-12/vocab/meta-data":         true,
 	}
 }
 
@@ -128,17 +129,17 @@ func ExtractVocabularySet(s *schema.Schema) VocabularySet {
 	if s == nil || !s.HasVocabulary() {
 		return AllEnabled() // Default to all enabled if no vocabulary declaration
 	}
-	
+
 	vocabMap := s.Vocabulary()
 	if vocabMap == nil {
 		return AllEnabled()
 	}
-	
+
 	result := make(VocabularySet)
 	for uri, enabled := range vocabMap {
 		result[uri] = enabled
 	}
-	
+
 	return result
 }
 
@@ -147,45 +148,42 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) 
 	if metaschemaURI == "" {
 		return AllEnabled(), nil
 	}
-	
-	resolver := ResolverFromContext(ctx)
+
+	resolver := schema.ResolverFromContext(ctx)
 	if resolver == nil {
 		resolver = schema.NewResolver()
 	}
-	
-	rootSchema := RootSchemaFromContext(ctx)
+
+	rootSchema := schema.RootSchemaFromContext(ctx)
 	if rootSchema == nil {
 		return AllEnabled(), nil
 	}
-	
+
 	// Try to resolve the metaschema
 	var metaschema schema.Schema
-	if err := resolver.ResolveReference(&metaschema, rootSchema, metaschemaURI); err != nil {
+	// Create context with base schema for resolver
+	resolverCtx := schema.WithBaseSchema(ctx, rootSchema)
+	if err := resolver.ResolveReference(resolverCtx, &metaschema, metaschemaURI); err != nil {
 		// If we can't resolve the metaschema, default to all enabled
 		return AllEnabled(), nil
 	}
-	
+
 	return ExtractVocabularySet(&metaschema), nil
 }
 
 // Context keys for vocabulary support
-type contextKey string
-
-const (
-	vocabularySetKey contextKey = "vocabularySet"
-)
-
 // WithVocabularySet adds a vocabulary set to the context
 func WithVocabularySet(ctx context.Context, vocabSet VocabularySet) context.Context {
-	return context.WithValue(ctx, vocabularySetKey, vocabSet)
+	return schemactx.WithVocabularySet(ctx, vocabSet)
 }
 
 // VocabularySetFromContext extracts the vocabulary set from the context
 func VocabularySetFromContext(ctx context.Context) VocabularySet {
-	if vs, ok := ctx.Value(vocabularySetKey).(VocabularySet); ok {
-		return vs
+	var vocabSet VocabularySet
+	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
+		return AllEnabled() // Default to all enabled
 	}
-	return AllEnabled() // Default to all enabled
+	return vocabSet
 }
 
 // IsKeywordEnabledInContext checks if a keyword is enabled in the current context
@@ -205,11 +203,11 @@ func ValidateVocabularyURI(uri string) error {
 	if uri == "" {
 		return fmt.Errorf("vocabulary URI cannot be empty")
 	}
-	
+
 	_, err := url.Parse(uri)
 	if err != nil {
 		return fmt.Errorf("invalid vocabulary URI: %w", err)
 	}
-	
+
 	return nil
 }

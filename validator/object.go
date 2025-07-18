@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 var _ Builder = (*ObjectValidatorBuilder)(nil)
@@ -263,10 +264,15 @@ func (b *ObjectValidatorBuilder) Reset() *ObjectValidatorBuilder {
 
 // Validate implements the Interface
 func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
-	// Get previously evaluated properties from context stash
+	// Get previously evaluated properties from context
 	var previouslyEvaluated map[string]bool
-	if stash := StashFromContext(ctx); stash != nil {
-		previouslyEvaluated = stash.EvaluatedProperties
+	var contextProps schemactx.EvaluatedProperties
+	if err := schemactx.EvaluatedPropertiesFromContext(ctx, &contextProps); err == nil {
+		// Convert from map[string]struct{} to map[string]bool
+		previouslyEvaluated = make(map[string]bool)
+		for prop := range contextProps {
+			previouslyEvaluated[prop] = true
+		}
 	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {

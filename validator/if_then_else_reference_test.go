@@ -53,8 +53,8 @@ func TestIfThenElseWithReferences(t *testing.T) {
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
-		ctx = validator.WithResolver(ctx, schema.NewResolver())
-		ctx = validator.WithRootSchema(ctx, &s)
+		ctx = schema.WithResolver(ctx, schema.NewResolver())
+		ctx = schema.WithRootSchema(ctx, &s)
 		
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
@@ -150,8 +150,8 @@ func TestIfThenElseWithReferences(t *testing.T) {
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
-		ctx = validator.WithResolver(ctx, schema.NewResolver())
-		ctx = validator.WithRootSchema(ctx, &s)
+		ctx = schema.WithResolver(ctx, schema.NewResolver())
+		ctx = schema.WithRootSchema(ctx, &s)
 		
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
