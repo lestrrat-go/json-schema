@@ -28,7 +28,7 @@ func TestIntegerConstraintSanity(t *testing.T) {
 func TestIntegerValidator(t *testing.T) {
 	testcases := []struct {
 		Name      string
-		Object    interface{}
+		Object    any
 		Validator func() (validator.Interface, error)
 		Error     bool
 	}{

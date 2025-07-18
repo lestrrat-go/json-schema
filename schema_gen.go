@@ -75,19 +75,19 @@ type Schema struct {
 	anchor                *string
 	anyOf                 []SchemaOrBool
 	comment               *string
-	constantValue         *interface{}
+	constantValue         *any
 	contains              SchemaOrBool
 	contentEncoding       *string
 	contentMediaType      *string
 	contentSchema         *Schema
-	defaultValue          *interface{}
+	defaultValue          *any
 	definitions           map[string]*Schema
 	dependentRequired     map[string][]string
 	dependentSchemas      map[string]SchemaOrBool
 	dynamicAnchor         *string
 	dynamicReference      *string
 	elseSchema            SchemaOrBool
-	enum                  []interface{}
+	enum                  []any
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
 	format                *string
@@ -193,7 +193,7 @@ func (s *Schema) HasConst() bool {
 	return s.populatedFields&ConstField != 0
 }
 
-func (s *Schema) Const() interface{} {
+func (s *Schema) Const() any {
 	return *(s.constantValue)
 }
 
@@ -233,7 +233,7 @@ func (s *Schema) HasDefault() bool {
 	return s.populatedFields&DefaultField != 0
 }
 
-func (s *Schema) Default() interface{} {
+func (s *Schema) Default() any {
 	return *(s.defaultValue)
 }
 
@@ -289,7 +289,7 @@ func (s *Schema) HasEnum() bool {
 	return s.populatedFields&EnumField != 0
 }
 
-func (s *Schema) Enum() []interface{} {
+func (s *Schema) Enum() []any {
 	return s.enum
 }
 
@@ -567,7 +567,7 @@ func (s *Schema) ContainsType(typ PrimitiveType) bool {
 
 type pair struct {
 	Name  string
-	Value interface{}
+	Value any
 }
 
 func (s *Schema) MarshalJSON() ([]byte, error) {
@@ -834,9 +834,9 @@ LOOP:
 				s.comment = &v
 				s.populatedFields |= CommentField
 			case "const":
-				var v interface{}
+				var v any
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`json-schema: failed to decode value for field "const" (attempting to unmarshal as interface{}): %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "const" (attempting to unmarshal as any): %w`, err)
 				}
 				s.constantValue = &v
 				s.populatedFields |= ConstField
@@ -901,9 +901,9 @@ LOOP:
 				}
 				s.populatedFields |= ContentSchemaField
 			case "default":
-				var v interface{}
+				var v any
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`json-schema: failed to decode value for field "default" (attempting to unmarshal as interface{}): %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "default" (attempting to unmarshal as any): %w`, err)
 				}
 				s.defaultValue = &v
 				s.populatedFields |= DefaultField
@@ -992,9 +992,9 @@ LOOP:
 				}
 				s.populatedFields |= ElseSchemaField
 			case "enum":
-				var v []interface{}
+				var v []any
 				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`json-schema: failed to decode value for field "enum" (attempting to unmarshal as []interface{}): %w`, err)
+					return fmt.Errorf(`json-schema: failed to decode value for field "enum" (attempting to unmarshal as []any): %w`, err)
 				}
 				s.enum = v
 				s.populatedFields |= EnumField
@@ -1154,9 +1154,9 @@ LOOP:
 						s.not = &Schema{} // true schema - allow everything
 					} else {
 						// false schema - deny everything using "not": {}
-						falseSchema := &Schema{not: &Schema{}}
-						falseSchema.populatedFields |= NotField
-						s.not = falseSchema
+					falseSchema := &Schema{not: &Schema{}}
+					falseSchema.populatedFields |= NotField
+					s.not = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object
@@ -1276,9 +1276,9 @@ LOOP:
 						s.propertyNames = &Schema{} // true schema - allow everything
 					} else {
 						// false schema - deny everything using "not": {}
-						falseSchema := &Schema{not: &Schema{}}
-						falseSchema.populatedFields |= NotField
-						s.propertyNames = falseSchema
+					falseSchema := &Schema{not: &Schema{}}
+					falseSchema.populatedFields |= NotField
+					s.propertyNames = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object

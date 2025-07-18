@@ -140,7 +140,7 @@ func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
 
 // MergeResults merges multiple validation results and assigns the final result to dst
 // using blackmagic.AssignIfCompatible for type-safe assignment
-func MergeResults(dst interface{}, results ...interface{}) error {
+func MergeResults(dst any, results ...any) error {
 	var objectResults []*ObjectResult
 	var arrayResults []*ArrayResult
 
@@ -190,8 +190,8 @@ type dependentSchemasKey struct{}
 
 // WithDependentSchemas adds compiled dependent schema validators to the context
 func WithDependentSchemas(ctx context.Context, dependentSchemas map[string]Interface) context.Context {
-	// Convert map[string]Interface to map[string]interface{}
-	converted := make(map[string]interface{}, len(dependentSchemas))
+	// Convert map[string]Interface to map[string]any
+	converted := make(map[string]any, len(dependentSchemas))
 	for k, v := range dependentSchemas {
 		converted[k] = v
 	}
@@ -204,7 +204,7 @@ func DependentSchemasFromContext(ctx context.Context) map[string]Interface {
 	if deps == nil {
 		return nil
 	}
-	// Convert map[string]interface{} back to map[string]Interface
+	// Convert map[string]any back to map[string]Interface
 	converted := make(map[string]Interface, len(deps))
 	for k, v := range deps {
 		if validator, ok := v.(Interface); ok {
@@ -223,7 +223,7 @@ type Builder interface {
 // When the value is true, it returns an empty Schema which accepts everything.
 // When the value is false, it returns a Schema with "not": {} which rejects everything.
 // When the value is already a *Schema, it returns the schema as-is.
-// When the value is a map[string]interface{} from JSON unmarshaling, it converts it to a Schema.
+// When the value is a map[string]any from JSON unmarshaling, it converts it to a Schema.
 func convertSchemaOrBool(v schema.SchemaOrBool) *schema.Schema {
 	switch val := v.(type) {
 	case schema.SchemaBool:

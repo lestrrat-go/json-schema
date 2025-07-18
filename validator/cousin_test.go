@@ -37,7 +37,7 @@ func TestCousinUnevaluatedProperties(t *testing.T) {
 		
 		// This should fail because the second cousin (with unevaluatedProperties: false)
 		// cannot see the "foo" property defined in the first cousin
-		testData := map[string]interface{}{
+		testData := map[string]any{
 			"foo": "bar",
 		}
 		
@@ -69,7 +69,7 @@ func TestCousinUnevaluatedProperties(t *testing.T) {
 		
 		// This should fail because the first cousin (with unevaluatedProperties: false)
 		// cannot see the "foo" property defined in the second cousin
-		testData := map[string]interface{}{
+		testData := map[string]any{
 			"foo": "bar",
 		}
 		

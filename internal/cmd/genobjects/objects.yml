@@ -62,15 +62,15 @@ objects:
         json: 'type'
         type: 'PrimitiveTypes'
       - name: enum
-        type: '[]interface{}'
+        type: '[]any'
       - name: constantValue
         json: const
         exported_name: Const
-        type: 'interface{}'
+        type: 'any'
       - name: defaultValue
         json: default
         exported_name: Default
-        type: 'interface{}'
+        type: 'any'
       - name: multipleOf
         type: float64
       - name: maximum

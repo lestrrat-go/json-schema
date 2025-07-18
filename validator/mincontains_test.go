@@ -16,7 +16,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 		containsSchema *schema.Schema
 		minContains    *uint
 		maxContains    *uint
-		input          []interface{}
+		input          []any
 		shouldPass     bool
 		description    string
 	}{
@@ -25,7 +25,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(0),
 			maxContains:    nil,
-			input:          []interface{}{},
+			input:          []any{},
 			shouldPass:     true,
 			description:    "Empty array should pass with minContains=0",
 		},
@@ -34,7 +34,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(0),
 			maxContains:    nil,
-			input:          []interface{}{1, 2, 3},
+			input:          []any{1, 2, 3},
 			shouldPass:     true,
 			description:    "Array with no matches should pass with minContains=0",
 		},
@@ -43,7 +43,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(0),
 			maxContains:    nil,
-			input:          []interface{}{"hello", 1, 2},
+			input:          []any{"hello", 1, 2},
 			shouldPass:     true,
 			description:    "Array with matches should pass with minContains=0",
 		},
@@ -52,7 +52,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(0),
 			maxContains:    uintPtr(2),
-			input:          []interface{}{"hello", "world", "extra"},
+			input:          []any{"hello", "world", "extra"},
 			shouldPass:     false,
 			description:    "Array with 3 matches should fail with minContains=0, maxContains=2",
 		},
@@ -61,7 +61,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(1),
 			maxContains:    nil,
-			input:          []interface{}{},
+			input:          []any{},
 			shouldPass:     false,
 			description:    "Empty array should fail with minContains=1",
 		},
@@ -70,7 +70,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(1),
 			maxContains:    nil,
-			input:          []interface{}{1, 2, 3},
+			input:          []any{1, 2, 3},
 			shouldPass:     false,
 			description:    "Array with no matches should fail with minContains=1",
 		},
@@ -79,7 +79,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    uintPtr(1),
 			maxContains:    nil,
-			input:          []interface{}{"hello", 1, 2},
+			input:          []any{"hello", 1, 2},
 			shouldPass:     true,
 			description:    "Array with 1 match should pass with minContains=1",
 		},
@@ -88,7 +88,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    nil,
 			maxContains:    nil,
-			input:          []interface{}{},
+			input:          []any{},
 			shouldPass:     false,
 			description:    "Empty array should fail with contains (default behavior requires at least 1)",
 		},
@@ -97,7 +97,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    nil,
 			maxContains:    nil,
-			input:          []interface{}{1, 2, 3},
+			input:          []any{1, 2, 3},
 			shouldPass:     false,
 			description:    "Array with no matches should fail with contains (default behavior requires at least 1)",
 		},
@@ -106,7 +106,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			containsSchema: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 			minContains:    nil,
 			maxContains:    nil,
-			input:          []interface{}{"hello", 1, 2},
+			input:          []any{"hello", 1, 2},
 			shouldPass:     true,
 			description:    "Array with matches should pass with contains (default behavior requires at least 1)",
 		},

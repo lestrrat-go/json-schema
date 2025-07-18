@@ -90,7 +90,7 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 
 		// Verify validation keywords
 		require.Equal(t, schema.PrimitiveTypes{schema.StringType}, s.Types())
-		require.Equal(t, []interface{}{"red", "green", "blue"}, s.Enum())
+		require.Equal(t, []any{"red", "green", "blue"}, s.Enum())
 		require.Equal(t, "constant", s.Const())
 		require.Equal(t, 2.5, s.MultipleOf())
 		require.Equal(t, 100.0, s.Maximum())

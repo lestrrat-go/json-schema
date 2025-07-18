@@ -46,7 +46,7 @@ func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, refere
 			return fmt.Errorf("no base schema provided in context for resolving local reference %s", reference)
 		}
 
-		// Convert base schema to interface{} for jsref resolution
+		// Convert base schema to any for jsref resolution
 		schemaData, err := r.schemaToData(baseSchema)
 		if err != nil {
 			return fmt.Errorf("failed to convert base schema to data: %w", err)
@@ -137,9 +137,9 @@ func (r *Resolver) ResolveReference(ctx context.Context, dst *Schema, reference 
 	return nil
 }
 
-// schemaToData converts a Schema to interface{} for jsref processing
+// schemaToData converts a Schema to any for jsref processing
 func (r *Resolver) schemaToData(s *Schema) (any, error) {
-	// Marshal schema to JSON, then unmarshal to interface{}
+	// Marshal schema to JSON, then unmarshal to any
 	jsonData, err := json.Marshal(s)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal schema: %w", err)

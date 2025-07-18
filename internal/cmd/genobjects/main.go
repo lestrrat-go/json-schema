@@ -19,7 +19,7 @@ func yaml2json(fn string) ([]byte, error) {
 	}
 	defer in.Close()
 
-	var v interface{}
+	var v any
 	if err := yaml.NewDecoder(in).Decode(&v); err != nil {
 		return nil, fmt.Errorf(`failed to decode %q: %w`, fn, err)
 	}
@@ -40,7 +40,7 @@ func isNilZeroType(field codegen.Field) bool {
 func isVariadicSliceType(field codegen.Field) bool {
 	typ := field.Type()
 	switch typ {
-	case "[]*Schema", "[]interface{}", "[]string", "PrimitiveTypes", "[]SchemaOrBool":
+	case "[]*Schema", "[]any", "[]string", "PrimitiveTypes", "[]SchemaOrBool":
 		return true
 	default:
 		return false
@@ -52,8 +52,8 @@ func getVariadicElementType(field codegen.Field) string {
 	switch typ {
 	case "[]*Schema":
 		return "*Schema"
-	case "[]interface{}":
-		return "interface{}"
+	case "[]any":
+		return "any"
 	case "[]string":
 		return "string"
 	case "PrimitiveTypes":
@@ -195,7 +195,7 @@ func genObject(obj *codegen.Object) error {
 
 	o.L(`type pair struct {`)
 	o.L(`Name string`)
-	o.L(`Value interface{}`)
+	o.L(`Value any`)
 	o.L(`}`)
 	o.LL(`func (s *Schema) MarshalJSON() ([]byte, error) {`)
 	o.L(`s.isRoot = true`)

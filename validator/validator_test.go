@@ -27,7 +27,7 @@ func makeSanityTestFunc(tc *sanityTestCase, c validator.Interface) func(*testing
 
 // Some default set of objects used for sanity checking
 type sanityTestCase struct {
-	Object interface{}
+	Object any
 	Name   string
 	Error  bool
 }
@@ -36,7 +36,7 @@ func makeSanityTestCases() []*sanityTestCase {
 	return []*sanityTestCase{
 		{
 			Name:   "Empty Map",
-			Object: make(map[string]interface{}),
+			Object: make(map[string]any),
 		},
 		{
 			Name:   "Empty Object",

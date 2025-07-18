@@ -10,19 +10,19 @@ type Builder struct {
 	anchor                *string
 	anyOf                 []SchemaOrBool
 	comment               *string
-	constantValue         *interface{}
+	constantValue         *any
 	contains              SchemaOrBool
 	contentEncoding       *string
 	contentMediaType      *string
 	contentSchema         *Schema
-	defaultValue          *interface{}
+	defaultValue          *any
 	definitions           []*propPair
 	dependentRequired     map[string][]string
 	dependentSchemas      map[string]SchemaOrBool
 	dynamicAnchor         *string
 	dynamicReference      *string
 	elseSchema            SchemaOrBool
-	enum                  []interface{}
+	enum                  []any
 	exclusiveMaximum      *float64
 	exclusiveMinimum      *float64
 	format                *string
@@ -130,7 +130,7 @@ func (b *Builder) Comment(v string) *Builder {
 	return b
 }
 
-func (b *Builder) Const(v interface{}) *Builder {
+func (b *Builder) Const(v any) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -174,7 +174,7 @@ func (b *Builder) ContentSchema(v *Schema) *Builder {
 	return b
 }
 
-func (b *Builder) Default(v interface{}) *Builder {
+func (b *Builder) Default(v any) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -236,7 +236,7 @@ func (b *Builder) ElseSchema(v SchemaOrBool) *Builder {
 	return b
 }
 
-func (b *Builder) Enum(v ...interface{}) *Builder {
+func (b *Builder) Enum(v ...any) *Builder {
 	if b.err != nil {
 		return b
 	}

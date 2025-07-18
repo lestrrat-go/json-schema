@@ -302,13 +302,13 @@ func ReferenceStackFromContext(ctx context.Context) []string {
 type dependentSchemasKey struct{}
 
 // WithDependentSchemas adds compiled dependent schema validators to the context
-func WithDependentSchemas(ctx context.Context, dependentSchemas map[string]interface{}) context.Context {
+func WithDependentSchemas(ctx context.Context, dependentSchemas map[string]any) context.Context {
 	return context.WithValue(ctx, dependentSchemasKey{}, dependentSchemas)
 }
 
 // DependentSchemasFromContext extracts compiled dependent schema validators from context, returns nil if none are associated with ctx
-func DependentSchemasFromContext(ctx context.Context) map[string]interface{} {
-	if deps, ok := ctx.Value(dependentSchemasKey{}).(map[string]interface{}); ok {
+func DependentSchemasFromContext(ctx context.Context) map[string]any {
+	if deps, ok := ctx.Value(dependentSchemasKey{}).(map[string]any); ok {
 		return deps
 	}
 	return nil
