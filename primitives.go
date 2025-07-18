@@ -17,6 +17,7 @@ const (
 	ArrayType
 	BooleanType
 	NumberType
+	maxPrimitiveType
 )
 
 // unexported string constants for primitive type names
@@ -30,6 +31,25 @@ const (
 	numberTypeString  = "number"
 	invalidTypeString = "<invalid>"
 )
+
+var knwonPrimitives [int(maxPrimitiveType)]string
+var availablePrimitives map[string]PrimitiveType
+
+func init() {
+	knwonPrimitives[0] = invalidTypeString
+	knwonPrimitives[1] = nullTypeString
+	knwonPrimitives[2] = integerTypeString
+	knwonPrimitives[3] = stringTypeString
+	knwonPrimitives[4] = objectTypeString
+	knwonPrimitives[5] = arrayTypeString
+	knwonPrimitives[6] = booleanTypeString
+	knwonPrimitives[7] = numberTypeString
+
+	availablePrimitives = make(map[string]PrimitiveType)
+	for i := 1; i < int(maxPrimitiveType); i++ {
+		availablePrimitives[knwonPrimitives[i]] = PrimitiveType(i)
+	}
+}
 
 // UnmarshalJSON initializes the primitive type from
 // a JSON string.
@@ -49,58 +69,28 @@ func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
 // NewPrimitiveType creates a PrimitiveType from its string representation.
 // It accepts standard JSON Schema type names such as "null", "integer", "string", "object", "array", "boolean", and "number".
 func NewPrimitiveType(s string) (PrimitiveType, error) {
-	switch s {
-	case nullTypeString:
-		return NullType, nil
-	case integerTypeString:
-		return IntegerType, nil
-	case stringTypeString:
-		return StringType, nil
-	case objectTypeString:
-		return ObjectType, nil
-	case arrayTypeString:
-		return ArrayType, nil
-	case booleanTypeString:
-		return BooleanType, nil
-	case numberTypeString:
-		return NumberType, nil
-	default:
-		return InvalidType, fmt.Errorf(`unknown primitive type %q`, s)
+	if pt, ok := availablePrimitives[s]; ok {
+		return pt, nil
 	}
+	return InvalidType, fmt.Errorf(`unknown primitive type %q`, s)
 }
 
 // String returns the string representation of this primitive type
 func (t PrimitiveType) String() string {
-	var v string
-	switch t {
-	case NullType:
-		v = nullTypeString
-	case IntegerType:
-		v = integerTypeString
-	case StringType:
-		v = stringTypeString
-	case ObjectType:
-		v = objectTypeString
-	case ArrayType:
-		v = arrayTypeString
-	case BooleanType:
-		v = booleanTypeString
-	case NumberType:
-		v = numberTypeString
-	default:
-		v = invalidTypeString
+	if t < NullType || t >= maxPrimitiveType {
+		return invalidTypeString
 	}
-	return v
+	return knwonPrimitives[t]
 }
 
 // MarshalJSON seriealises the primitive type into a JSON string
 func (t PrimitiveType) MarshalJSON() ([]byte, error) {
-	switch t {
-	case NullType, IntegerType, StringType, ObjectType, ArrayType, BooleanType, NumberType:
-		return json.Marshal(t.String())
-	default:
+	if t < NullType || t >= maxPrimitiveType {
 		return nil, errors.New("unknown primitive type")
 	}
+
+	v := knwonPrimitives[t]
+	return json.Marshal(v)
 }
 
 type PrimitiveTypes []PrimitiveType
