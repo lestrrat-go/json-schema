@@ -229,6 +229,20 @@ type Interface interface {
 type Result any
 ```
 
+## Design Principle: Schema vs Validator Separation
+
+Schema objects are pure data vessels that carry the metadata required for validation. They are designed to concentrate solely on data manipulation and representation - building, modifying, serializing, and deserializing JSON Schema documents.
+
+Validators are separate objects created from Schemas using the `validator.Compile()` function. This clear separation of concerns provides several benefits:
+
+1. **Single Responsibility**: Schemas handle schema construction and manipulation, while Validators handle validation logic
+2. **Performance**: Validators can be compiled once and reused multiple times without recompiling the schema
+3. **Immutability**: Schemas remain unchanged during validation, making them safe for concurrent use
+4. **Testability**: Schema construction and validation logic can be tested independently
+5. **Clarity**: The API clearly distinguishes between "what to validate against" (Schema) and "how to validate" (Validator)
+
+This design ensures that Schema objects remain focused on their primary purpose as data containers, while validation functionality is properly encapsulated in dedicated Validator objects.
+
 ## Result Objects
 
 The only times a result is required is when the resource being validated is either an array or an object.
