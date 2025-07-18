@@ -21,6 +21,25 @@ jobs:
       - name: Check documentation generator
         run: |
           find . -name '*.md' | xargs env AUTODOC_DRYRUN=1 perl tools/autodoc.pl
+      - name: Cache testdata
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        env:
+          TEST_SUITE_COMMIT: "48461fc3568972801b40eaccc428a31bce338f6e"
+        with:
+          path: tests
+          key: ${{ runner.os }}-testdata-${{ env.TEST_SUITE_COMMIT }}
+          restore-keys: |
+            ${{ runner.os }}-testdata-
+      - name: Setup testdata
+        env:
+          TEST_SUITE_COMMIT: "48461fc3568972801b40eaccc428a31bce338f6e"
+        run: |
+          if [ ! -d "tests" ] || [ ! -f "tests/README.md" ]; then
+            git clone https://github.com/json-schema-org/JSON-Schema-Test-Suite.git tests
+            cd tests && git checkout $TEST_SUITE_COMMIT
+          else
+            cd tests && git fetch origin && git checkout $TEST_SUITE_COMMIT
+          fi
       - name: Cache Go modules
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
