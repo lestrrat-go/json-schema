@@ -24,7 +24,7 @@ func TestObjectConstraintSanity(t *testing.T) {
 	require.NoError(t, err)
 	c, err := validator.Compile(context.Background(), s)
 	require.NoError(t, err)
-	
+
 	for _, tc := range testcases {
 		t.Run(tc.Name, makeSanityTestFunc(tc, c))
 	}

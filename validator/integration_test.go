@@ -852,13 +852,19 @@ func TestValidatorEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 
 		// Should allow any string
-		_, err = v.Validate(context.Background(), ""); require.NoError(t, err)
-		_, err = v.Validate(context.Background(), "any string"); require.NoError(t, err)
-		_, err = v.Validate(context.Background(), "very long string with lots of content"); require.NoError(t, err)
+		_, err = v.Validate(context.Background(), "")
+		require.NoError(t, err)
+		_, err = v.Validate(context.Background(), "any string")
+		require.NoError(t, err)
+		_, err = v.Validate(context.Background(), "very long string with lots of content")
+		require.NoError(t, err)
 
 		// Should reject non-strings
-		_, err = v.Validate(context.Background(), 123); require.Error(t, err)
-		_, err = v.Validate(context.Background(), true); require.Error(t, err)
-		_, err = v.Validate(context.Background(), []any{}); require.Error(t, err)
+		_, err = v.Validate(context.Background(), 123)
+		require.Error(t, err)
+		_, err = v.Validate(context.Background(), true)
+		require.Error(t, err)
+		_, err = v.Validate(context.Background(), []any{})
+		require.Error(t, err)
 	})
 }

@@ -27,14 +27,14 @@ func TestCloneBuilderPattern(t *testing.T) {
 
 	// Test Clone method - should copy all fields
 	cloned := NewBuilder().Clone(original).MustBuild()
-	
+
 	require.True(t, cloned.HasReference())
 	require.Equal(t, "#/definitions/MyType", cloned.Reference())
 	require.True(t, cloned.HasProperties())
 	require.True(t, cloned.HasRequired())
 	require.True(t, cloned.HasMinProperties())
 	require.True(t, cloned.HasMaxProperties())
-	
+
 	// Properties should be the same
 	require.Equal(t, len(original.Properties()), len(cloned.Properties()))
 	require.Equal(t, original.Required(), cloned.Required())
@@ -43,13 +43,13 @@ func TestCloneBuilderPattern(t *testing.T) {
 
 	// Test ResetReference method - should remove only reference
 	withoutRef := NewBuilder().Clone(original).ResetReference().MustBuild()
-	
+
 	require.False(t, withoutRef.HasReference())
 	require.True(t, withoutRef.HasProperties())
 	require.True(t, withoutRef.HasRequired())
 	require.True(t, withoutRef.HasMinProperties())
 	require.True(t, withoutRef.HasMaxProperties())
-	
+
 	// Other fields should remain unchanged
 	require.Equal(t, len(original.Properties()), len(withoutRef.Properties()))
 	require.Equal(t, original.Required(), withoutRef.Required())
@@ -79,7 +79,7 @@ func TestCloneBuilderWithCompositeValidator(t *testing.T) {
 	// Test createSchemaWithoutRef function from validator package
 	// This should create a schema with all constraints except $ref
 	withoutRef := NewBuilder().Clone(schemaWithRef).ResetReference().MustBuild()
-	
+
 	require.False(t, withoutRef.HasReference())
 	require.True(t, withoutRef.HasProperties())
 	require.True(t, withoutRef.HasRequired())

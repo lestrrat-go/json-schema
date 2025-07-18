@@ -55,7 +55,7 @@ func TestIfThenElseWithReferences(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
@@ -152,7 +152,7 @@ func TestIfThenElseWithReferences(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
@@ -161,7 +161,7 @@ func TestIfThenElseWithReferences(t *testing.T) {
 				"category": "basic",
 				"config": map[string]any{
 					"simple": true,
-					"name": "test",
+					"name":   "test",
 				},
 			}
 			_, err := v.Validate(context.Background(), obj)

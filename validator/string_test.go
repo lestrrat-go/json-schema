@@ -227,7 +227,6 @@ func TestStringValidator(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			c, err := tc.Validator()
 			if !assert.NoError(t, err, `tc.Validator() should succeed`) {

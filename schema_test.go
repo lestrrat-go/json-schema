@@ -74,7 +74,6 @@ func TestPrimitiveType(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.Input, func(t *testing.T) {
 			t.Parallel()
 			pt, err := schema.NewPrimitiveType(tc.Input)

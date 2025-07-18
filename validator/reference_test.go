@@ -29,7 +29,7 @@ func TestReferenceResolution(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 
@@ -81,7 +81,7 @@ func TestReferenceResolution(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		require.NoError(t, err)
 

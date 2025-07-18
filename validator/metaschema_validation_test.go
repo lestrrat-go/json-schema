@@ -22,27 +22,25 @@ var metaSchemaFS embed.FS
 func setupMetaschemaServer(t *testing.T) *httptest.Server {
 	server := httptest.NewUnstartedServer(nil)
 	mux := http.NewServeMux()
-	
-	// Map metaschema paths to template files 
+
+	// Map metaschema paths to template files
 	metaschemaFiles := map[string]string{
-		"/draft/2020-12/schema":              "meta/schema.json.tpl",
-		"/draft/2020-12/meta/core":           "meta/core.json.tpl", 
-		"/draft/2020-12/meta/applicator":     "meta/applicator.json.tpl",
-		"/draft/2020-12/meta/unevaluated":    "meta/unevaluated.json.tpl",
-		"/draft/2020-12/meta/validation":     "meta/validation.json.tpl",
-		"/draft/2020-12/meta/meta-data":      "meta/meta-data.json.tpl",
+		"/draft/2020-12/schema":                 "meta/schema.json.tpl",
+		"/draft/2020-12/meta/core":              "meta/core.json.tpl",
+		"/draft/2020-12/meta/applicator":        "meta/applicator.json.tpl",
+		"/draft/2020-12/meta/unevaluated":       "meta/unevaluated.json.tpl",
+		"/draft/2020-12/meta/validation":        "meta/validation.json.tpl",
+		"/draft/2020-12/meta/meta-data":         "meta/meta-data.json.tpl",
 		"/draft/2020-12/meta/format-annotation": "meta/format-annotation.json.tpl",
-		"/draft/2020-12/meta/content":        "meta/content.json.tpl",
-		"/draft/2020-12/meta/format":         "meta/format.json.tpl",
+		"/draft/2020-12/meta/content":           "meta/content.json.tpl",
+		"/draft/2020-12/meta/format":            "meta/format.json.tpl",
 	}
-	
+
 	for path, templateFile := range metaschemaFiles {
 		// Capture variables in closure
-		path := path
-		templateFile := templateFile
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("HTTP Server: Serving %s from template %s", path, templateFile)
-			
+
 			// Read template file from embed.FS
 			data, err := metaSchemaFS.ReadFile("testdata/schemas/" + templateFile)
 			if err != nil {
@@ -50,7 +48,7 @@ func setupMetaschemaServer(t *testing.T) *httptest.Server {
 				http.Error(w, fmt.Sprintf("Failed to read template: %v", err), http.StatusInternalServerError)
 				return
 			}
-			
+
 			// Parse template and execute with server URL
 			tmpl, err := template.New("schema").Parse(string(data))
 			if err != nil {
@@ -58,20 +56,20 @@ func setupMetaschemaServer(t *testing.T) *httptest.Server {
 				http.Error(w, fmt.Sprintf("Failed to parse template: %v", err), http.StatusInternalServerError)
 				return
 			}
-			
+
 			templateData := struct {
 				ServerURL string
 			}{
 				ServerURL: server.URL,
 			}
-			
+
 			var buf strings.Builder
 			if err := tmpl.Execute(&buf, templateData); err != nil {
 				t.Logf("Failed to execute template %s: %v", templateFile, err)
 				http.Error(w, fmt.Sprintf("Failed to execute template: %v", err), http.StatusInternalServerError)
 				return
 			}
-			
+
 			result := buf.String()
 			t.Logf("HTTP Server: Successfully serving %d bytes for %s", len(result), path)
 			// Check for allOf in the content
@@ -84,13 +82,13 @@ func setupMetaschemaServer(t *testing.T) *httptest.Server {
 			w.Write([]byte(result))
 		})
 	}
-	
+
 	// Add catch-all handler to log any unexpected requests
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("HTTP Server: Unexpected request to %s", r.URL.Path)
 		http.NotFound(w, r)
 	})
-	
+
 	server.Config.Handler = mux
 	server.Start()
 	t.Logf("Started metaschema server at %s", server.URL)
@@ -119,10 +117,10 @@ func setupMetaschemaServer(t *testing.T) *httptest.Server {
 //  4. This separation allows the validator to validate potentially malformed schemas
 //     and provide proper metaschema validation errors, rather than just parsing errors
 func TestMetaschemaValidation(t *testing.T) {
-	// Set up local metaschema server  
+	// Set up local metaschema server
 	server := setupMetaschemaServer(t)
 	defer server.Close()
-	
+
 	t.Run("Validate invalid type definition against metaschema", func(t *testing.T) {
 		// This schema references the local metaschema server - any data validated
 		// against it should conform to the JSON Schema 2020-12 specification
@@ -142,7 +140,7 @@ func TestMetaschemaValidation(t *testing.T) {
 		if metaschemaRef.HasAllOf() {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
-		
+
 		v, err := validator.Compile(context.Background(), &metaschemaRef)
 		require.NoError(t, err)
 		t.Logf("Compiled validator type: %T", v)

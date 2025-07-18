@@ -740,9 +740,13 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
-		enc.Encode(field.Name)
+		if err := enc.Encode(field.Name); err != nil {
+			return nil, fmt.Errorf("failed to encode field name: %w", err)
+		}
 		buf.WriteByte(':')
-		enc.Encode(field.Value)
+		if err := enc.Encode(field.Value); err != nil {
+			return nil, fmt.Errorf("failed to encode field value: %w", err)
+		}
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
@@ -1154,9 +1158,9 @@ LOOP:
 						s.not = &Schema{} // true schema - allow everything
 					} else {
 						// false schema - deny everything using "not": {}
-					falseSchema := &Schema{not: &Schema{}}
-					falseSchema.populatedFields |= NotField
-					s.not = falseSchema
+						falseSchema := &Schema{not: &Schema{}}
+						falseSchema.populatedFields |= NotField
+						s.not = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object
@@ -1276,9 +1280,9 @@ LOOP:
 						s.propertyNames = &Schema{} // true schema - allow everything
 					} else {
 						// false schema - deny everything using "not": {}
-					falseSchema := &Schema{not: &Schema{}}
-					falseSchema.populatedFields |= NotField
-					s.propertyNames = falseSchema
+						falseSchema := &Schema{not: &Schema{}}
+						falseSchema.populatedFields |= NotField
+						s.propertyNames = falseSchema
 					}
 				} else {
 					// Try to decode as Schema object

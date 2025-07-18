@@ -36,7 +36,7 @@ func TestAnchorResolution(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		if err != nil {
 			t.Logf("Expected anchor resolution to work, but got error: %v", err)
@@ -103,7 +103,7 @@ func TestAnchorResolution(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		if err != nil {
 			t.Logf("Expected multiple anchor resolution to work, but got error: %v", err)
@@ -156,7 +156,7 @@ func TestAnchorResolution(t *testing.T) {
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 		ctx = schema.WithRootSchema(ctx, &s)
-		
+
 		v, err := validator.Compile(ctx, &s)
 		if err != nil {
 			t.Logf("Expected nested anchor resolution to work, but got error: %v", err)

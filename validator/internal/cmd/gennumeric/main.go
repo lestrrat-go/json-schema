@@ -21,7 +21,7 @@ type definition struct {
 func main() {
 	var outputDir = flag.String("output", ".", "output directory for generated files")
 	flag.Parse()
-	
+
 	if err := _main(*outputDir); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
@@ -87,7 +87,7 @@ func generateValidator(def definition, outputDir string) error {
 		} else {
 			methodName = xstrings.Camel(prop)
 		}
-		
+
 		if prop == "enum" {
 			o.LL("if s.HasEnum() {")
 			o.L("enums := s.Enum()")
@@ -187,7 +187,7 @@ func generateValidator(def definition, outputDir string) error {
 		} else {
 			methodName = xstrings.Camel(prop)
 		}
-		
+
 		if prop == "enum" {
 			o.LL("func (b *%[1]sValidatorBuilder) %[2]s(v []%[3]s) *%[1]sValidatorBuilder {", def.class, methodName, def.typ)
 			o.L("if b.err != nil {")

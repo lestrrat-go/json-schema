@@ -71,7 +71,7 @@ func TestSchemaDefinitions(t *testing.T) {
 		// Test $defs keyword
 		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		s, err := schema.NewBuilder().
 			Definitions("person", personSchema).
 			Build()
@@ -86,7 +86,7 @@ func TestSchemaDefinitions(t *testing.T) {
 		// Test schema with both ID and definitions
 		personSchema, err := schema.NewBuilder().Types(schema.ObjectType).Build()
 		require.NoError(t, err)
-		
+
 		s, err := schema.NewBuilder().
 			ID("https://example.com/schemas/main").
 			Definitions("person", personSchema).
@@ -102,7 +102,7 @@ func TestSchemaDefinitions(t *testing.T) {
 		// Test schema with multiple reference types
 		baseSchema, err := schema.NewBuilder().Types(schema.ObjectType).Build()
 		require.NoError(t, err)
-		
+
 		s, err := schema.NewBuilder().
 			ID("https://example.com/schemas/complex").
 			Reference("#/$defs/base").
@@ -111,7 +111,7 @@ func TestSchemaDefinitions(t *testing.T) {
 			Anchor("main").
 			Build()
 		require.NoError(t, err)
-		
+
 		require.Equal(t, "https://example.com/schemas/complex", s.ID())
 		require.Equal(t, "#/$defs/base", s.Reference())
 		require.Equal(t, "#/$defs/dynamic", s.DynamicReference())
@@ -133,7 +133,7 @@ func TestSchemaReferenceResolution(t *testing.T) {
 			Property("child", schema.NewBuilder().Reference("#").MustBuild()).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Verify structure
 		require.Equal(t, "https://example.com/recursive", s.ID())
 		require.NotNil(t, s.Properties()["name"])
@@ -149,7 +149,7 @@ func TestSchemaReferenceResolution(t *testing.T) {
 			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
 			Build()
 		require.NoError(t, err)
-		
+
 		addressSchema, err := schema.NewBuilder().
 			ID("https://example.com/address").
 			Types(schema.ObjectType).
@@ -157,7 +157,7 @@ func TestSchemaReferenceResolution(t *testing.T) {
 			Property("resident", schema.NewBuilder().Reference("https://example.com/person").MustBuild()).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Verify cross-reference
 		require.Equal(t, "https://example.com/person", personSchema.ID())
 		require.Equal(t, "https://example.com/address", addressSchema.ID())
@@ -175,7 +175,7 @@ func TestSchemaReferenceResolution(t *testing.T) {
 				MustBuild()).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Verify nested reference structure
 		require.Equal(t, "https://example.com/nested", s.ID())
 		itemsProp := s.Properties()["items"]
@@ -192,7 +192,7 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 	t.Run("Reference Serialization", func(t *testing.T) {
 		personSchema, err := schema.NewBuilder().Types(schema.StringType).Build()
 		require.NoError(t, err)
-		
+
 		original, err := schema.NewBuilder().
 			ID("https://example.com/test").
 			Reference("#/$defs/person").
@@ -201,15 +201,15 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 			Anchor("main").
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize to JSON
 		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
+
 		// Verify JSON structure by unmarshaling back to Schema
 		var s schema.Schema
 		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
-		
+
 		// Verify reference fields
 		require.Equal(t, "https://example.com/test", s.ID())
 		require.Equal(t, "#/$defs/person", s.Reference())
@@ -230,32 +230,32 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 			Property("external", schema.NewBuilder().Reference("https://external.com/schema").MustBuild()).
 			Build()
 		require.NoError(t, err)
-		
+
 		// Serialize to JSON
 		jsonData, err := json.Marshal(original)
 		require.NoError(t, err)
-		
+
 		// Verify JSON structure by unmarshaling back to Schema
 		var s schema.Schema
 		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
-		
+
 		// Verify complex structure
 		require.Equal(t, "https://example.com/complex-refs", s.ID())
 		require.True(t, s.ContainsType(schema.ObjectType))
-		
+
 		props := s.Properties()
 		require.NotNil(t, props)
-		
+
 		// Check base property reference
 		baseProp := props["base"]
 		require.NotNil(t, baseProp)
 		require.Equal(t, "#/$defs/base", baseProp.Reference())
-		
+
 		// Check dynamic property reference
 		dynamicProp := props["dynamic"]
 		require.NotNil(t, dynamicProp)
 		require.Equal(t, "#/$defs/dynamic", dynamicProp.DynamicReference())
-		
+
 		// Check external property reference
 		externalProp := props["external"]
 		require.NotNil(t, externalProp)
@@ -276,7 +276,7 @@ func TestSchemaIdentificationAndAnchoring(t *testing.T) {
 			{"ID with Query", "https://example.com/schema?version=1"},
 			{"Relative ID", "/schemas/person"},
 		}
-		
+
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				s, err := schema.NewBuilder().
@@ -297,7 +297,7 @@ func TestSchemaIdentificationAndAnchoring(t *testing.T) {
 			"item.schema",
 			"123-schema",
 		}
-		
+
 		for _, anchor := range testCases {
 			t.Run(anchor, func(t *testing.T) {
 				s, err := schema.NewBuilder().
@@ -316,7 +316,7 @@ func TestSchemaIdentificationAndAnchoring(t *testing.T) {
 			Anchor("root").
 			Build()
 		require.NoError(t, err)
-		
+
 		require.Equal(t, "https://example.com/schemas/main.json", s.ID())
 		require.Equal(t, "root", s.Anchor())
 	})

@@ -16,5 +16,3 @@ require (
 	github.com/valyala/fastjson v1.6.4 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/lestrrat-go/jsref/v2 => ../jsref	

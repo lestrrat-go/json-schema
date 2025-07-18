@@ -165,7 +165,7 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) 
 	resolverCtx := schema.WithBaseSchema(ctx, rootSchema)
 	if err := resolver.ResolveReference(resolverCtx, &metaschema, metaschemaURI); err != nil {
 		// If we can't resolve the metaschema, default to all enabled
-		return AllEnabled(), nil
+		return AllEnabled(), nil //nolint:nilerr // Intentional: fallback to default behavior on resolve error
 	}
 
 	return ExtractVocabularySet(&metaschema), nil
@@ -193,6 +193,7 @@ func IsKeywordEnabledInContext(ctx context.Context, keyword string) bool {
 }
 
 // normalizeVocabularyURI normalizes a vocabulary URI for comparison
+// Currently unused but kept for future use
 func normalizeVocabularyURI(uri string) string {
 	// Remove trailing slash if present
 	return strings.TrimSuffix(uri, "/")

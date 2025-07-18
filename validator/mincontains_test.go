@@ -117,7 +117,7 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			// Build the schema
 			builder := schema.NewBuilder().Types(schema.ArrayType)
 			builder.Contains(tt.containsSchema)
-			
+
 			if tt.minContains != nil {
 				builder.MinContains(*tt.minContains)
 			}

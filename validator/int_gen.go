@@ -17,17 +17,17 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 
 	if s.HasMultipleOf() && IsKeywordEnabledInContext(ctx, "multipleOf") {
 		rv := reflect.ValueOf(s.MultipleOf())
-		var tmp int
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp := int(rv.Int())
+			b.MultipleOf(tmp)
 		case reflect.Float32, reflect.Float64:
 			f := rv.Float()
 			if f > 0 && f < 1 {
 				// Skip multipleOf constraint for very small values with integer type
 				// Any integer is a multiple of very small numbers like 1e-8
 			} else {
-				tmp = int(f)
+				tmp := int(f)
 				b.MultipleOf(tmp)
 			}
 		default:

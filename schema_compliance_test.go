@@ -385,7 +385,6 @@ func initializeTestSuite() error {
 	// Check if the directory already exists
 	if _, err := os.Stat(testDir); err == nil {
 		// Directory exists, pull latest changes
-		fmt.Println("Updating existing JSON Schema Test Suite...")
 		cmd := exec.Command("git", "pull")
 		cmd.Dir = testDir
 		if err := cmd.Run(); err != nil {
@@ -393,7 +392,6 @@ func initializeTestSuite() error {
 		}
 	} else {
 		// Directory doesn't exist, clone it
-		fmt.Println("Cloning JSON Schema Test Suite...")
 		cmd := exec.Command("git", "clone", "https://github.com/json-schema-org/JSON-Schema-Test-Suite.git", testDir)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to clone test suite: %w", err)

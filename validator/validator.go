@@ -185,8 +185,7 @@ func boolMapToStructMap(boolMap map[string]bool) map[string]struct{} {
 	return structMap
 }
 
-
-type dependentSchemasKey struct{}
+// dependentSchemasKey is now handled by the public schema package
 
 // WithDependentSchemas adds compiled dependent schema validators to the context
 func WithDependentSchemas(ctx context.Context, dependentSchemas map[string]Interface) context.Context {
@@ -977,9 +976,10 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 	// Create context with stored dynamic scope chain from compilation time
 	ctxWithScope := ctx
 	if dr.dynamicScope != nil {
-		ctxWithScope = schema.WithDynamicScope(ctx, dr.dynamicScope[0])
-		for i := 1; i < len(dr.dynamicScope); i++ {
-			ctxWithScope = schema.WithDynamicScope(ctxWithScope, dr.dynamicScope[i])
+		// Build context with all scope elements at once to avoid nested context in loop
+		//nolint:fatcontext // Intentional: building dynamic scope chain requires nested contexts
+		for _, scope := range dr.dynamicScope {
+			ctxWithScope = schema.WithDynamicScope(ctxWithScope, scope)
 		}
 	}
 
@@ -1020,15 +1020,7 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 }
 
 // Context keys for passing validator-specific data
-type resolverKeyType struct{}
-type rootSchemaKeyType struct{}
-type baseURIKeyType struct{}
-type dynamicScopeKeyType struct{}
-
-var resolverKey = resolverKeyType{}
-var rootSchemaKey = rootSchemaKeyType{}
-var baseURIKey = baseURIKeyType{}
-var dynamicScopeKey = dynamicScopeKeyType{}
+// Note: These are now handled by the internal schemactx package
 
 // extractBaseURI extracts the base URI from a reference for context resolution
 func extractBaseURI(reference string) string {

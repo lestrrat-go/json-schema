@@ -13,14 +13,14 @@ import (
 var _ Interface = (*contentValidator)(nil)
 
 type contentValidator struct {
-	contentEncoding   string
-	contentMediaType  string
-	contentSchema     Interface
+	contentEncoding  string
+	contentMediaType string
+	contentSchema    Interface
 }
 
 func compileContentValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if !s.HasContentEncoding() && !s.HasContentMediaType() && !s.HasContentSchema() {
-		return nil, nil // No content validation needed
+		return nil, nil //nolint:nilnil // Intentional: JSON Schema spec allows validators to return nil result
 	}
 
 	cv := &contentValidator{}
@@ -49,7 +49,7 @@ func (cv *contentValidator) Validate(ctx context.Context, v any) (Result, error)
 	str, ok := v.(string)
 	if !ok {
 		// According to JSON Schema spec, content validation is ignored for non-strings
-		return nil, nil
+		return nil, nil //nolint:nilnil // Intentional: JSON Schema spec allows validators to return nil result
 	}
 
 	// Apply content encoding (decode the string)
@@ -60,7 +60,7 @@ func (cv *contentValidator) Validate(ctx context.Context, v any) (Result, error)
 		if err != nil {
 			// According to JSON Schema spec, encoding errors should be ignored
 			// The validation should pass even if decoding fails
-			return nil, nil
+			return nil, nil //nolint:nilerr,nilnil // Intentional: spec requires passing on decode errors
 		}
 	}
 
@@ -72,19 +72,19 @@ func (cv *contentValidator) Validate(ctx context.Context, v any) (Result, error)
 		if err != nil {
 			// According to JSON Schema spec, media type parsing errors should be ignored
 			// The validation should pass even if parsing fails
-			return nil, nil
+			return nil, nil //nolint:nilerr,nilnil // Intentional: spec requires passing on parse errors
 		}
 	}
 
 	// Validate against content schema
-	// According to JSON Schema 2020-12 spec, content schema validation 
+	// According to JSON Schema 2020-12 spec, content schema validation
 	// is for annotation purposes only and should not affect validation results
 	if cv.contentSchema != nil {
 		// We could store annotations here in the future, but for now just ignore the result
 		_, _ = cv.contentSchema.Validate(ctx, parsedData)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil // Intentional: JSON Schema spec allows validators to return nil result
 }
 
 func (cv *contentValidator) applyContentDecoding(data, encoding string) (string, error) {
