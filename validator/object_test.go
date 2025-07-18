@@ -416,7 +416,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				properties: map[string]*schema.Schema{
 					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: schema.SchemaTrue(),
+				additionalProperties: schema.TrueSchema(),
 				wantErr:              false,
 			},
 			{
@@ -428,7 +428,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				properties: map[string]*schema.Schema{
 					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: schema.SchemaFalse(),
+				additionalProperties: schema.FalseSchema(),
 				wantErr:              true,
 				errMsg:               "additional property not allowed",
 			},
@@ -440,7 +440,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				properties: map[string]*schema.Schema{
 					"name": schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				},
-				additionalProperties: schema.SchemaFalse(),
+				additionalProperties: schema.FalseSchema(),
 				wantErr:              false,
 			},
 			{
@@ -480,7 +480,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 				// Convert additionalProperties to proper SchemaOrBool type
 				var addProps schema.SchemaOrBool
 				switch v := tc.additionalProperties.(type) {
-				case schema.SchemaBool:
+				case schema.BoolSchema:
 					addProps = v
 				case *schema.Schema:
 					addProps = v
@@ -746,7 +746,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 						PatternProperty("^num_", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 						MinProperties(1).
 						MaxProperties(10).
-						AdditionalProperties(schema.SchemaFalse()).
+						AdditionalProperties(schema.FalseSchema()).
 						Build()
 					return s
 				},

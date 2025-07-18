@@ -14,7 +14,7 @@ func Example_schema_builder() {
 		ID(`https://example.com/polygon`).
 		Types(schema.ObjectType).
 		Property("validProp", schema.New()).
-		AdditionalProperties(schema.SchemaTrue()).
+		AdditionalProperties(schema.TrueSchema()).
 		Build()
 	if err != nil {
 		fmt.Println(err)

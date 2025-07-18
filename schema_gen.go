@@ -741,11 +741,11 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 			buf.WriteByte(',')
 		}
 		if err := enc.Encode(field.Name); err != nil {
-			return nil, fmt.Errorf("failed to encode field name: %w", err)
+			return nil, fmt.Errorf("json-schema: Schema.MarshalJSON: failed to encode field name: %w", err)
 		}
 		buf.WriteByte(':')
 		if err := enc.Encode(field.Value); err != nil {
-			return nil, fmt.Errorf("failed to encode field value: %w", err)
+			return nil, fmt.Errorf("json-schema: Schema.MarshalJSON: failed to encode field value: %w", err)
 		}
 	}
 	buf.WriteByte('}')
@@ -779,7 +779,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.additionalItems = SchemaBool(b)
+					s.additionalItems = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -798,7 +798,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.additionalProperties = SchemaBool(b)
+					s.additionalProperties = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -852,7 +852,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.contains = SchemaBool(b)
+					s.contains = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -984,7 +984,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.elseSchema = SchemaBool(b)
+					s.elseSchema = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -1038,7 +1038,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.ifSchema = SchemaBool(b)
+					s.ifSchema = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -1057,7 +1057,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.items = SchemaBool(b)
+					s.items = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -1322,7 +1322,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.thenSchema = SchemaBool(b)
+					s.thenSchema = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -1348,7 +1348,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.unevaluatedItems = SchemaBool(b)
+					s.unevaluatedItems = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema
@@ -1367,7 +1367,7 @@ LOOP:
 				// Try to decode as boolean first
 				var b bool
 				if err := json.Unmarshal(rawData, &b); err == nil {
-					s.unevaluatedProperties = SchemaBool(b)
+					s.unevaluatedProperties = BoolSchema(b)
 				} else {
 					// Try to decode as Schema object
 					var schema Schema

@@ -23,7 +23,7 @@ func TestCousinUnevaluatedProperties(t *testing.T) {
 
 		// Create the second cousin schema with unevaluatedProperties: false
 		cousin2 := schema.NewBuilder().
-			UnevaluatedProperties(schema.SchemaFalse()).
+			UnevaluatedProperties(schema.FalseSchema()).
 			MustBuild()
 
 		// Create the main schema with allOf containing both cousins
@@ -50,7 +50,7 @@ func TestCousinUnevaluatedProperties(t *testing.T) {
 
 		// Create the first cousin schema with unevaluatedProperties: false
 		cousin1 := schema.NewBuilder().
-			UnevaluatedProperties(schema.SchemaFalse()).
+			UnevaluatedProperties(schema.FalseSchema()).
 			MustBuild()
 
 		// Create the second cousin schema that defines a "foo" property

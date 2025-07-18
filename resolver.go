@@ -130,9 +130,8 @@ func (r *Resolver) ResolveReference(ctx context.Context, dst *Schema, reference 
 		// Wrap the error with appropriate context based on reference type
 		if strings.HasPrefix(resolvedReference, "#") {
 			return fmt.Errorf("failed to resolve local reference %s: %w", resolvedReference, err)
-		} else {
-			return fmt.Errorf("failed to resolve external reference %s: %w", resolvedReference, err)
 		}
+		return fmt.Errorf("failed to resolve external reference %s: %w", resolvedReference, err)
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"unicode"
 
 	"github.com/lestrrat-go/codegen"
 	"github.com/lestrrat-go/xstrings"
@@ -89,7 +90,7 @@ func generateValidator(def definition, outputDir string) error {
 		}
 
 		if prop == "enum" {
-			o.LL("if s.HasEnum() {")
+			o.LL("if s.HasEnum() && IsKeywordEnabledInContext(ctx, \"enum\") {")
 			o.L("enums := s.Enum()")
 			o.L("l := make([]%s, 0, len(enums))", def.typ)
 			o.L("for i, e := range s.Enum() {")
@@ -116,7 +117,10 @@ func generateValidator(def definition, outputDir string) error {
 			o.L("b.Enum(l)")
 			o.L("}") // if s.HasEnum
 		} else {
-			o.LL("if s.Has%s() {", methodName)
+			runes := []rune(methodName)
+			first := runes[0]
+			lower := string(append(append([]rune(nil), unicode.ToLower(first)), runes[1:]...))
+			o.LL("if s.Has%s() && IsKeywordEnabledInContext(ctx, %q) {", methodName, lower)
 			o.L("rv := reflect.ValueOf(s.%s())", methodName)
 			o.L("var tmp %s", def.typ)
 			o.L("switch rv.Kind() {")
@@ -126,14 +130,16 @@ func generateValidator(def definition, outputDir string) error {
 			} else {
 				o.L("tmp = float64(rv.Int())")
 			}
+			if methodName == "MultipleOf" {
+				o.L("b.%s(tmp)", methodName)
+			}
 			o.L("case reflect.Float32, reflect.Float64:")
 			if def.typ == "int" {
 				if prop == "multipleOf" {
 					o.L("f := rv.Float()")
-					o.L("if f > 0 && f < 1 {")
 					o.L("// Skip multipleOf constraint for very small values with integer type")
 					o.L("// Any integer is a multiple of very small numbers like 1e-8")
-					o.L("} else {")
+					o.L("if f <= 0 || f >= 1 {")
 					o.L("tmp = int(f)")
 					o.L("b.%s(tmp)", methodName)
 					o.L("}")
@@ -234,7 +240,7 @@ func generateValidator(def definition, outputDir string) error {
 	} else {
 		template = "f"
 	}
-	o.LL("func (v *%sValidator) Validate(ctx context.Context, in any) (Result, error) {", xstrings.Snake(def.class))
+	o.LL("func (v *%sValidator) Validate(_ context.Context, in any) (Result, error) {", xstrings.Snake(def.class))
 	o.L("rv := reflect.ValueOf(in)")
 	if def.typ == "int" {
 		o.LL("var n int")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
@@ -190,13 +189,6 @@ func VocabularySetFromContext(ctx context.Context) VocabularySet {
 func IsKeywordEnabledInContext(ctx context.Context, keyword string) bool {
 	vocabSet := VocabularySetFromContext(ctx)
 	return vocabSet.IsKeywordEnabled(keyword)
-}
-
-// normalizeVocabularyURI normalizes a vocabulary URI for comparison
-// Currently unused but kept for future use
-func normalizeVocabularyURI(uri string) string {
-	// Remove trailing slash if present
-	return strings.TrimSuffix(uri, "/")
 }
 
 // ValidateVocabularyURI validates that a vocabulary URI is well-formed

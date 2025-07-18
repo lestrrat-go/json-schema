@@ -63,7 +63,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 		if containsSchema != nil {
 			// Handle SchemaOrBool types
 			switch val := containsSchema.(type) {
-			case schema.SchemaBool:
+			case schema.BoolSchema:
 				// Boolean schema: true means any item matches, false means no items should match
 				if bool(val) {
 					// contains: true - any item matches, so any non-empty array is valid
@@ -97,7 +97,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 		if unevaluatedItems != nil {
 			// Handle SchemaOrBool types
 			switch val := unevaluatedItems.(type) {
-			case schema.SchemaBool:
+			case schema.BoolSchema:
 				// This is a boolean value
 				v.UnevaluatedItemsBool(bool(val))
 			case *schema.Schema:
@@ -280,7 +280,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 		// Check uniqueItems constraint
 		if c.uniqueItems && length > 0 {
-			for i := 0; i < rv.Len(); i++ {
+			for i := range rv.Len() {
 				item1 := rv.Index(i).Interface()
 				for j := i + 1; j < rv.Len(); j++ {
 					item2 := rv.Index(j).Interface()
@@ -334,7 +334,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Validate contains constraint and track evaluation
 		if c.contains != nil {
 			containsCount := uint(0)
-			for i := 0; i < rv.Len(); i++ {
+			for i := range rv.Len() {
 				item := rv.Index(i).Interface()
 				_, err := c.contains.Validate(ctx, item)
 				if err == nil {
@@ -367,7 +367,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 		// Validate additionalItems for items beyond the defined items schema
 		if c.additionalItems != nil {
-			for i := 0; i < rv.Len(); i++ {
+			for i := range rv.Len() {
 				// For now, assuming items is a single schema that applies to all items
 				// If items is nil or the item hasn't been evaluated yet, additionalItems applies
 				if c.items == nil {
@@ -384,9 +384,8 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 		// Handle unevaluatedItems validation
 		if c.unevaluatedItems != nil {
-
 			// Validate unevaluated items
-			for i := 0; i < rv.Len(); i++ {
+			for i := range rv.Len() {
 				// Skip items that were already evaluated
 				evaluatedItems := result.EvaluatedItems()
 				if i < len(evaluatedItems) && evaluatedItems[i] {
@@ -427,6 +426,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		}
 		// For non-array values with inferred array type, array constraints don't apply
 		// According to JSON Schema spec, array constraints should be ignored for non-arrays
+		//nolint: nilnil
 		return nil, nil
 	}
 }
@@ -434,13 +434,14 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 // alwaysPassValidator is a validator that always passes (used for contains: true)
 type alwaysPassValidator struct{}
 
-func (v *alwaysPassValidator) Validate(ctx context.Context, value any) (Result, error) {
+func (v *alwaysPassValidator) Validate(_ context.Context, _ any) (Result, error) {
+	//nolint: nilnil
 	return nil, nil
 }
 
 // alwaysFailValidator is a validator that always fails (used for contains: false)
 type alwaysFailValidator struct{}
 
-func (v *alwaysFailValidator) Validate(ctx context.Context, value any) (Result, error) {
+func (v *alwaysFailValidator) Validate(_ context.Context, _ any) (Result, error) {
 	return nil, fmt.Errorf("contains: false schema always fails")
 }

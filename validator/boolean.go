@@ -85,7 +85,7 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 	return b
 }
 
-func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (c *booleanValidator) Validate(_ context.Context, v any) (Result, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr, reflect.Interface:
@@ -117,6 +117,7 @@ func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) 
 			}
 		}
 
+		//nolint: nilnil
 		return nil, nil
 	default:
 		return nil, fmt.Errorf(`invalid value passed to BooleanValidator: expected boolean, got %T`, v)

@@ -46,9 +46,9 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Enum("light", "dark", "auto").MustBuild()).
 				Property("notifications", schema.NewBuilder().
 					Types(schema.BooleanType).MustBuild()).
-				AdditionalProperties(schema.SchemaFalse()).MustBuild()).
+				AdditionalProperties(schema.FalseSchema()).MustBuild()).
 			Required("id", "username", "email").
-			AdditionalProperties(schema.SchemaFalse()).
+			AdditionalProperties(schema.FalseSchema()).
 			Build()
 		require.NoError(t, err)
 
@@ -376,7 +376,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 			Property("data", schema.NewBuilder().
 				Types(schema.ObjectType).MustBuild()).
 			Required("status", "data").
-			AdditionalProperties(schema.SchemaFalse()).
+			AdditionalProperties(schema.FalseSchema()).
 			Build()
 		require.NoError(t, err)
 
@@ -393,7 +393,7 @@ func TestValidatorIntegrationComprehensive(t *testing.T) {
 					Types(schema.StringType).MustBuild()).
 				Required("code", "message").MustBuild()).
 			Required("status", "error").
-			AdditionalProperties(schema.SchemaFalse()).
+			AdditionalProperties(schema.FalseSchema()).
 			Build()
 		require.NoError(t, err)
 

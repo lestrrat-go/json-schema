@@ -28,13 +28,13 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 		oneOf := s.OneOf()
 		require.Len(t, oneOf, 3)
 
-		// First element should be SchemaBool(true)
-		schemaBool, ok := oneOf[0].(schema.SchemaBool)
+		// First element should be BoolSchema(true)
+		schemaBool, ok := oneOf[0].(schema.BoolSchema)
 		require.True(t, ok)
 		require.True(t, bool(schemaBool))
 
-		// Second element should be SchemaBool(false)
-		schemaBool, ok = oneOf[1].(schema.SchemaBool)
+		// Second element should be BoolSchema(false)
+		schemaBool, ok = oneOf[1].(schema.BoolSchema)
 		require.True(t, ok)
 		require.False(t, bool(schemaBool))
 
@@ -60,8 +60,8 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 		allOf := s.AllOf()
 		require.Len(t, allOf, 2)
 
-		// First element should be SchemaBool(true)
-		schemaBool, ok := allOf[0].(schema.SchemaBool)
+		// First element should be BoolSchema(true)
+		schemaBool, ok := allOf[0].(schema.BoolSchema)
 		require.True(t, ok)
 		require.True(t, bool(schemaBool))
 
@@ -87,8 +87,8 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 		anyOf := s.AnyOf()
 		require.Len(t, anyOf, 2)
 
-		// First element should be SchemaBool(false)
-		schemaBool, ok := anyOf[0].(schema.SchemaBool)
+		// First element should be BoolSchema(false)
+		schemaBool, ok := anyOf[0].(schema.BoolSchema)
 		require.True(t, ok)
 		require.False(t, bool(schemaBool))
 

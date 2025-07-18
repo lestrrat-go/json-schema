@@ -53,7 +53,7 @@ func TestBitFieldFunctionality(t *testing.T) {
 		schema := NewBuilder().
 			Anchor("test").
 			Property("foo", New()).
-			AllOf(SchemaBool(true)).
+			AllOf(BoolSchema(true)).
 			MustBuild()
 
 		// Test the new Has() method for combined bit field operations
@@ -173,7 +173,7 @@ func TestBitFieldEfficiency(t *testing.T) {
 	schema := NewBuilder().
 		Anchor("test").
 		Property("field1", New()).
-		AllOf(SchemaBool(true)).
+		AllOf(BoolSchema(true)).
 		MustBuild()
 
 	// The old way (this is what we're replacing):

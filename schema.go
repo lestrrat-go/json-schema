@@ -12,28 +12,28 @@ import (
 )
 
 // SchemaOrBool is an interface for types that can be either a Schema or boolean
-type SchemaOrBool interface {
+type SchemaOrBool interface { //nolint:revive
 	schemaOrBool() // internal identifier
 }
 
-// SchemaBool represents a boolean value in allOf, oneOf, anyOf, etc
-type SchemaBool bool
+// BoolSchema represents a boolean value in allOf, oneOf, anyOf, etc
+type BoolSchema bool
 
 // schemaOrBool implements the SchemaOrBool interface
-func (s SchemaBool) schemaOrBool() {}
+func (s BoolSchema) schemaOrBool() {}
 
 // UnmarshalJSON implements json.Unmarshaler
-func (s *SchemaBool) UnmarshalJSON(data []byte) error {
+func (s *BoolSchema) UnmarshalJSON(data []byte) error {
 	var b bool
 	if err := json.Unmarshal(data, &b); err != nil {
-		return fmt.Errorf("failed to unmarshal SchemaBool: %w", err)
+		return fmt.Errorf("failed to unmarshal BoolSchema: %w", err)
 	}
-	*s = SchemaBool(b)
+	*s = BoolSchema(b)
 	return nil
 }
 
 // MarshalJSON implements json.Marshaler
-func (s SchemaBool) MarshalJSON() ([]byte, error) {
+func (s BoolSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(bool(s))
 }
 
@@ -44,18 +44,18 @@ const Version = `https://json-schema.org/draft/2020-12/schema`
 // schemaOrBool implements the SchemaOrBool interface for Schema
 func (s *Schema) schemaOrBool() {}
 
-// Convenience variables and functions for SchemaBool values
-var schemaTrue = SchemaBool(true)
-var schemaFalse = SchemaBool(false)
+// Convenience variables and functions for BoolSchema values
+var trueSchema = BoolSchema(true)
+var falseSchema = BoolSchema(false)
 
-// SchemaTrue returns a SchemaBool representing true
-func SchemaTrue() SchemaBool {
-	return schemaTrue
+// TrueSchema returns a BoolSchema representing true
+func TrueSchema() BoolSchema {
+	return trueSchema
 }
 
-// SchemaFalse returns a SchemaBool representing false
-func SchemaFalse() SchemaBool {
-	return schemaFalse
+// FalseSchema returns a BoolSchema representing false
+func FalseSchema() BoolSchema {
+	return falseSchema
 }
 
 // unmarshalSchemaOrBoolSlice parses a JSON array using token-based decoding
@@ -72,7 +72,7 @@ func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
 		// Try to decode as boolean first
 		var b bool
 		if err := json.Unmarshal(rawElement, &b); err == nil {
-			result = append(result, SchemaBool(b))
+			result = append(result, BoolSchema(b))
 			continue
 		}
 
@@ -103,7 +103,7 @@ func unmarshalSchemaOrBoolMap(dec *json.Decoder) (map[string]SchemaOrBool, error
 		// Try to decode as boolean first
 		var b bool
 		if err := json.Unmarshal(rawValue, &b); err == nil {
-			result[key] = SchemaBool(b)
+			result[key] = BoolSchema(b)
 			continue
 		}
 
@@ -120,13 +120,13 @@ func unmarshalSchemaOrBoolMap(dec *json.Decoder) (map[string]SchemaOrBool, error
 	return result, nil
 }
 
-// validateSchemaOrBool checks if a value is either a bool, SchemaBool, or *Schema
+// validateSchemaOrBool checks if a value is either a bool, BoolSchema, or *Schema
 func validateSchemaOrBool(v any) error {
 	switch v.(type) {
-	case bool, SchemaBool, *Schema:
+	case bool, BoolSchema, *Schema:
 		return nil
 	default:
-		return fmt.Errorf(`expected bool, SchemaBool, or *Schema, got %T`, v)
+		return fmt.Errorf(`expected bool, BoolSchema, or *Schema, got %T`, v)
 	}
 }
 

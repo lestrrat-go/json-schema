@@ -225,14 +225,13 @@ type Builder interface {
 // When the value is a map[string]any from JSON unmarshaling, it converts it to a Schema.
 func convertSchemaOrBool(v schema.SchemaOrBool) *schema.Schema {
 	switch val := v.(type) {
-	case schema.SchemaBool:
+	case schema.BoolSchema:
 		if bool(val) {
 			// true schema accepts everything
 			return schema.New()
-		} else {
-			// false schema rejects everything
-			return schema.NewBuilder().Not(schema.New()).MustBuild()
 		}
+		// false schema rejects everything
+		return schema.NewBuilder().Not(schema.New()).MustBuild()
 	case *schema.Schema:
 		return val
 	default:
@@ -577,7 +576,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		for propertyName, depSchema := range s.DependentSchemas() {
 			// Handle SchemaOrBool types
 			switch val := depSchema.(type) {
-			case schema.SchemaBool:
+			case schema.BoolSchema:
 				// Boolean schema: true means always valid, false means always invalid
 				if bool(val) {
 					compiledDependentSchemas[propertyName] = &alwaysPassValidator{}
@@ -779,14 +778,16 @@ func (v *inferredNumberValidator) Validate(ctx context.Context, in any) (Result,
 		return v.numberValidator.Validate(ctx, in)
 	default:
 		// Value is not numeric, ignore numeric constraints (per JSON Schema spec)
+		//nolint: nilnil
 		return nil, nil
 	}
 }
 
 type EmptyValidator struct{}
 
-func (e *EmptyValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (e *EmptyValidator) Validate(_ context.Context, _ any) (Result, error) {
 	// Empty schema allows anything
+	//nolint: nilnil
 	return nil, nil
 }
 
@@ -799,30 +800,32 @@ func (n *NotValidator) Validate(ctx context.Context, v any) (Result, error) {
 	if err == nil {
 		return nil, fmt.Errorf(`not validation failed: value should not validate against the schema`)
 	}
+	//nolint: nilnil
 	return nil, nil
 }
 
 type NullValidator struct{}
 
-func (n *NullValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (n *NullValidator) Validate(_ context.Context, v any) (Result, error) {
 	if v == nil {
+		//nolint: nilnil
 		return nil, nil
 	}
 	return nil, fmt.Errorf(`invalid value passed to NullValidator: expected null, got %T`, v)
 }
 
-func compileNullValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileNullValidator(_ context.Context, _ *schema.Schema) (Interface, error) {
 	return &NullValidator{}, nil
 }
 
 // GeneralValidator handles enum and const validation for schemas without specific types
 type GeneralValidator struct {
-	enum     []any
-	const_   any
-	hasConst bool
+	enum       []any
+	constValue any
+	hasConst   bool
 }
 
-func compileGeneralValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileGeneralValidator(_ context.Context, s *schema.Schema) (Interface, error) {
 	v := &GeneralValidator{}
 
 	if s.HasEnum() {
@@ -830,19 +833,20 @@ func compileGeneralValidator(ctx context.Context, s *schema.Schema) (Interface, 
 	}
 
 	if s.HasConst() {
-		v.const_ = s.Const()
+		v.constValue = s.Const()
 		v.hasConst = true
 	}
 
 	return v, nil
 }
 
-func (g *GeneralValidator) Validate(ctx context.Context, value any) (Result, error) {
+func (g *GeneralValidator) Validate(_ context.Context, value any) (Result, error) {
 	// Check const first
 	if g.hasConst {
-		if !reflect.DeepEqual(value, g.const_) {
-			return nil, fmt.Errorf(`invalid value: must equal const value %v, got %v`, g.const_, value)
+		if !reflect.DeepEqual(value, g.constValue) {
+			return nil, fmt.Errorf(`invalid value: must equal const value %v, got %v`, g.constValue, value)
 		}
+		//nolint: nilnil
 		return nil, nil
 	}
 
@@ -850,12 +854,14 @@ func (g *GeneralValidator) Validate(ctx context.Context, value any) (Result, err
 	if g.enum != nil {
 		for _, enumVal := range g.enum {
 			if reflect.DeepEqual(value, enumVal) {
+				//nolint: nilnil
 				return nil, nil
 			}
 		}
 		return nil, fmt.Errorf(`invalid value: %v not found in enum %v`, value, g.enum)
 	}
 
+	//nolint: nilnil
 	return nil, nil
 }
 
@@ -1068,7 +1074,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 
 		// Search the dynamic scope chain from oldest to most recent for matching $dynamicAnchor
 		anchorName := dynamicRef[1:] // Remove the '#' prefix
-		for i := 0; i < len(scopeChain); i++ {
+		for i := range scopeChain {
 			currentSchema := scopeChain[i]
 
 			// Check if this schema has a matching $dynamicAnchor
@@ -1095,7 +1101,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 	// Search the dynamic scope chain from oldest to most recent
 	// $dynamicRef should resolve to the nearest enclosing schema with matching $dynamicAnchor
 	// "Nearest enclosing" means closest to the root, not most recently added
-	for i := 0; i < len(scopeChain); i++ {
+	for i := range scopeChain {
 		currentSchema := scopeChain[i]
 
 		// Check if this schema has a matching $dynamicAnchor
@@ -1161,7 +1167,7 @@ func NewUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *Unevaluated
 	return v
 }
 
-func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, resolver *schema.Resolver) (*UnevaluatedPropertiesCompositionValidator, error) {
+func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, _ *schema.Resolver) (*UnevaluatedPropertiesCompositionValidator, error) {
 	v := &UnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
@@ -1259,6 +1265,7 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 		return mergedArrayResult, nil
 	}
 
+	//nolint: nilnil
 	return nil, nil
 }
 
@@ -1299,7 +1306,7 @@ func NewAnyOfUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *AnyOfU
 	return v
 }
 
-func NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, anyOfValidators []Interface, resolver *schema.Resolver) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
+func NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, anyOfValidators []Interface, _ *schema.Resolver) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &AnyOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
@@ -1388,69 +1395,69 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			currentCtx = ctx
 		}
 		return objValidator.Validate(currentCtx, in)
-	} else if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
+	}
+	if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
 		// If the base validator is a MultiValidator, we need to handle it specially
 		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
-	} else {
-		// For other validator types, just validate normally without annotation context
-		return v.baseValidator.Validate(ctx, in)
 	}
+	// For other validator types, just validate normally without annotation context
+	return v.baseValidator.Validate(ctx, in)
 }
 
 // validateMultiValidatorWithContext for AnyOf
 func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *MultiValidator, in any, previousResult *ObjectResult) (Result, error) {
-	if mv.and {
-		// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
-		var mergedResult *ObjectResult
-		if previousResult != nil {
-			mergedResult = NewObjectResult()
-			for prop := range previousResult.EvaluatedProperties() {
-				mergedResult.SetEvaluatedProperty(prop)
-			}
-		}
-
-		for i, subValidator := range mv.validators {
-			var result Result
-			var err error
-
-			// Each cousin validator should be validated independently
-			// without seeing evaluated properties from other cousins
-			// Only pass the original previousResult context, not accumulated cousin results
-			if objValidator, ok := subValidator.(*objectValidator); ok {
-				var previouslyEvaluated map[string]bool
-				if previousResult != nil {
-					previouslyEvaluated = previousResult.EvaluatedProperties()
-				}
-				var currentCtx context.Context
-				if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-					currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
-				} else {
-					currentCtx = ctx
-				}
-				result, err = objValidator.Validate(currentCtx, in)
-			} else {
-				result, err = subValidator.Validate(ctx, in)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
-			}
-
-			// Merge object results
-			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-				if mergedResult == nil {
-					mergedResult = NewObjectResult()
-				}
-				for prop := range objResult.EvaluatedProperties() {
-					mergedResult.SetEvaluatedProperty(prop)
-				}
-			}
-		}
-		return mergedResult, nil
-	} else {
+	if !mv.and {
 		// For OR mode, just validate normally
 		return mv.Validate(ctx, in)
 	}
+
+	// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
+	var mergedResult *ObjectResult
+	if previousResult != nil {
+		mergedResult = NewObjectResult()
+		for prop := range previousResult.EvaluatedProperties() {
+			mergedResult.SetEvaluatedProperty(prop)
+		}
+	}
+
+	for i, subValidator := range mv.validators {
+		var result Result
+		var err error
+
+		// Each cousin validator should be validated independently
+		// without seeing evaluated properties from other cousins
+		// Only pass the original previousResult context, not accumulated cousin results
+		if objValidator, ok := subValidator.(*objectValidator); ok {
+			var previouslyEvaluated map[string]bool
+			if previousResult != nil {
+				previouslyEvaluated = previousResult.EvaluatedProperties()
+			}
+			var currentCtx context.Context
+			if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
+				currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
+			} else {
+				currentCtx = ctx
+			}
+			result, err = objValidator.Validate(currentCtx, in)
+		} else {
+			result, err = subValidator.Validate(ctx, in)
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
+		}
+
+		// Merge object results
+		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
+			if mergedResult == nil {
+				mergedResult = NewObjectResult()
+			}
+			for prop := range objResult.EvaluatedProperties() {
+				mergedResult.SetEvaluatedProperty(prop)
+			}
+		}
+	}
+	return mergedResult, nil
 }
 
 // OneOfUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with oneOf
@@ -1468,7 +1475,7 @@ func NewOneOfUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *OneOfU
 	return v
 }
 
-func NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, oneOfValidators []Interface, resolver *schema.Resolver) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
+func NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, oneOfValidators []Interface, _ *schema.Resolver) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &OneOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
@@ -1557,69 +1564,69 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			currentCtx = ctx
 		}
 		return objValidator.Validate(currentCtx, in)
-	} else if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
+	}
+
+	if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
 		// If the base validator is a MultiValidator, we need to handle it specially
 		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
-	} else {
-		// For other validator types, just validate normally without annotation context
-		return v.baseValidator.Validate(ctx, in)
 	}
+	// For other validator types, just validate normally without annotation context
+	return v.baseValidator.Validate(ctx, in)
 }
 
 // validateMultiValidatorWithContext for OneOf
 func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *MultiValidator, in any, previousResult *ObjectResult) (Result, error) {
-	if mv.and {
-		// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
-		var mergedResult *ObjectResult
-		if previousResult != nil {
-			mergedResult = NewObjectResult()
-			for prop := range previousResult.EvaluatedProperties() {
-				mergedResult.SetEvaluatedProperty(prop)
-			}
-		}
-
-		for i, subValidator := range mv.validators {
-			var result Result
-			var err error
-
-			// Each cousin validator should be validated independently
-			// without seeing evaluated properties from other cousins
-			// Only pass the original previousResult context, not accumulated cousin results
-			if objValidator, ok := subValidator.(*objectValidator); ok {
-				var previouslyEvaluated map[string]bool
-				if previousResult != nil {
-					previouslyEvaluated = previousResult.EvaluatedProperties()
-				}
-				var currentCtx context.Context
-				if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-					currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
-				} else {
-					currentCtx = ctx
-				}
-				result, err = objValidator.Validate(currentCtx, in)
-			} else {
-				result, err = subValidator.Validate(ctx, in)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
-			}
-
-			// Merge object results
-			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-				if mergedResult == nil {
-					mergedResult = NewObjectResult()
-				}
-				for prop := range objResult.EvaluatedProperties() {
-					mergedResult.SetEvaluatedProperty(prop)
-				}
-			}
-		}
-		return mergedResult, nil
-	} else {
+	if !mv.and {
 		// For OR mode, just validate normally
 		return mv.Validate(ctx, in)
 	}
+	// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
+	var mergedResult *ObjectResult
+	if previousResult != nil {
+		mergedResult = NewObjectResult()
+		for prop := range previousResult.EvaluatedProperties() {
+			mergedResult.SetEvaluatedProperty(prop)
+		}
+	}
+
+	for i, subValidator := range mv.validators {
+		var result Result
+		var err error
+
+		// Each cousin validator should be validated independently
+		// without seeing evaluated properties from other cousins
+		// Only pass the original previousResult context, not accumulated cousin results
+		if objValidator, ok := subValidator.(*objectValidator); ok {
+			var previouslyEvaluated map[string]bool
+			if previousResult != nil {
+				previouslyEvaluated = previousResult.EvaluatedProperties()
+			}
+			var currentCtx context.Context
+			if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
+				currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
+			} else {
+				currentCtx = ctx
+			}
+			result, err = objValidator.Validate(currentCtx, in)
+		} else {
+			result, err = subValidator.Validate(ctx, in)
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
+		}
+
+		// Merge object results
+		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
+			if mergedResult == nil {
+				mergedResult = NewObjectResult()
+			}
+			for prop := range objResult.EvaluatedProperties() {
+				mergedResult.SetEvaluatedProperty(prop)
+			}
+		}
+	}
+	return mergedResult, nil
 }
 
 // RefUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with $ref
@@ -1755,6 +1762,7 @@ func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
 			return mergedArrayResult, nil
 		}
 
+		//nolint:nilnil
 		return nil, nil
 	}
 

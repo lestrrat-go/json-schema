@@ -157,20 +157,20 @@ type SchemaOrBool interface {
     schemaOrBool() // internal identifier
 }
 
-type SchemaBool bool // represents a boolean value in allOf, oneOf, etc
+type BoolSchema bool // represents a boolean value in allOf, oneOf, etc
 type Schema struct { ... } // a real Schema.
 ```
 
-`SchemaBool` should be a simple struct that knows how to Marshal to/Unmarshal from
+`BoolSchema` should be a simple struct that knows how to Marshal to/Unmarshal from
 JSON.
 
 ```
-func (s *SchemaBool) UnmarshalJSON(data []byte) error {
+func (s *BoolSchema) UnmarshalJSON(data []byte) error {
     var b bool
     if err := json.Unmarshal(data, &b); err != nil {
         return ...
     }
-    *s = SchemaBool(b)
+    *s = BoolSchema(b)
     return nil
 }
 ```
@@ -200,17 +200,17 @@ for dec.More() {
 }
 ```
 
-For convenience, there should be two functions SchemaTrue() and SchemaFalse() that return the respective SchemaBool objects.
+For convenience, there should be two functions SchemaTrue() and SchemaFalse() that return the respective BoolSchema objects.
 
 ```
-var schemaTrue = SchemaBool(true)
-var schemaFalse = SchemaFalse(false)
+var trueSchema = BoolSchema(true)
+var falseSchema = FalseSchema(false)
 
-func SchemaTrue() SchemaBool {
+func TrueSchema() BoolSchema {
     return schemaTrue
 }
 
-func SchemaFalse() SchemaBool {
+func FalseSchema() BoolSchema {
     return schemaFalse
 }
 ```

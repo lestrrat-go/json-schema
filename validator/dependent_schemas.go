@@ -15,6 +15,7 @@ type dependentSchemasValidator struct {
 // When a property name exists in the data object, the corresponding schema must also validate the entire object.
 func DependentSchemasValidator(ctx context.Context, dependentSchemas map[string]*schema.Schema) (Interface, error) {
 	if len(dependentSchemas) == 0 {
+		//nolint: nilnil
 		return nil, nil
 	}
 
@@ -36,6 +37,7 @@ func (v *dependentSchemasValidator) Validate(ctx context.Context, value any) (Re
 	// dependentSchemas only applies to objects
 	obj, ok := value.(map[string]any)
 	if !ok {
+		//nolint: nilnil
 		return nil, nil
 	}
 
@@ -50,5 +52,6 @@ func (v *dependentSchemasValidator) Validate(ctx context.Context, value any) (Re
 		}
 	}
 
+	//nolint: nilnil
 	return nil, nil
 }

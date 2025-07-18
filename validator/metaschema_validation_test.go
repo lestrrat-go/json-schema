@@ -38,7 +38,7 @@ func setupMetaschemaServer(t *testing.T) *httptest.Server {
 
 	for path, templateFile := range metaschemaFiles {
 		// Capture variables in closure
-		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 			t.Logf("HTTP Server: Serving %s from template %s", path, templateFile)
 
 			// Read template file from embed.FS

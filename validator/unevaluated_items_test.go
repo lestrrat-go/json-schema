@@ -21,7 +21,7 @@ func TestUnevaluatedItems(t *testing.T) {
 		s, err := schema.NewBuilder().
 			Types(schema.ArrayType).
 			Contains(containsSchema).
-			UnevaluatedItems(schema.SchemaFalse()).
+			UnevaluatedItems(schema.FalseSchema()).
 			Build()
 		require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func TestUnevaluatedItems(t *testing.T) {
 		s, err := schema.NewBuilder().
 			Types(schema.ArrayType).
 			Contains(containsSchema).
-			UnevaluatedItems(schema.SchemaTrue()).
+			UnevaluatedItems(schema.TrueSchema()).
 			Build()
 		require.NoError(t, err)
 

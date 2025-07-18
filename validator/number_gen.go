@@ -21,6 +21,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			tmp = float64(rv.Int())
+			b.MultipleOf(tmp)
 		case reflect.Float32, reflect.Float64:
 			tmp = rv.Float()
 		default:
@@ -216,7 +217,7 @@ func (b *NumberValidatorBuilder) Reset() *NumberValidatorBuilder {
 	return b
 }
 
-func (v *numberValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *numberValidator) Validate(_ context.Context, in any) (Result, error) {
 	rv := reflect.ValueOf(in)
 
 	var n float64

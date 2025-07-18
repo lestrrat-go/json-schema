@@ -42,7 +42,7 @@ type stringValidator struct {
 	strictStringType bool // true when schema explicitly declares type: string
 }
 
-func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *stringValidator) Validate(_ context.Context, in any) (Result, error) {
 	rv := reflect.ValueOf(in)
 
 	switch rv.Kind() {
@@ -56,6 +56,7 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 		}
 		// For non-string values with inferred string type, string constraints don't apply
 		// According to JSON Schema spec, string constraints should be ignored for non-strings
+		//nolint: nilnil
 		return nil, nil
 	}
 
@@ -100,6 +101,7 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 		}
 	}
 
+	//nolint: nilnil
 	return nil, nil
 }
 
@@ -198,7 +200,7 @@ func (b *StringValidatorBuilder) MaxLength(v int) *StringValidatorBuilder {
 		return b
 	}
 
-	var uv uint = uint(v)
+	uv := uint(v)
 	b.c.maxLength = &uv
 	return b
 }
@@ -213,7 +215,7 @@ func (b *StringValidatorBuilder) MinLength(v int) *StringValidatorBuilder {
 		return b
 	}
 
-	var uv uint = uint(v)
+	uv := uint(v)
 	b.c.minLength = &uv
 	return b
 }

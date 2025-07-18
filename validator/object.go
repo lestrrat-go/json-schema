@@ -59,7 +59,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		if additionalProps != nil {
 			// Handle SchemaOrBool types
 			switch val := additionalProps.(type) {
-			case schema.SchemaBool:
+			case schema.BoolSchema:
 				// This is a boolean value
 				v.AdditionalPropertiesBool(bool(val))
 			case *schema.Schema:
@@ -89,7 +89,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		if unevaluatedProps != nil {
 			// Handle SchemaOrBool types
 			switch val := unevaluatedProps.(type) {
-			case schema.SchemaBool:
+			case schema.BoolSchema:
 				// This is a boolean value
 				v.UnevaluatedPropertiesBool(bool(val))
 			case *schema.Schema:
@@ -292,7 +292,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	case reflect.Struct:
 		properties = make(map[string]any)
 		t := rv.Type()
-		for i := 0; i < rv.NumField(); i++ {
+		for i := range rv.NumField() {
 			field := t.Field(i)
 			if field.IsExported() {
 				fieldName := field.Name
@@ -310,6 +310,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		}
 		// For non-object values with inferred object type, object constraints don't apply
 		// According to JSON Schema spec, object constraints should be ignored for non-objects
+		//nolint: nilnil
 		return nil, nil
 	}
 

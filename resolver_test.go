@@ -103,10 +103,7 @@ func TestResolveFileReference(t *testing.T) {
 	require.NoError(t, os.WriteFile(addressFile, addressData, 0644))
 
 	// Change to tmpDir for relative path resolution
-	oldDir, err := os.Getwd()
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(oldDir) }()
-	require.NoError(t, os.Chdir(tmpDir))
+	t.Chdir(tmpDir)
 
 	resolver := schema.NewResolver()
 
@@ -241,10 +238,7 @@ $defs:
 	require.NoError(t, os.WriteFile(yamlFile, []byte(yamlContent), 0644))
 
 	// Change to tmpDir for relative path resolution
-	oldDir, err := os.Getwd()
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(oldDir) }()
-	require.NoError(t, os.Chdir(tmpDir))
+	t.Chdir(tmpDir)
 
 	resolver := schema.NewResolver()
 
