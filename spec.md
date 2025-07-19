@@ -376,6 +376,629 @@ Validation for dependentSchemas should return a Result object that records which
 been evaluated. These results, if necessary, should be combined with other Results from, for example,
 evaluating against "properties" field.
 
+# Validator Code Generation
+
+## Overview
+
+To optimize performance and eliminate runtime compilation overhead, the library supports generating Go code that directly creates compiled validators. This allows skipping the "build schema → compile validator" pipeline and jumping directly to the "use validator" stage.
+
+## Pipeline Stages
+
+The complete validation pipeline consists of three stages:
+
+1. **Schema Construction**: Build JSON Schema objects using builders
+2. **Validator Compilation**: Convert schemas to optimized validator objects  
+3. **Validation Execution**: Use validators to validate data
+4. **Code Generation** (Optional): Generate Go code that directly creates validators
+
+```go
+// Stage 1: Build Schema
+schema := schema.NewBuilder().
+    Type(schema.StringType).
+    MinLength(5).
+    Pattern("^[a-z]+$").
+    MustBuild()
+
+// Stage 2: Compile Validator  
+validator, err := validator.Compile(ctx, schema)
+
+// Stage 3: Validate Data
+result, err := validator.Validate(ctx, "hello")
+
+// Stage 4: Generate Code (optional optimization)
+code, err := validator.GenerateCode("MyValidator", validator)
+```
+
+## Code Generation API
+
+### Generator Interface
+
+```go
+package validator
+
+// CodeGenerator generates Go code that creates equivalent validators
+type CodeGenerator interface {
+    // GenerateCode creates Go code that constructs the given validator
+    GenerateCode(validatorName string, v Interface) (string, error)
+    
+    // GeneratePackage creates a complete Go package with validators
+    GeneratePackage(packageName string, validators map[string]Interface) (string, error)
+}
+
+// NewCodeGenerator creates a new code generator with default settings
+func NewCodeGenerator(opts ...CodeGenOption) CodeGenerator
+
+// CodeGenOption configures code generation behavior
+type CodeGenOption func(*codeGenConfig)
+
+// WithPackageImports specifies additional imports for generated code
+func WithPackageImports(imports ...string) CodeGenOption
+
+// WithValidatorPrefix sets a prefix for generated validator variable names
+func WithValidatorPrefix(prefix string) CodeGenOption
+```
+
+### Generated Code Structure
+
+Generated code creates validators using the existing builder API, but with all values pre-computed:
+
+```go
+// Generated code example
+package generated
+
+import (
+    "regexp"
+    "github.com/lestrrat-go/json-schema/validator"
+)
+
+var emailPatternRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+func NewEmailValidator() validator.Interface {
+    return validator.String().
+        MinLength(5).
+        MaxLength(100).
+        Pattern(emailPatternRegex.String()).
+        Format("email").
+        MustBuild()
+}
+
+func NewComplexValidator() validator.Interface {
+    stringValidator := validator.String().
+        MinLength(1).
+        MustBuild()
+    
+    numberValidator := validator.Number().
+        Minimum(0).
+        MustBuild()
+    
+    return validator.NewMultiValidator(validator.AndMode).
+        Add(stringValidator).
+        Add(numberValidator).
+        MustBuild()
+}
+```
+
+## Direct Field Access Approach
+
+Instead of using intermediate data structures, the code generator directly accesses validator fields to generate equivalent builder code. This approach is simpler, more efficient, and avoids unnecessary data copying.
+
+### Implementation Strategy
+
+1. **Add Introspection Methods**: Each validator struct implements `Introspectable`
+
+```go
+func (v *stringValidator) IntrospectConfig() ValidatorConfig {
+    constraints := make(map[string]any)
+    if v.minLength != nil {
+        constraints["minLength"] = *v.minLength
+    }
+    if v.maxLength != nil {
+        constraints["maxLength"] = *v.maxLength
+    }
+    if v.pattern != nil {
+        constraints["pattern"] = v.pattern.String()
+    }
+    // ... other constraints
+    
+    return ValidatorConfig{
+        Type:        StringValidatorType,
+        Constraints: constraints,
+    }
+}
+```
+
+2. **Recursive Introspection**: Complex validators introspect their children
+
+```go
+func (v *MultiValidator) IntrospectConfig() ValidatorConfig {
+    children := make([]ValidatorConfig, len(v.validators))
+    for i, child := range v.validators {
+        if intro, ok := child.(Introspectable); ok {
+            children[i] = intro.IntrospectConfig()
+        }
+    }
+    
+    constraints := map[string]any{
+        "mode": v.mode,
+    }
+    
+    return ValidatorConfig{
+        Type:        MultiValidatorType,
+        Constraints: constraints,
+        Children:    children,
+    }
+}
+```
+
+## Code Generation Implementation
+
+### Template-Based Generation
+
+Use Go templates to generate clean, readable code:
+
+```go
+const validatorTemplate = `
+func New{{.Name}}() validator.Interface {
+    {{- if .IsSimple}}
+    return validator.{{.Type}}().
+        {{- range .Constraints}}
+        {{.Method}}({{.Value}}).
+        {{- end}}
+        MustBuild()
+    {{- else}}
+    {{- range .Children}}
+    {{.VarName}} := {{.GenerateCode}}
+    {{- end}}
+    
+    return validator.{{.Type}}().
+        {{- range .Children}}
+        Add({{.VarName}}).
+        {{- end}}
+        MustBuild()
+    {{- end}}
+}
+`
+```
+
+### Optimization Considerations
+
+1. **Pre-compiled Regexes**: Generate package-level regex variables
+2. **Shared Validators**: Detect and reuse identical sub-validators
+3. **Import Management**: Generate minimal import lists
+4. **Formatting**: Use `go fmt` for clean output
+
+## Usage Examples
+
+### Basic Usage
+
+```go
+// Compile validator once
+validator, err := validator.Compile(ctx, schema)
+
+// Generate code for deployment
+generator := validator.NewCodeGenerator()
+code, err := generator.GenerateCode("UserEmailValidator", validator)
+
+// Write to file
+ioutil.WriteFile("validators_gen.go", []byte(code), 0644)
+```
+
+### Package Generation
+
+```go
+validators := map[string]validator.Interface{
+    "Email":    emailValidator,
+    "Password": passwordValidator,
+    "UserID":   userIDValidator,
+}
+
+generator := validator.NewCodeGenerator(
+    validator.WithPackageImports("regexp", "strings"),
+    validator.WithValidatorPrefix("Compiled"),
+)
+
+packageCode, err := generator.GeneratePackage("validators", validators)
+```
+
+## Integration Points
+
+1. **Build Tools**: Integrate with `go generate` for automated code generation
+2. **CI/CD**: Generate validators during build process for production deployments
+3. **Testing**: Generated validators should produce identical results to compiled validators
+4. **Benchmarking**: Compare performance of generated vs compiled validators
+
+## Implementation Details
+
+### Required Files and Structure
+
+1. **`validator/codegen.go`** - Core interfaces and types:
+```go
+package validator
+
+// CodeGenerator generates Go code that creates equivalent validators
+type CodeGenerator interface {
+    GenerateCode(validatorName string, v Interface) (string, error)
+    GeneratePackage(packageName string, validators map[string]Interface) (string, error)
+}
+
+type CodeGenOption func(*codeGenConfig)
+type codeGenConfig struct {
+    packageImports   []string
+    validatorPrefix  string
+    includeComments  bool
+}
+
+func WithPackageImports(imports ...string) CodeGenOption
+func WithValidatorPrefix(prefix string) CodeGenOption  
+func WithIncludeComments(include bool) CodeGenOption
+func NewCodeGenerator(opts ...CodeGenOption) CodeGenerator
+```
+
+2. **`validator/generator.go`** - Direct field access code generator:
+
+**APPROACH**: Use type switches to directly access validator fields and generate builder code without intermediate data structures.
+
+```go
+package validator
+
+import (
+    "bytes"
+    "fmt"
+    "go/format"
+    "strings"
+    "text/template"
+)
+
+type codeGenerator struct {
+    config codeGenConfig
+}
+
+func NewCodeGenerator(opts ...CodeGenOption) CodeGenerator {
+    config := codeGenConfig{
+        validatorPrefix: "",
+        includeComments: true,
+    }
+    for _, opt := range opts {
+        opt(&config)
+    }
+    return &codeGenerator{config: config}
+}
+
+func (g *codeGenerator) GenerateCode(validatorName string, v Interface) (string, error) {
+    switch validator := v.(type) {
+    case *stringValidator:
+        return g.generateStringValidator(validatorName, validator)
+    case *integerValidator:
+        return g.generateIntegerValidator(validatorName, validator)
+    case *numberValidator:
+        return g.generateNumberValidator(validatorName, validator)
+    case *booleanValidator:
+        return g.generateBooleanValidator(validatorName, validator)
+    case *arrayValidator:
+        return g.generateArrayValidator(validatorName, validator)
+    case *MultiValidator:
+        return g.generateMultiValidator(validatorName, validator)
+    case *EmptyValidator:
+        return g.generateEmptyValidator(validatorName)
+    case *NotValidator:
+        return g.generateNotValidator(validatorName, validator)
+    case *NullValidator:
+        return g.generateNullValidator(validatorName)
+    // Add cases for all other validator types...
+    default:
+        return "", fmt.Errorf("unsupported validator type: %T", v)
+    }
+}
+
+func (g *codeGenerator) generateStringValidator(name string, v *stringValidator) (string, error) {
+    var parts []string
+    
+    // Directly access validator fields - no intermediate map needed!
+    if v.minLength != nil {
+        parts = append(parts, fmt.Sprintf("MinLength(%d)", *v.minLength))
+    }
+    if v.maxLength != nil {
+        parts = append(parts, fmt.Sprintf("MaxLength(%d)", *v.maxLength))
+    }
+    if v.pattern != nil {
+        parts = append(parts, fmt.Sprintf("Pattern(%q)", v.pattern.String()))
+    }
+    if v.format != nil {
+        parts = append(parts, fmt.Sprintf("Format(%q)", *v.format))
+    }
+    if v.enum != nil {
+        enumStr := formatStringSlice(v.enum)
+        parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+    }
+    if v.constantValue != nil {
+        parts = append(parts, fmt.Sprintf("Const(%q)", *v.constantValue))
+    }
+    
+    builderCalls := strings.Join(parts, ".")
+    if builderCalls != "" {
+        builderCalls = "." + builderCalls
+    }
+    
+    template := `func New%s() validator.Interface {
+    return validator.String()%s.MustBuild()
+}`
+    
+    return fmt.Sprintf(template, name, builderCalls), nil
+}
+
+func (g *codeGenerator) generateIntegerValidator(name string, v *integerValidator) (string, error) {
+    var parts []string
+    
+    if v.multipleOf != nil {
+        parts = append(parts, fmt.Sprintf("MultipleOf(%d)", *v.multipleOf))
+    }
+    if v.minimum != nil {
+        parts = append(parts, fmt.Sprintf("Minimum(%d)", *v.minimum))
+    }
+    if v.maximum != nil {
+        parts = append(parts, fmt.Sprintf("Maximum(%d)", *v.maximum))
+    }
+    if v.exclusiveMinimum != nil {
+        parts = append(parts, fmt.Sprintf("ExclusiveMinimum(%d)", *v.exclusiveMinimum))
+    }
+    if v.exclusiveMaximum != nil {
+        parts = append(parts, fmt.Sprintf("ExclusiveMaximum(%d)", *v.exclusiveMaximum))
+    }
+    if v.enum != nil {
+        enumStr := formatIntSlice(v.enum)
+        parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+    }
+    if v.constantValue != nil {
+        parts = append(parts, fmt.Sprintf("Const(%d)", *v.constantValue))
+    }
+    
+    builderCalls := strings.Join(parts, ".")
+    if builderCalls != "" {
+        builderCalls = "." + builderCalls
+    }
+    
+    return fmt.Sprintf(`func New%s() validator.Interface {
+    return validator.Integer()%s.MustBuild()
+}`, name, builderCalls), nil
+}
+
+func (g *codeGenerator) generateMultiValidator(name string, v *MultiValidator) (string, error) {
+    var childDefs []string
+    var childVars []string
+    
+    // Generate code for child validators recursively
+    for i, child := range v.validators {
+        childVar := fmt.Sprintf("child%d", i)
+        childCode, err := g.GenerateCode("", child)
+        if err != nil {
+            return "", fmt.Errorf("failed to generate child validator %d: %w", i, err)
+        }
+        
+        // Extract just the validator creation part (everything after "return ")
+        creation := extractValidatorCreation(childCode)
+        childDefs = append(childDefs, fmt.Sprintf("    %s := %s", childVar, creation))
+        childVars = append(childVars, childVar)
+    }
+    
+    var mode string
+    if v.and {
+        mode = "AndMode"
+    } else if v.oneOf {
+        mode = "OneOfMode" 
+    } else {
+        mode = "OrMode"
+    }
+    
+    template := `func New%s() validator.Interface {
+%s
+    
+    return validator.NewMultiValidator(validator.%s).
+%s.
+        MustBuild()
+}`
+    
+    childDefsStr := strings.Join(childDefs, "\n")
+    addCalls := strings.Join(func() []string {
+        var calls []string
+        for _, childVar := range childVars {
+            calls = append(calls, fmt.Sprintf("        Add(%s)", childVar))
+        }
+        return calls
+    }(), ".\n")
+    
+    return fmt.Sprintf(template, name, childDefsStr, mode, addCalls), nil
+}
+
+// Helper functions
+func formatStringSlice(strs []string) string {
+    quoted := make([]string, len(strs))
+    for i, s := range strs {
+        quoted[i] = fmt.Sprintf("%q", s)
+    }
+    return fmt.Sprintf("[]string{%s}", strings.Join(quoted, ", "))
+}
+
+func formatIntSlice(ints []int) string {
+    strs := make([]string, len(ints))
+    for i, n := range ints {
+        strs[i] = fmt.Sprintf("%d", n)
+    }
+    return fmt.Sprintf("[]int{%s}", strings.Join(strs, ", "))
+}
+
+func extractValidatorCreation(code string) string {
+    // Extract the validator creation part from generated code
+    lines := strings.Split(code, "\n")
+    for _, line := range lines {
+        line = strings.TrimSpace(line)
+        if strings.HasPrefix(line, "return ") {
+            return strings.TrimPrefix(line, "return ")
+        }
+    }
+    return ""
+}
+```
+
+### Key Benefits of Direct Field Access
+
+1. **No Intermediate Data**: Eliminates unnecessary map creation and copying
+2. **Type Safety**: Direct field access with compile-time type checking  
+3. **Simplicity**: Straightforward code generation without abstraction layers
+4. **Performance**: Faster code generation with fewer allocations
+5. **Maintainability**: Clear, readable generation logic
+
+### Critical Implementation Requirements
+
+1. **Complete Generator Implementation**: Add generation methods for ALL validator types found in the codebase:
+
+**Required Methods in `generator.go`:**
+   - `generateStringValidator()` ✅ (shown above)
+   - `generateIntegerValidator()` ✅ (shown above)  
+   - `generateNumberValidator()` (similar to integer)
+   - `generateBooleanValidator()` (similar pattern)
+   - `generateArrayValidator()` (complex - handles children)
+   - `generateMultiValidator()` ✅ (shown above)
+   - `generateEmptyValidator()` (trivial)
+   - `generateNotValidator()` (wraps child)
+   - `generateNullValidator()` (trivial)
+   - `generateGeneralValidator()` (enum/const handling)
+   - `generateReferenceValidator()` (complex - reference resolution)
+   - `generateContentValidator()` (content encoding/media type)
+   - `generateDependentSchemasValidator()` (complex - map of validators)
+   - And methods for all other validator types
+
+2. **Field Access Requirements**: Each generation method must directly access the validator's private fields. This requires:
+   - Understanding the exact field names and types for each validator
+   - Proper handling of pointer fields (check for nil)
+   - Correct formatting of different field types (strings, ints, slices, etc.)
+
+3. **Complex Validator Handling**: Special attention needed for validators with children:
+   - `arrayValidator`: prefixItems, items, contains, additionalItems, unevaluatedItems
+   - `MultiValidator`: validators slice with different modes
+   - `dependentSchemasValidator`: map of property name to validator
+   - Reference validators: may need special handling for circular references
+
+4. **Error Handling**: Implement robust error handling for:
+   - Unsupported validator types in the type switch
+   - Recursive generation failures for child validators  
+   - Invalid field values that can't be formatted
+   - Generated code that fails Go formatting
+
+5. **Testing Requirements**: Create comprehensive tests in `codegen_test.go` that:
+   - Generate code for every validator type
+   - Compile and run generated code
+   - Verify generated validators produce identical results to original validators
+   - Test edge cases and complex nested validators
+
+### Implementation Steps and Validation
+
+**Step 1: Create Core Interfaces (validator/codegen.go)**
+```go
+// Must include ALL types and constants shown above
+// Validate: Code compiles without errors
+```
+
+**Step 2: Implement Introspection (validator/introspect.go)**
+```go
+// Must implement IntrospectConfig() for ALL 15+ validator types
+// Validate: Run `go test ./validator/` - all existing tests still pass
+// Validate: Every validator implements Introspectable interface
+```
+
+**Step 3: Code Generator (validator/generator.go)**
+```go
+// Must handle all ValidatorType constants
+// Validate: Can generate code for String().MinLength(5).MustBuild()
+// Validate: Generated code compiles and runs correctly  
+```
+
+**Step 4: Update Code Generation Scripts**
+```go
+// Modify validator/internal/cmd/gennumeric/main.go
+// Add IntrospectConfig() generation to template
+// Validate: Run ./validator/gen.sh - regenerated files include introspection
+```
+
+**Step 5: Comprehensive Testing**
+```go
+// Test every validator type from simple to complex
+// Test nested validators (MultiValidator with children)
+// Test reference validators and circular references
+// Validate: Generated validators produce identical results to compiled ones
+```
+
+**Acceptance Criteria:**
+1. ✅ All validator structs implement `Introspectable`
+2. ✅ Code generation works for every validator type in the codebase
+3. ✅ Generated code compiles without errors
+4. ✅ Generated validators produce identical validation results
+5. ✅ Performance of generated validators is comparable or better
+6. ✅ Complex nested validators are handled correctly
+7. ✅ All existing tests continue to pass
+
+**Example End-to-End Test:**
+```go
+func TestCodeGeneration(t *testing.T) {
+    // Create a complex validator
+    schema := schema.NewBuilder().
+        Type(schema.StringType).
+        MinLength(5).
+        Pattern("^[a-z]+$").
+        MustBuild()
+    
+    originalValidator, err := validator.Compile(ctx, schema)
+    require.NoError(t, err)
+    
+    // Generate code
+    generator := validator.NewCodeGenerator()
+    code, err := generator.GenerateCode("TestValidator", originalValidator)
+    require.NoError(t, err)
+    
+    // The generated code should look like:
+    // func NewTestValidator() validator.Interface {
+    //     return validator.String().
+    //         MinLength(5).
+    //         Pattern("^[a-z]+$").
+    //         MustBuild()
+    // }
+    
+    // Verify the generated validator behaves identically
+    // (This would require compilation and execution of generated code)
+}
+```
+
+### File Organization
+
+- `validator/codegen.go`: Core code generation interfaces and types (minimal - just the interface)
+- `validator/generator.go`: Direct field access code generator implementation (main implementation)
+- `validator/codegen_test.go`: Tests ensuring generated code produces identical results
+
+### Summary: Why Direct Field Access is Better
+
+**Previous Approach (Map-based):**
+```go
+// Redundant: Copy fields to map, then read map to generate code
+constraints["minLength"] = *v.minLength  // Copy
+fmt.Sprintf("MinLength(%v)", constraints["minLength"])  // Read copy
+```
+
+**New Approach (Direct Access):**
+```go  
+// Direct: Access fields directly to generate code
+if v.minLength != nil {
+    parts = append(parts, fmt.Sprintf("MinLength(%d)", *v.minLength))
+}
+```
+
+**Key Advantages:**
+- ✅ **No intermediate data structures** - eliminates `ValidatorConfig` and `Introspectable` interface
+- ✅ **Direct field access** - type-safe, compile-time checked
+- ✅ **Simpler implementation** - fewer abstractions, clearer code  
+- ✅ **Better performance** - no copying, fewer allocations
+- ✅ **Easier maintenance** - one place to handle each validator type
+
+This approach directly addresses your original goal: **avoid building and compiling schemas by generating equivalent validator creation code directly from existing compiled validators.**
+
 # Testing
 
 ## Meta Schema Testing.
