@@ -429,18 +429,37 @@ func genBuilder(obj *codegen.Object) error {
 	o := codegen.NewOutput(&buf)
 
 	o.L("package schema")
+	o.L("")
+	o.L("import \"fmt\"")
+	o.L("")
+	o.L("type propPair struct {")
+	o.L("Name   string")
+	o.L("Schema *Schema")
+	o.L("}")
+	o.L("")
+	o.L("func validateSchemaOrBool(v SchemaOrBool) error {")
+	o.L("// Basic validation - just check if the value implements the interface")
+	o.L("if v == nil {")
+	o.L("return fmt.Errorf(\"value cannot be nil\")")
+	o.L("}")
+	o.L("return nil")
+	o.L("}")
 
 	o.LL("type Builder struct {")
 	o.L("err error")
 	for _, field := range obj.Fields() {
-		switch field.Type() {
+		fieldType := field.Type()
+		
+		switch fieldType {
 		case `map[string]*Schema`:
 			o.L("%s []*propPair", field.Name(false))
-		default:
+		}
+		
+		if field.Type() != `map[string]*Schema` {
 			if !isNilZeroType(field) && !isInterfaceField(field) {
-				o.L("%s *%s", field.Name(false), field.Type())
+				o.L("%s *%s", field.Name(false), fieldType)
 			} else {
-				o.L("%s %s", field.Name(false), field.Type())
+				o.L("%s %s", field.Name(false), fieldType)
 			}
 		}
 	}
@@ -498,6 +517,7 @@ func genBuilder(obj *codegen.Object) error {
 				o.L("}")
 			} else {
 				paramType := field.Type()
+				
 				o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), paramType)
 				o.L("if b.err != nil {")
 				o.L("return b")
@@ -547,10 +567,16 @@ func genBuilder(obj *codegen.Object) error {
 		default:
 			if field.Name(false) == "schema" {
 				// Special handling for schema field (it's a string, not a pointer)
-				o.LL("b.%s = original.%s", field.Name(false), field.Name(false))
+				o.LL("b.%s = original.schema", field.Name(false))
 			} else {
 				o.LL("if original.Has%s() {", field.Name(true))
-				o.L("b.%s = original.%s", field.Name(false), field.Name(false))
+				if !isNilZeroType(field) && !isInterfaceField(field) {
+					// For pointer fields, can assign the pointer directly
+					o.L("b.%s = original.%s", field.Name(false), field.Name(false))
+				} else {
+					// For slice/map/interface fields, can assign directly
+					o.L("b.%s = original.%s", field.Name(false), field.Name(false))
+				}
 				o.L("}")
 			}
 		}

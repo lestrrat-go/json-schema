@@ -19,7 +19,7 @@ type contentValidator struct {
 }
 
 func compileContentValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
-	if !s.HasContentEncoding() && !s.HasContentMediaType() && !s.HasContentSchema() {
+	if !s.HasAny(schema.ContentFields) {
 		return nil, nil //nolint:nilnil // Intentional: JSON Schema spec allows validators to return nil result
 	}
 

@@ -58,6 +58,40 @@ func FalseSchema() BoolSchema {
 	return falseSchema
 }
 
+
+// Predefined field groups for common bit flag checks
+
+// StringConstraintFields groups all string-related validation fields
+const StringConstraintFields = MinLengthField | MaxLengthField | PatternField | FormatField
+
+// NumericConstraintFields groups all numeric validation fields
+const NumericConstraintFields = MinimumField | MaximumField | MultipleOfField | ExclusiveMinimumField | ExclusiveMaximumField
+
+// ObjectConstraintFields groups all object validation fields  
+const ObjectConstraintFields = PropertiesField | AdditionalPropertiesField | RequiredField | MinPropertiesField | MaxPropertiesField | PatternPropertiesField | PropertyNamesField | UnevaluatedPropertiesField
+
+// ArrayConstraintFields groups all array validation fields
+const ArrayConstraintFields = ItemsField | MinItemsField | MaxItemsField | UniqueItemsField | PrefixItemsField | ContainsField | MinContainsField | MaxContainsField | UnevaluatedItemsField
+
+// CompositionFields groups all composition/logical fields
+const CompositionFields = AllOfField | AnyOfField | OneOfField | NotField
+
+// ConditionalFields groups all conditional validation fields
+const ConditionalFields = IfSchemaField | ThenSchemaField | ElseSchemaField
+
+// ContentFields groups all content-related validation fields
+const ContentFields = ContentEncodingField | ContentMediaTypeField | ContentSchemaField
+
+// BasicPropertiesFields groups basic property-related fields (excluding constraints like minProperties)
+const BasicPropertiesFields = PropertiesField | PatternPropertiesField | AdditionalPropertiesField
+
+// UnevaluatedFields groups unevaluated items and properties fields
+const UnevaluatedFields = UnevaluatedPropertiesField | UnevaluatedItemsField
+
+// ValueConstraintFields groups enum and const constraint fields
+const ValueConstraintFields = EnumField | ConstField
+
+
 // unmarshalSchemaOrBoolSlice parses a JSON array using token-based decoding
 func unmarshalSchemaOrBoolSlice(dec *json.Decoder) ([]SchemaOrBool, error) {
 	// We need to decode the array as raw JSON first, then handle each element
@@ -120,20 +154,6 @@ func unmarshalSchemaOrBoolMap(dec *json.Decoder) (map[string]SchemaOrBool, error
 	return result, nil
 }
 
-// validateSchemaOrBool checks if a value is either a bool, BoolSchema, or *Schema
-func validateSchemaOrBool(v any) error {
-	switch v.(type) {
-	case bool, BoolSchema, *Schema:
-		return nil
-	default:
-		return fmt.Errorf(`expected bool, BoolSchema, or *Schema, got %T`, v)
-	}
-}
-
-type propPair struct {
-	Name   string
-	Schema *Schema
-}
 
 // compareFieldNames compares two field names with custom sorting logic:
 // Character-by-character comparison where at each position:

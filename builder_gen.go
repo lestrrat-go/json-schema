@@ -2,6 +2,19 @@ package schema
 
 import "fmt"
 
+type propPair struct {
+	Name   string
+	Schema *Schema
+}
+
+func validateSchemaOrBool(v SchemaOrBool) error {
+	// Basic validation - just check if the value implements the interface
+	if v == nil {
+		return fmt.Errorf("value cannot be nil")
+	}
+	return nil
+}
+
 type Builder struct {
 	err                   error
 	additionalItems       SchemaOrBool

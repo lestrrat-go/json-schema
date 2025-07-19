@@ -408,7 +408,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Check if the schema has other constraints besides $ref
 		if hasOtherConstraints(s) {
 			// Special handling for $ref + unevaluatedProperties
-			if s.HasUnevaluatedProperties() && (s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties()) {
+			if s.HasUnevaluatedProperties() && s.HasAny(schema.BasicPropertiesFields) {
 				// Create a composition validator that properly handles annotation flow
 				compositionValidator := NewRefUnevaluatedPropertiesCompositionValidator(ctx, s, refValidator)
 				return compositionValidator, nil
@@ -458,7 +458,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Handle schema composition first
 	if s.HasAllOf() {
 		// Special handling for allOf with unevaluatedProperties or unevaluatedItems in base schema
-		if hasBaseConstraints(s) && (s.HasUnevaluatedProperties() || s.HasUnevaluatedItems()) {
+		if hasBaseConstraints(s) && s.HasAny(schema.UnevaluatedFields) {
 			// Create a special validator that evaluates allOf first, then base constraints with annotation context
 			compositionValidator, err := NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, schema.ResolverFromContext(ctx))
 			if err != nil {
@@ -621,11 +621,11 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		(s.HasIfSchema() && hasBaseConstraints(s) && s.HasUnevaluatedProperties())
 
 	if len(types) == 0 && !hasCompositionValidator {
-		if s.HasMinLength() || s.HasMaxLength() || s.HasPattern() {
+		if s.HasAny(schema.StringConstraintFields) {
 			types = append(types, schema.StringType)
 			inferredTypes[schema.StringType] = true
 		}
-		if s.HasMinimum() || s.HasMaximum() || s.HasExclusiveMinimum() || s.HasExclusiveMaximum() || s.HasMultipleOf() {
+		if s.HasAny(schema.NumericConstraintFields) {
 			// For inferred numeric types, create a non-strict validator that only validates numeric constraints when values are numbers
 			v, err := compileInferredNumberValidator(ctx, s)
 			if err != nil {
@@ -633,7 +633,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, v)
 		}
-		if s.HasMinItems() || s.HasMaxItems() || s.HasUniqueItems() || s.HasItems() || s.HasContains() || s.HasUnevaluatedItems() || s.HasPrefixItems() {
+		if s.HasAny(schema.ArrayConstraintFields) {
 			// For inferred array types, create a non-strict array validator
 			v, err := compileArrayValidator(ctx, s, false)
 			if err != nil {
@@ -641,7 +641,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, v)
 		}
-		if s.HasMinProperties() || s.HasMaxProperties() || s.HasRequired() || s.HasDependentRequired() || s.HasProperties() || s.HasPatternProperties() || s.HasAdditionalProperties() || s.HasUnevaluatedProperties() || s.HasDependentSchemas() || s.HasPropertyNames() {
+		if s.HasAny(schema.ObjectConstraintFields) {
 			// For inferred object types, create non-strict object validator
 			v, err := compileObjectValidator(ctx, s, false)
 			if err != nil {
@@ -653,7 +653,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Handle general enum/const validation when no specific type is set
 	// Skip this if we have composition validators that will handle these constraints
-	if len(types) == 0 && (s.HasEnum() || s.HasConst()) && !hasCompositionValidator {
+	if len(types) == 0 && s.HasAny(schema.ValueConstraintFields) && !hasCompositionValidator {
 		validator, err := compileGeneralValidator(ctx, s)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile general validator: %w`, err)
