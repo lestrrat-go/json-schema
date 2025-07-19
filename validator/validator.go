@@ -11,6 +11,7 @@ import (
 
 	"github.com/lestrrat-go/blackmagic"
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // Interface is the interface that all validators must implement.
@@ -287,6 +288,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Set up base schema for local reference resolution if none provided
 	if schema.BaseSchemaFromContext(ctx) == nil {
 		ctx = schema.WithBaseSchema(ctx, s)
+	}
+
+	// Set up vocabulary context if none provided
+	// Default to JSON Schema 2020-12 default vocabulary (format-assertion disabled)
+	var vocabSet VocabularySet
+	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
+		// No vocabulary set in context, use default vocabulary per JSON Schema spec
+		ctx = WithVocabularySet(ctx, DefaultVocabularySet())
 	}
 
 	// Add current schema to dynamic scope chain for $dynamicRef resolution

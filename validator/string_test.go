@@ -856,7 +856,10 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				}
 				require.NoError(t, err)
 
-				v, err := validator.Compile(context.Background(), s)
+				// For direct format validation tests, enable format-assertion
+				ctx := context.Background()
+				ctx = validator.WithVocabularySet(ctx, validator.AllEnabled())
+				v, err := validator.Compile(ctx, s)
 				require.NoError(t, err)
 
 				_, err = v.Validate(context.Background(), tc.value)

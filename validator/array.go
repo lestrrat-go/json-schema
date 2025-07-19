@@ -359,10 +359,8 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: maximum contains constraint failed: found %d, expected at most %d`, containsCount, *c.maxContains)
 			}
 		} else {
-			// Check minContains and maxContains without contains schema
-			if c.minContains != nil && *c.minContains > 0 {
-				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: minimum contains constraint failed: found 0, expected at least %d`, *c.minContains)
-			}
+			// According to JSON Schema spec, minContains and maxContains are ignored when contains is not present
+			// No validation needed when contains schema is absent
 		}
 
 		// Validate additionalItems for items beyond the defined items schema

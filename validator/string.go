@@ -165,8 +165,14 @@ func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bo
 	if s.HasPattern() && IsKeywordEnabledInContext(ctx, "pattern") {
 		v.Pattern(s.Pattern())
 	}
-	if s.HasFormat() && IsKeywordEnabledInContext(ctx, "format") {
-		v.Format(s.Format())
+	// Format validation should only be enforced when format-assertion vocabulary is enabled
+	// When only format-annotation is enabled, format should be treated as annotation-only
+	if s.HasFormat() {
+		vocabSet := VocabularySetFromContext(ctx)
+		if vocabSet.IsEnabled("https://json-schema.org/draft/2020-12/vocab/format-assertion") {
+			v.Format(s.Format())
+		}
+		// If only format-annotation is enabled, we skip format validation (annotation-only behavior)
 	}
 	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
 		enums := s.Enum()

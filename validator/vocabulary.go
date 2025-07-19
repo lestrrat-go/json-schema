@@ -123,6 +123,22 @@ func AllEnabled() VocabularySet {
 	}
 }
 
+// DefaultVocabularySet returns the default vocabulary set for JSON Schema 2020-12
+// This is the vocabulary set that should be used when no explicit vocabulary is specified
+// It includes annotation vocabularies but excludes assertion vocabularies like format-assertion
+func DefaultVocabularySet() VocabularySet {
+	return VocabularySet{
+		"https://json-schema.org/draft/2020-12/vocab/core":              true,
+		"https://json-schema.org/draft/2020-12/vocab/applicator":        true,
+		"https://json-schema.org/draft/2020-12/vocab/unevaluated":       true,
+		"https://json-schema.org/draft/2020-12/vocab/validation":        true,
+		"https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
+		"https://json-schema.org/draft/2020-12/vocab/format-assertion":  false, // Disabled by default - format is annotation-only unless explicitly enabled
+		"https://json-schema.org/draft/2020-12/vocab/content":           true,
+		"https://json-schema.org/draft/2020-12/vocab/meta-data":         true,
+	}
+}
+
 // ExtractVocabularySet extracts the vocabulary set from a schema's $vocabulary declaration
 func ExtractVocabularySet(s *schema.Schema) VocabularySet {
 	if s == nil || !s.HasVocabulary() {
@@ -180,7 +196,7 @@ func WithVocabularySet(ctx context.Context, vocabSet VocabularySet) context.Cont
 func VocabularySetFromContext(ctx context.Context) VocabularySet {
 	var vocabSet VocabularySet
 	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
-		return AllEnabled() // Default to all enabled
+		return DefaultVocabularySet() // Use default vocabulary set with format-assertion disabled
 	}
 	return vocabSet
 }

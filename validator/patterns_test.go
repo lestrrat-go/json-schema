@@ -61,7 +61,11 @@ func TestCommonPatterns(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schemaObj := tc.builder.MustBuild()
-			v, err := Compile(context.Background(), schemaObj)
+			// For pattern helpers, we want format validation to be enforced
+			// Set up context with format-assertion enabled
+			ctx := context.Background()
+			ctx = WithVocabularySet(ctx, AllEnabled())
+			v, err := Compile(ctx, schemaObj)
 			if err != nil {
 				t.Fatalf("Failed to compile validator: %v", err)
 			}
