@@ -2,19 +2,20 @@ package validator
 
 import (
 	"context"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCodeGeneration(t *testing.T) {
 	tests := []struct {
-		name           string
+		name            string
 		createValidator func(t *testing.T) Interface
-		testValue      any
-		shouldPass     bool
-		checkGenerated func(t *testing.T, code string)
+		testValue       any
+		shouldPass      bool
+		checkGenerated  func(t *testing.T, code string)
 	}{
 		{
 			name: "SimpleStringValidator",
@@ -24,7 +25,6 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "func NewSimpleStringValidator() validator.Interface")
 				require.Contains(t, code, "validator.String()")
 				require.Contains(t, code, "MinLength(5)")
 				require.Contains(t, code, "MaxLength(10)")
@@ -118,10 +118,9 @@ func TestCodeGeneration(t *testing.T) {
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
 				require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
-				require.Contains(t, code, "child0 :=")
-				require.Contains(t, code, "child1 :=")
-				require.Contains(t, code, "Append(child0)")
-				require.Contains(t, code, "Append(child1)")
+				require.Contains(t, code, "Append(validator.String()")
+				require.Contains(t, code, "MinLength(3)")
+				require.Contains(t, code, "MaxLength(10)")
 			},
 		},
 		{
@@ -144,8 +143,9 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "short",
 			shouldPass: true, // "short" should pass NOT minLength(10)
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "child :=")
-				require.Contains(t, code, "&validator.NotValidator{validator: child}")
+				require.Contains(t, code, "validator.String()")
+				require.Contains(t, code, "&validator.NotValidator{validator:")
+				require.Contains(t, code, "MinLength(10)")
 			},
 		},
 	}
@@ -154,7 +154,7 @@ func TestCodeGeneration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create original validator
 			originalValidator := tt.createValidator(t)
-			
+
 			// Test that original validator works
 			ctx := context.Background()
 			_, err := originalValidator.Validate(ctx, tt.testValue)
@@ -163,18 +163,20 @@ func TestCodeGeneration(t *testing.T) {
 			} else {
 				require.Error(t, err, "Original validator should fail")
 			}
-			
+
 			// Generate code
 			generator := NewCodeGenerator()
-			code, err := generator.GenerateCode(tt.name, originalValidator)
+			var buf strings.Builder
+			err = generator.Generate(&buf, originalValidator)
 			require.NoError(t, err, "Code generation should succeed")
+			code := buf.String()
 			require.NotEmpty(t, code, "Generated code should not be empty")
-			
+
 			// Check that generated code contains expected elements
 			if tt.checkGenerated != nil {
 				tt.checkGenerated(t, code)
 			}
-			
+
 			// Print generated code for debugging
 			t.Logf("Generated code for %s:\n%s", tt.name, code)
 		})
@@ -231,8 +233,10 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 
 			// Generate code
 			generator := NewCodeGenerator()
-			code, err := generator.GenerateCode(tt.name, originalValidator)
+			var buf strings.Builder
+			err = generator.Generate(&buf, originalValidator)
 			require.NoError(t, err, "Code generation should succeed")
+			code := buf.String()
 			require.NotEmpty(t, code, "Generated code should not be empty")
 
 			t.Logf("Generated code for %s:\n%s", tt.name, code)
@@ -240,49 +244,25 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 	}
 }
 
-func TestGeneratePackage(t *testing.T) {
-	// Create multiple validators
-	validators := map[string]Interface{
-		"Email": String().Format("email").MustBuild(),
-		"PositiveInteger": Integer().Minimum(0).MustBuild(),
-		"SmallArray": Array().MaxItems(10).MustBuild(),
-	}
-
-	// Generate package
-	generator := NewCodeGenerator(
-		WithIncludeComments(true),
-		WithPackageImports(`"regexp"`),
-	)
-	
-	packageCode, err := generator.GeneratePackage("generated", validators)
-	require.NoError(t, err)
-	require.NotEmpty(t, packageCode)
-
-	// Check package structure
-	require.Contains(t, packageCode, "package generated")
-	require.Contains(t, packageCode, "func NewEmail() validator.Interface")
-	require.Contains(t, packageCode, "func NewPositiveInteger() validator.Interface")
-	require.Contains(t, packageCode, "func NewSmallArray() validator.Interface")
-	require.Contains(t, packageCode, `"regexp"`)
-
-	t.Logf("Generated package:\n%s", packageCode)
-}
-
 func TestCodeGenerationOptions(t *testing.T) {
 	validator := String().MinLength(5).MustBuild()
 
 	// Test with comments disabled
 	generator := NewCodeGenerator(WithIncludeComments(false))
-	code, err := generator.GenerateCode("TestValidator", validator)
+	var buf strings.Builder
+	err := generator.Generate(&buf, validator)
 	require.NoError(t, err)
+	code := buf.String()
 	require.NotContains(t, code, "//", "Should not contain comments when disabled")
 
 	// Test with prefix
 	generator = NewCodeGenerator(WithValidatorPrefix("Gen"))
-	code, err = generator.GenerateCode("TestValidator", validator)
+	buf.Reset()
+	err = generator.Generate(&buf, validator)
 	require.NoError(t, err)
+	code = buf.String()
 	// Note: prefix functionality would need to be implemented in the generator
-	
+
 	t.Logf("Generated code without comments:\n%s", code)
 }
 
@@ -295,29 +275,35 @@ func (v *unsupportedValidator) Validate(ctx context.Context, value any) (Result,
 
 func TestUnsupportedValidatorType(t *testing.T) {
 	generator := NewCodeGenerator()
-	_, err := generator.GenerateCode("Unsupported", &unsupportedValidator{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported validator type")
+	var buf strings.Builder
+	err := generator.Generate(&buf, &unsupportedValidator{})
+	// Note: The new interface doesn't return errors for unsupported types,
+	// it falls back to EmptyValidator, so we expect success
+	require.NoError(t, err)
+	code := buf.String()
+	require.Contains(t, code, "EmptyValidator")
 }
 
 func TestComplexNestedValidator(t *testing.T) {
 	// Create a complex nested validator: allOf with string and integer constraints
 	stringValidator := String().MinLength(3).MustBuild()
 	integerValidator := Integer().Minimum(0).MustBuild()
-	
+
 	complexValidator := NewMultiValidator(AndMode)
 	complexValidator.Append(stringValidator)
 	complexValidator.Append(integerValidator)
 
 	generator := NewCodeGenerator()
-	code, err := generator.GenerateCode("ComplexValidator", complexValidator)
+	var buf strings.Builder
+	err := generator.Generate(&buf, complexValidator)
 	require.NoError(t, err)
+	code := buf.String()
 	require.NotEmpty(t, code)
 
 	// Should contain nested validator definitions
-	require.Contains(t, code, "child0 :=")
-	require.Contains(t, code, "child1 :=")
 	require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
+	require.Contains(t, code, "Append(validator.String()")
+	require.Contains(t, code, "Append(validator.Integer()")
 
 	t.Logf("Generated complex validator:\n%s", code)
 }
@@ -329,10 +315,12 @@ func BenchmarkCodeGeneration(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := generator.GenerateCode("BenchValidator", validator)
+		var buf strings.Builder
+		err := generator.Generate(&buf, validator)
 		if err != nil {
 			b.Fatal(err)
 		}
+		buf.Reset() // Reset for next iteration
 	}
 }
 
@@ -341,11 +329,11 @@ func BenchmarkComplexValidatorGeneration(b *testing.B) {
 	v1 := String().MinLength(1).MustBuild()
 	v2 := Integer().Minimum(0).MustBuild()
 	v3 := Array().MaxItems(10).MustBuild()
-	
+
 	nestedMulti := NewMultiValidator(OrMode)
 	nestedMulti.Append(v2)
 	nestedMulti.Append(v3)
-	
+
 	complex := NewMultiValidator(AndMode)
 	complex.Append(v1)
 	complex.Append(nestedMulti)
@@ -354,9 +342,11 @@ func BenchmarkComplexValidatorGeneration(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := generator.GenerateCode("ComplexBenchValidator", complex)
+		var buf strings.Builder
+		err := generator.Generate(&buf, complex)
 		if err != nil {
 			b.Fatal(err)
 		}
+		buf.Reset() // Reset for next iteration
 	}
 }

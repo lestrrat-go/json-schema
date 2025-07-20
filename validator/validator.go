@@ -23,6 +23,117 @@ type Interface interface {
 // by other validators (e.g., for unevaluatedProperties tracking)
 type Result any
 
+// ObjectFieldResolver allows custom resolution of object fields
+type ObjectFieldResolver interface {
+	ResolveObjectField(string) (any, error)
+}
+
+// ArrayIndexResolver allows custom resolution of array indices
+type ArrayIndexResolver interface {
+	ResolveArrayIndex(int) (any, error)
+}
+
+// resolveObjectField resolves a field from an object, supporting multiple types:
+// - map[string]any: direct key lookup
+// - ObjectFieldResolver: custom resolution
+// - struct: reflection with JSON tag support
+func resolveObjectField(obj any, fieldName string) (any, error) {
+	if obj == nil {
+		return nil, fmt.Errorf("cannot resolve field %q from nil object", fieldName)
+	}
+	
+	// Try ObjectFieldResolver interface first
+	if resolver, ok := obj.(ObjectFieldResolver); ok {
+		return resolver.ResolveObjectField(fieldName)
+	}
+	
+	// Handle map[string]any directly
+	if m, ok := obj.(map[string]any); ok {
+		if value, exists := m[fieldName]; exists {
+			return value, nil
+		}
+		return nil, fmt.Errorf("field %q not found in object", fieldName)
+	}
+	
+	// Handle struct types using reflection
+	return resolveStructField(obj, fieldName)
+}
+
+// resolveArrayIndex resolves an element from an array, supporting multiple types:
+// - []any: direct index access
+// - ArrayIndexResolver: custom resolution
+func resolveArrayIndex(arr any, index int) (any, error) {
+	if arr == nil {
+		return nil, fmt.Errorf("cannot resolve index %d from nil array", index)
+	}
+	
+	// Try ArrayIndexResolver interface first
+	if resolver, ok := arr.(ArrayIndexResolver); ok {
+		return resolver.ResolveArrayIndex(index)
+	}
+	
+	// Handle slice types using reflection
+	rv := reflect.ValueOf(arr)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	
+	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+		return nil, fmt.Errorf("value is not an array or slice, got %T", arr)
+	}
+	
+	if index < 0 || index >= rv.Len() {
+		return nil, fmt.Errorf("index %d out of bounds for array of length %d", index, rv.Len())
+	}
+	
+	return rv.Index(index).Interface(), nil
+}
+
+// resolveStructField resolves a field from a struct using reflection and JSON tags
+func resolveStructField(obj any, fieldName string) (any, error) {
+	rv := reflect.ValueOf(obj)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	
+	if rv.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("value is not a struct, got %T", obj)
+	}
+	
+	rt := rv.Type()
+	
+	// First, try to find field by JSON tag
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		
+		// Skip unexported fields
+		if !field.IsExported() {
+			continue
+		}
+		
+		// Check JSON tag
+		jsonTag := field.Tag.Get("json")
+		if jsonTag != "" {
+			// Parse JSON tag (field name is before first comma)
+			tagName := strings.Split(jsonTag, ",")[0]
+			if tagName == fieldName {
+				return rv.Field(i).Interface(), nil
+			}
+			// Skip if tag explicitly sets a different name
+			if tagName != "" && tagName != "-" {
+				continue
+			}
+		}
+		
+		// Check if field name matches (case-insensitive for JSON compatibility)
+		if strings.EqualFold(field.Name, fieldName) {
+			return rv.Field(i).Interface(), nil
+		}
+	}
+	
+	return nil, fmt.Errorf("field %q not found in struct %T", fieldName, obj)
+}
+
 // ObjectResult contains information about which object properties were evaluated
 type ObjectResult struct {
 	evaluatedProperties map[string]bool // property name -> true if evaluated
@@ -41,9 +152,13 @@ func NewObjectResult() *ObjectResult {
 }
 
 // NewArrayResult creates a new ArrayResult with an initialized slice
-func NewArrayResult() *ArrayResult {
+func NewArrayResult(size ...int) *ArrayResult {
+	var capacity int
+	if len(size) > 0 {
+		capacity = size[0]
+	}
 	return &ArrayResult{
-		evaluatedItems: make([]bool, 0),
+		evaluatedItems: make([]bool, 0, capacity),
 	}
 }
 

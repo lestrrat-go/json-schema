@@ -1,12 +1,12 @@
 package validator
 
+import "io"
+
 // CodeGenerator generates Go code that creates equivalent validators
 type CodeGenerator interface {
-	// GenerateCode creates Go code that constructs the given validator
-	GenerateCode(validatorName string, v Interface) (string, error)
-	
-	// GeneratePackage creates a complete Go package with validators
-	GeneratePackage(packageName string, validators map[string]Interface) (string, error)
+	// Generate writes Go code that constructs the given validator to the provided Writer
+	// The output is just the builder chain, e.g.: validator.String().MinLength(5).MaxLength(100)
+	Generate(dst io.Writer, v Interface) error
 }
 
 // CodeGenOption configures code generation behavior
