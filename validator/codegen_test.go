@@ -24,8 +24,8 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "func NewSimpleStringValidator() Interface")
-				require.Contains(t, code, "String()")
+				require.Contains(t, code, "func NewSimpleStringValidator() validator.Interface")
+				require.Contains(t, code, "validator.String()")
 				require.Contains(t, code, "MinLength(5)")
 				require.Contains(t, code, "MaxLength(10)")
 				require.Contains(t, code, "MustBuild()")
@@ -117,7 +117,7 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "NewMultiValidator(AndMode)")
+				require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
 				require.Contains(t, code, "child0 :=")
 				require.Contains(t, code, "child1 :=")
 				require.Contains(t, code, "Append(child0)")
@@ -132,7 +132,7 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "anything",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "&EmptyValidator{}")
+				require.Contains(t, code, "&validator.EmptyValidator{}")
 			},
 		},
 		{
@@ -145,7 +145,7 @@ func TestCodeGeneration(t *testing.T) {
 			shouldPass: true, // "short" should pass NOT minLength(10)
 			checkGenerated: func(t *testing.T, code string) {
 				require.Contains(t, code, "child :=")
-				require.Contains(t, code, "&NotValidator{validator: child}")
+				require.Contains(t, code, "&validator.NotValidator{validator: child}")
 			},
 		},
 	}
@@ -260,9 +260,9 @@ func TestGeneratePackage(t *testing.T) {
 
 	// Check package structure
 	require.Contains(t, packageCode, "package generated")
-	require.Contains(t, packageCode, "func NewEmail() Interface")
-	require.Contains(t, packageCode, "func NewPositiveInteger() Interface")
-	require.Contains(t, packageCode, "func NewSmallArray() Interface")
+	require.Contains(t, packageCode, "func NewEmail() validator.Interface")
+	require.Contains(t, packageCode, "func NewPositiveInteger() validator.Interface")
+	require.Contains(t, packageCode, "func NewSmallArray() validator.Interface")
 	require.Contains(t, packageCode, `"regexp"`)
 
 	t.Logf("Generated package:\n%s", packageCode)
@@ -317,7 +317,7 @@ func TestComplexNestedValidator(t *testing.T) {
 	// Should contain nested validator definitions
 	require.Contains(t, code, "child0 :=")
 	require.Contains(t, code, "child1 :=")
-	require.Contains(t, code, "NewMultiValidator(AndMode)")
+	require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
 
 	t.Logf("Generated complex validator:\n%s", code)
 }
