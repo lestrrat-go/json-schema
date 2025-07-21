@@ -19,7 +19,7 @@ func TestCodeGeneration(t *testing.T) {
 	}{
 		{
 			name: "SimpleStringValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return String().MinLength(5).MaxLength(10).MustBuild()
 			},
 			testValue:  "hello",
@@ -33,7 +33,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "StringValidatorWithPattern",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return String().Pattern("^[a-z]+$").MustBuild()
 			},
 			testValue:  "hello",
@@ -44,7 +44,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "StringValidatorWithEnum",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return String().Enum("foo", "bar", "baz").MustBuild()
 			},
 			testValue:  "foo",
@@ -59,7 +59,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "IntegerValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return Integer().Minimum(0).Maximum(100).MustBuild()
 			},
 			testValue:  42,
@@ -72,7 +72,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "NumberValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return Number().MultipleOf(0.5).MustBuild()
 			},
 			testValue:  2.5,
@@ -84,7 +84,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "BooleanValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return Boolean().Const(true).MustBuild()
 			},
 			testValue:  true,
@@ -96,7 +96,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "ArrayValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return Array().MinItems(1).MaxItems(5).UniqueItems(true).MustBuild()
 			},
 			testValue:  []any{1, 2, 3},
@@ -110,7 +110,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "MultiValidatorAnd",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				v1 := String().MinLength(3).MustBuild()
 				v2 := String().MaxLength(10).MustBuild()
 				mv := NewMultiValidator(AndMode)
@@ -129,7 +129,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "EmptyValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				return &EmptyValidator{}
 			},
 			testValue:  "anything",
@@ -140,7 +140,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "NotValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				child := String().MinLength(10).MustBuild()
 				return &NotValidator{validator: child}
 			},
@@ -273,7 +273,7 @@ func TestCodeGenerationOptions(t *testing.T) {
 // unsupportedValidator is a mock validator type for testing
 type unsupportedValidator struct{}
 
-func (v *unsupportedValidator) Validate(ctx context.Context, value any) (Result, error) {
+func (v *unsupportedValidator) Validate(_ context.Context, _ any) (Result, error) {
 	return nil, nil
 }
 
