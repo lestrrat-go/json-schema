@@ -66,19 +66,21 @@ func init() {
 				mv.Append(
 					validator.Object().
 						Properties(
-							validator.PropPair(keywords.DynamicAnchor,
-								validator.String().
-									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
-									MustBuild()),
-							validator.PropPair(keywords.Schema,
-								validator.String().
-									Format("uri").
-									MustBuild()),
 							validator.PropPair(keywords.Anchor,
 								validator.String().
 									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
 									MustBuild()),
-							validator.PropPair(keywords.Reference,
+							validator.PropPair(keywords.Comment, validator.String().MustBuild()),
+							validator.PropPair(keywords.Definitions,
+								validator.Object().
+									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
+									StrictObjectType(true).
+									MustBuild()),
+							validator.PropPair(keywords.DynamicAnchor,
+								validator.String().
+									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
+									MustBuild()),
+							validator.PropPair(keywords.DynamicReference,
 								validator.String().
 									Format("uri-reference").
 									MustBuild()),
@@ -94,6 +96,14 @@ func init() {
 										MustBuild())
 								return mv
 							}()),
+							validator.PropPair(keywords.Reference,
+								validator.String().
+									Format("uri-reference").
+									MustBuild()),
+							validator.PropPair(keywords.Schema,
+								validator.String().
+									Format("uri").
+									MustBuild()),
 							validator.PropPair(keywords.Vocabulary,
 								validator.Object().
 									AdditionalPropertiesSchema(validator.Boolean().MustBuild()).
@@ -103,16 +113,6 @@ func init() {
 											MustBuild()).
 									StrictObjectType(true).
 									MustBuild()),
-							validator.PropPair(keywords.DynamicReference,
-								validator.String().
-									Format("uri-reference").
-									MustBuild()),
-							validator.PropPair(keywords.Definitions,
-								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.Comment, validator.String().MustBuild()),
 						).
 						StrictObjectType(true).
 						MustBuild())
@@ -124,8 +124,26 @@ func init() {
 				mv.Append(
 					validator.Object().
 						Properties(
+							validator.PropPair(keywords.AdditionalProperties, validator.Object().StrictObjectType(true).MustBuild()),
+							validator.PropPair(keywords.AllOf,
+								validator.Array().
+									MinItems(1).
+									MustBuild()),
+							validator.PropPair(keywords.AnyOf,
+								validator.Array().
+									MinItems(1).
+									MustBuild()),
+							validator.PropPair(keywords.Contains, validator.Object().StrictObjectType(true).MustBuild()),
+							validator.PropPair(keywords.DependentSchemas,
+								validator.Object().
+									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
+									StrictObjectType(true).
+									MustBuild()),
+							validator.PropPair(keywords.Else, validator.Object().StrictObjectType(true).MustBuild()),
 							validator.PropPair(keywords.If, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.PrefixItems,
+							validator.PropPair(keywords.Items, validator.Object().StrictObjectType(true).MustBuild()),
+							validator.PropPair(keywords.Not, validator.Object().StrictObjectType(true).MustBuild()),
+							validator.PropPair(keywords.OneOf,
 								validator.Array().
 									MinItems(1).
 									MustBuild()),
@@ -138,35 +156,17 @@ func init() {
 											MustBuild()).
 									StrictObjectType(true).
 									MustBuild()),
-							validator.PropPair(keywords.PropertyNames, validator.Object().StrictObjectType(true).MustBuild()),
+							validator.PropPair(keywords.PrefixItems,
+								validator.Array().
+									MinItems(1).
+									MustBuild()),
 							validator.PropPair(keywords.Properties,
 								validator.Object().
 									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
 									StrictObjectType(true).
 									MustBuild()),
-							validator.PropPair(keywords.AnyOf,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
+							validator.PropPair(keywords.PropertyNames, validator.Object().StrictObjectType(true).MustBuild()),
 							validator.PropPair(keywords.Then, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Not, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Items, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Else, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.OneOf,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
-							validator.PropPair(keywords.AdditionalProperties, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Contains, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.DependentSchemas,
-								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.AllOf,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
 						).
 						StrictObjectType(true).
 						MustBuild())
@@ -191,8 +191,26 @@ func init() {
 				mv.Append(
 					validator.Object().
 						Properties(
-							validator.PropPair(keywords.ExclusiveMaximum, validator.Number().MustBuild()),
+							validator.PropPair(keywords.Const, &validator.EmptyValidator{}),
+							validator.PropPair(keywords.DependentRequired,
+								validator.Object().
+									AdditionalPropertiesSchema(
+										validator.Array().
+											UniqueItems(true).
+											MustBuild()).
+									StrictObjectType(true).
+									MustBuild()),
 							validator.PropPair(keywords.Enum, validator.Array().MustBuild()),
+							validator.PropPair(keywords.ExclusiveMaximum, validator.Number().MustBuild()),
+							validator.PropPair(keywords.ExclusiveMinimum, validator.Number().MustBuild()),
+							validator.PropPair(keywords.MaxContains,
+								validator.Integer().
+									Minimum(0).
+									MustBuild()),
+							validator.PropPair(keywords.MaxItems,
+								validator.Integer().
+									Minimum(0).
+									MustBuild()),
 							validator.PropPair(keywords.MaxLength,
 								validator.Integer().
 									Minimum(0).
@@ -201,13 +219,35 @@ func init() {
 								validator.Integer().
 									Minimum(0).
 									MustBuild()),
+							validator.PropPair(keywords.Maximum, validator.Number().MustBuild()),
+							validator.PropPair(keywords.MinContains,
+								validator.Integer().
+									Minimum(0).
+									MustBuild()),
+							validator.PropPair(keywords.MinItems,
+								validator.Integer().
+									Minimum(0).
+									MustBuild()),
+							validator.PropPair(keywords.MinLength,
+								validator.Integer().
+									Minimum(0).
+									MustBuild()),
 							validator.PropPair(keywords.MinProperties,
 								validator.Integer().
 									Minimum(0).
 									MustBuild()),
-							validator.PropPair(keywords.MaxItems,
-								validator.Integer().
-									Minimum(0).
+							validator.PropPair(keywords.Minimum, validator.Number().MustBuild()),
+							validator.PropPair(keywords.MultipleOf,
+								validator.Number().
+									ExclusiveMinimum(0).
+									MustBuild()),
+							validator.PropPair(keywords.Pattern,
+								validator.String().
+									Format("regex").
+									MustBuild()),
+							validator.PropPair(keywords.Required,
+								validator.Array().
+									UniqueItems(true).
 									MustBuild()),
 							validator.PropPair(keywords.Type, func() validator.Interface {
 								mv := validator.NewMultiValidator(validator.OrMode)
@@ -232,47 +272,7 @@ func init() {
 										MustBuild())
 								return mv
 							}()),
-							validator.PropPair(keywords.MinItems,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MinContains,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.Minimum, validator.Number().MustBuild()),
-							validator.PropPair(keywords.Pattern,
-								validator.String().
-									Format("regex").
-									MustBuild()),
-							validator.PropPair(keywords.Maximum, validator.Number().MustBuild()),
-							validator.PropPair(keywords.Const, &validator.EmptyValidator{}),
-							validator.PropPair(keywords.ExclusiveMinimum, validator.Number().MustBuild()),
 							validator.PropPair(keywords.UniqueItems, validator.Boolean().MustBuild()),
-							validator.PropPair(keywords.Required,
-								validator.Array().
-									UniqueItems(true).
-									MustBuild()),
-							validator.PropPair(keywords.MaxContains,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.DependentRequired,
-								validator.Object().
-									AdditionalPropertiesSchema(
-										validator.Array().
-											UniqueItems(true).
-											MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.MultipleOf,
-								validator.Number().
-									ExclusiveMinimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MinLength,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
 						).
 						StrictObjectType(true).
 						MustBuild())
@@ -284,13 +284,13 @@ func init() {
 				mv.Append(
 					validator.Object().
 						Properties(
-							validator.PropPair(keywords.Title, validator.String().MustBuild()),
-							validator.PropPair(keywords.WriteOnly, validator.Boolean().MustBuild()),
 							validator.PropPair(keywords.Default, &validator.EmptyValidator{}),
 							validator.PropPair(keywords.Deprecated, validator.Boolean().MustBuild()),
 							validator.PropPair(keywords.Description, validator.String().MustBuild()),
 							validator.PropPair(keywords.Examples, validator.Array().MustBuild()),
 							validator.PropPair(keywords.ReadOnly, validator.Boolean().MustBuild()),
+							validator.PropPair(keywords.Title, validator.String().MustBuild()),
+							validator.PropPair(keywords.WriteOnly, validator.Boolean().MustBuild()),
 						).
 						StrictObjectType(true).
 						MustBuild())
@@ -312,9 +312,9 @@ func init() {
 				mv.Append(
 					validator.Object().
 						Properties(
+							validator.PropPair(keywords.ContentEncoding, validator.String().MustBuild()),
 							validator.PropPair(keywords.ContentMediaType, validator.String().MustBuild()),
 							validator.PropPair(keywords.ContentSchema, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.ContentEncoding, validator.String().MustBuild()),
 						).
 						StrictObjectType(true).
 						MustBuild())

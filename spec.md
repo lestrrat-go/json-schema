@@ -443,17 +443,8 @@ type CodeGenerator interface {
     GeneratePackage(packageName string, validators map[string]Interface) (string, error)
 }
 
-// NewCodeGenerator creates a new code generator with default settings
-func NewCodeGenerator(opts ...CodeGenOption) CodeGenerator
-
-// CodeGenOption configures code generation behavior
-type CodeGenOption func(*codeGenConfig)
-
-// WithPackageImports specifies additional imports for generated code
-func WithPackageImports(imports ...string) CodeGenOption
-
-// WithValidatorPrefix sets a prefix for generated validator variable names
-func WithValidatorPrefix(prefix string) CodeGenOption
+// NewCodeGenerator creates a new code generator
+func NewCodeGenerator() CodeGenerator
 ```
 
 ### Generated Code Structure
@@ -655,10 +646,7 @@ validators := map[string]validator.Interface{
     "UserID":   userIDValidator,
 }
 
-generator := validator.NewCodeGenerator(
-    validator.WithPackageImports("regexp", "strings"),
-    validator.WithValidatorPrefix("Compiled"),
-)
+generator := validator.NewCodeGenerator()
 
 packageCode, err := generator.GeneratePackage("validators", validators)
 ```
@@ -684,17 +672,7 @@ type CodeGenerator interface {
     GeneratePackage(packageName string, validators map[string]Interface) (string, error)
 }
 
-type CodeGenOption func(*codeGenConfig)
-type codeGenConfig struct {
-    packageImports   []string
-    validatorPrefix  string
-    includeComments  bool
-}
-
-func WithPackageImports(imports ...string) CodeGenOption
-func WithValidatorPrefix(prefix string) CodeGenOption  
-func WithIncludeComments(include bool) CodeGenOption
-func NewCodeGenerator(opts ...CodeGenOption) CodeGenerator
+func NewCodeGenerator() CodeGenerator
 ```
 
 2. **`validator/generator.go`** - Direct field access code generator:
@@ -716,15 +694,8 @@ type codeGenerator struct {
     config codeGenConfig
 }
 
-func NewCodeGenerator(opts ...CodeGenOption) CodeGenerator {
-    config := codeGenConfig{
-        validatorPrefix: "",
-        includeComments: true,
-    }
-    for _, opt := range opts {
-        opt(&config)
-    }
-    return &codeGenerator{config: config}
+func NewCodeGenerator() CodeGenerator {
+    return &codeGenerator{}
 }
 
 func (g *codeGenerator) GenerateCode(validatorName string, v Interface) (string, error) {

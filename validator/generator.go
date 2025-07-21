@@ -3,6 +3,7 @@ package validator
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/lestrrat-go/codegen"
@@ -93,27 +94,6 @@ func getKeywordConstant(propName string) string {
 // Generate writes Go code that constructs the given validator to the provided Writer
 // The output is just the builder chain, e.g.: validator.String().MinLength(5).MaxLength(100)
 func (g *codeGenerator) Generate(dst io.Writer, v Interface) error {
-	return g.generateBuilderChain(dst, v)
-}
-
-// generateBuilderChain creates just the builder chain without function wrapper
-func (g *codeGenerator) generateBuilderChain(dst io.Writer, v Interface) error {
-	return g.generateBuilderChainInternal(dst, v)
-}
-
-// generateCompleteValidator creates a complete function wrapper around a validator (for package generation)
-func (g *codeGenerator) generateCompleteValidator(dst io.Writer, name string, v Interface) error {
-	if _, err := fmt.Fprintf(dst, "func New%s() validator.Interface {\n\treturn ", name); err != nil {
-		return err
-	}
-	if err := g.generateBuilderChain(dst, v); err != nil {
-		return err
-	}
-	_, err := fmt.Fprint(dst, "\n}")
-	return err
-}
-
-func (g *codeGenerator) generateBuilderChainInternal(dst io.Writer, v Interface) error {
 	switch validator := v.(type) {
 	case *stringValidator:
 		return g.generateStringBuilderChain(dst, validator)
@@ -170,6 +150,19 @@ func (g *codeGenerator) generateBuilderChainInternal(dst io.Writer, v Interface)
 		return err
 	}
 }
+
+// generateCompleteValidator creates a complete function wrapper around a validator (for package generation)
+func (g *codeGenerator) generateCompleteValidator(dst io.Writer, name string, v Interface) error {
+	if _, err := fmt.Fprintf(dst, "func New%s() validator.Interface {\n\treturn ", name); err != nil {
+		return err
+	}
+	if err := g.Generate(dst, v); err != nil {
+		return err
+	}
+	_, err := fmt.Fprint(dst, "\n}")
+	return err
+}
+
 
 
 // generateNumberBuilderChain creates just the builder chain for number validators
@@ -281,10 +274,18 @@ func (g *codeGenerator) generateObjectBuilderChain(dst io.Writer, v *objectValid
 	if len(v.properties) > 0 {
 		var propPairs []string
 		
-		for propName, propValidator := range v.properties {
+		// Sort property names for deterministic output
+		var propNames []string
+		for propName := range v.properties {
+			propNames = append(propNames, propName)
+		}
+		sort.Strings(propNames)
+		
+		for _, propName := range propNames {
+			propValidator := v.properties[propName]
 			// Generate the validator code for this property
 			var propBuf strings.Builder
-			if err := g.generateBuilderChain(&propBuf, propValidator); err != nil {
+			if err := g.Generate(&propBuf, propValidator); err != nil {
 				return fmt.Errorf("failed to generate validator for property %s: %w", propName, err)
 			}
 			propCode := propBuf.String()
@@ -310,7 +311,7 @@ func (g *codeGenerator) generateObjectBuilderChain(dst io.Writer, v *objectValid
 			parts = append(parts, fmt.Sprintf("AdditionalPropertiesBool(%t)", ap))
 		case Interface:
 			var apBuf strings.Builder
-			if err := g.generateBuilderChain(&apBuf, ap); err != nil {
+			if err := g.Generate(&apBuf, ap); err != nil {
 				return fmt.Errorf("failed to generate additional properties validator: %w", err)
 			}
 			apCode := apBuf.String()
@@ -328,7 +329,7 @@ func (g *codeGenerator) generateObjectBuilderChain(dst io.Writer, v *objectValid
 	// Handle property names validator
 	if v.propertyNames != nil {
 		var pnBuf strings.Builder
-		if err := g.generateBuilderChain(&pnBuf, v.propertyNames); err != nil {
+		if err := g.Generate(&pnBuf, v.propertyNames); err != nil {
 			return fmt.Errorf("failed to generate property names validator: %w", err)
 		}
 		pnCode := pnBuf.String()
@@ -361,7 +362,7 @@ func (g *codeGenerator) generateMultiBuilderChain(dst io.Writer, v *MultiValidat
 		// Generate each child validator
 		for i, child := range v.validators {
 			var childBuf strings.Builder
-			if err := g.generateBuilderChain(&childBuf, child); err != nil {
+			if err := g.Generate(&childBuf, child); err != nil {
 				return fmt.Errorf("failed to generate child validator %d: %w", i, err)
 			}
 			childParts = append(childParts, childBuf.String())
@@ -374,11 +375,7 @@ func (g *codeGenerator) generateMultiBuilderChain(dst io.Writer, v *MultiValidat
 		}
 		
 		appendCallsStr := strings.Join(appendCalls, "\n")
-		_, err := fmt.Fprintf(dst, `func() validator.Interface {
-\t\tmv := validator.NewMultiValidator(validator.%s)
-%s
-\t\treturn mv
-\t}()`, mode, appendCallsStr)
+		_, err := fmt.Fprintf(dst, "func() validator.Interface {\n\t\tmv := validator.NewMultiValidator(validator.%s)\n%s\n\t\treturn mv\n\t}()", mode, appendCallsStr)
 		return err
 	}
 	
@@ -398,7 +395,7 @@ func (g *codeGenerator) generateNotBuilderChain(dst io.Writer, v *NotValidator) 
 	if _, err := fmt.Fprint(dst, "func() validator.Interface { child := "); err != nil {
 		return err
 	}
-	if err := g.generateBuilderChain(dst, v.validator); err != nil {
+	if err := g.Generate(dst, v.validator); err != nil {
 		return fmt.Errorf("failed to generate child validator for not: %w", err)
 	}
 	_, err := fmt.Fprint(dst, "; return &validator.NotValidator{validator: child} }()")
@@ -579,7 +576,6 @@ func (g *codeGenerator) GeneratePackage(dst io.Writer, packageName string, valid
 	imports := []string{
 		`"github.com/lestrrat-go/json-schema/validator"`,
 	}
-	imports = append(imports, g.config.packageImports...)
 	
 	// Write imports
 	if len(imports) == 1 {
@@ -593,7 +589,15 @@ func (g *codeGenerator) GeneratePackage(dst io.Writer, packageName string, valid
 	}
 	
 	// Generate individual validator functions
-	for name, validator := range validators {
+	// Sort validator names for deterministic output
+	var validatorNames []string
+	for name := range validators {
+		validatorNames = append(validatorNames, name)
+	}
+	sort.Strings(validatorNames)
+	
+	for _, name := range validatorNames {
+		validator := validators[name]
 		if err := g.generateCompleteValidator(dst, name, validator); err != nil {
 			return fmt.Errorf("failed to generate validator %s: %w", name, err)
 		}
@@ -716,7 +720,7 @@ func (g *codeGenerator) generateReferenceBuilderChain(dst io.Writer, v *Referenc
 			return err
 		}
 		
-		if err := g.generateBuilderChain(dst, v.resolved); err != nil {
+		if err := g.Generate(dst, v.resolved); err != nil {
 			// If we can't generate the resolved validator, fall back to EmptyValidator
 			_, fallbackErr := fmt.Fprint(dst, "&validator.EmptyValidator{}")
 			return fallbackErr
@@ -741,7 +745,7 @@ func (g *codeGenerator) generateDynamicReferenceBuilderChain(dst io.Writer, v *D
 			return err
 		}
 		
-		if err := g.generateBuilderChain(dst, v.resolved); err != nil {
+		if err := g.Generate(dst, v.resolved); err != nil {
 			// If we can't generate the resolved validator, fall back to EmptyValidator
 			_, fallbackErr := fmt.Fprint(dst, "&validator.EmptyValidator{}")
 			return fallbackErr
@@ -775,7 +779,7 @@ func (g *codeGenerator) generateContentBuilderChain(dst io.Writer, v *contentVal
 	// Handle contentSchema if present
 	if v.contentSchema != nil {
 		var childBuf strings.Builder
-		if err := g.generateBuilderChain(&childBuf, v.contentSchema); err != nil {
+		if err := g.Generate(&childBuf, v.contentSchema); err != nil {
 			return fmt.Errorf("failed to generate content schema: %w", err)
 		}
 		contentSchemaStr := fmt.Sprintf("contentSchema: %s", childBuf.String())
@@ -803,12 +807,20 @@ func (g *codeGenerator) generateDependentSchemasBuilderChain(dst io.Writer, v *d
 	var mapEntries []string
 	var childSetup []string
 	
-	for propName, propValidator := range v.dependentSchemas {
+	// Sort property names for deterministic output
+	var propNames []string
+	for propName := range v.dependentSchemas {
+		propNames = append(propNames, propName)
+	}
+	sort.Strings(propNames)
+	
+	for _, propName := range propNames {
+		propValidator := v.dependentSchemas[propName]
 		childVar := fmt.Sprintf("dep_%s", sanitizeVarName(propName))
 		
 		// Generate child validator code into a buffer
 		var childBuf strings.Builder
-		if err := g.generateBuilderChain(&childBuf, propValidator); err != nil {
+		if err := g.Generate(&childBuf, propValidator); err != nil {
 			return fmt.Errorf("failed to generate dependent schema for %q: %w", propName, err)
 		}
 		childChain := childBuf.String()
@@ -839,7 +851,7 @@ func (g *codeGenerator) generateDependentSchemasBuilderChain(dst io.Writer, v *d
 // generateInferredNumberBuilderChain creates just the builder chain for inferred number validators
 func (g *codeGenerator) generateInferredNumberBuilderChain(dst io.Writer, v *inferredNumberValidator) error {
 	// Generate the underlying number validator
-	if err := g.generateBuilderChain(dst, v.numberValidator); err != nil {
+	if err := g.Generate(dst, v.numberValidator); err != nil {
 		return fmt.Errorf("failed to generate inferred number validator: %w", err)
 	}
 	

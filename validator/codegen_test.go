@@ -248,27 +248,6 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 	}
 }
 
-func TestCodeGenerationOptions(t *testing.T) {
-	validator := String().MinLength(5).MustBuild()
-
-	// Test with comments disabled
-	generator := NewCodeGenerator(WithIncludeComments(false))
-	var buf strings.Builder
-	err := generator.Generate(&buf, validator)
-	require.NoError(t, err)
-	code := buf.String()
-	require.NotContains(t, code, "//", "Should not contain comments when disabled")
-
-	// Test with prefix
-	generator = NewCodeGenerator(WithValidatorPrefix("Gen"))
-	buf.Reset()
-	err = generator.Generate(&buf, validator)
-	require.NoError(t, err)
-	code = buf.String()
-	// Note: prefix functionality would need to be implemented in the generator
-
-	t.Logf("Generated code without comments:\n%s", code)
-}
 
 // unsupportedValidator is a mock validator type for testing
 type unsupportedValidator struct{}
