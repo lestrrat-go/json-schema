@@ -25,9 +25,9 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "validator.String()")
-				require.Contains(t, code, "MinLength(5)")
-				require.Contains(t, code, "MaxLength(10)")
+				require.Contains(t, code, "validator.String().")
+				require.Contains(t, code, "MinLength(5).")
+				require.Contains(t, code, "MaxLength(10).")
 				require.Contains(t, code, "MustBuild()")
 			},
 		},
@@ -39,18 +39,22 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, `Pattern("^[a-z]+$")`)
+				require.Contains(t, code, `Pattern("^[a-z]+$").`)
 			},
 		},
 		{
 			name: "StringValidatorWithEnum",
 			createValidator: func(t *testing.T) Interface {
-				return String().Enum([]string{"foo", "bar", "baz"}).MustBuild()
+				return String().Enum("foo", "bar", "baz").MustBuild()
 			},
 			testValue:  "foo",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, `Enum([]string{"foo", "bar", "baz"})`)
+				require.Contains(t, code, `Enum(`)
+				require.Contains(t, code, `[]string{`)
+				require.Contains(t, code, `"foo",`)
+				require.Contains(t, code, `"bar",`)
+				require.Contains(t, code, `"baz",`)
 			},
 		},
 		{
@@ -61,9 +65,9 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  42,
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "Integer()")
-				require.Contains(t, code, "Minimum(0)")
-				require.Contains(t, code, "Maximum(100)")
+				require.Contains(t, code, "validator.Integer().")
+				require.Contains(t, code, "Minimum(0).")
+				require.Contains(t, code, "Maximum(100).")
 			},
 		},
 		{
@@ -74,8 +78,8 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  2.5,
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "Number()")
-				require.Contains(t, code, "MultipleOf(0.5)")
+				require.Contains(t, code, "validator.Number().")
+				require.Contains(t, code, "MultipleOf(0.5).")
 			},
 		},
 		{
@@ -86,8 +90,8 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  true,
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "Boolean()")
-				require.Contains(t, code, "Const(true)")
+				require.Contains(t, code, "validator.Boolean().")
+				require.Contains(t, code, "Const(true).")
 			},
 		},
 		{
@@ -98,10 +102,10 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  []any{1, 2, 3},
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "Array()")
-				require.Contains(t, code, "MinItems(1)")
-				require.Contains(t, code, "MaxItems(5)")
-				require.Contains(t, code, "UniqueItems(true)")
+				require.Contains(t, code, "validator.Array().")
+				require.Contains(t, code, "MinItems(1).")
+				require.Contains(t, code, "MaxItems(5).")
+				require.Contains(t, code, "UniqueItems(true).")
 			},
 		},
 		{
@@ -118,9 +122,9 @@ func TestCodeGeneration(t *testing.T) {
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
 				require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
-				require.Contains(t, code, "Append(validator.String()")
-				require.Contains(t, code, "MinLength(3)")
-				require.Contains(t, code, "MaxLength(10)")
+				require.Contains(t, code, "validator.String().")
+				require.Contains(t, code, "MinLength(3).")
+				require.Contains(t, code, "MaxLength(10).")
 			},
 		},
 		{
@@ -143,9 +147,9 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "short",
 			shouldPass: true, // "short" should pass NOT minLength(10)
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "validator.String()")
+				require.Contains(t, code, "validator.String().")
 				require.Contains(t, code, "&validator.NotValidator{validator:")
-				require.Contains(t, code, "MinLength(10)")
+				require.Contains(t, code, "MinLength(10).")
 			},
 		},
 	}
@@ -302,8 +306,8 @@ func TestComplexNestedValidator(t *testing.T) {
 
 	// Should contain nested validator definitions
 	require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
-	require.Contains(t, code, "Append(validator.String()")
-	require.Contains(t, code, "Append(validator.Integer()")
+	require.Contains(t, code, "validator.String().")
+	require.Contains(t, code, "validator.Integer().")
 
 	t.Logf("Generated complex validator:\n%s", code)
 }

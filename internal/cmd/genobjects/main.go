@@ -121,6 +121,7 @@ func genObject(obj *codegen.Object) error {
 	o.LL("import (")
 	o.L(`"fmt"`)
 	o.L(`"github.com/lestrrat-go/json-schema/internal/field"`)
+	o.L(`"github.com/lestrrat-go/json-schema/keywords"`)
 	o.L(")")
 
 	// Re-export field constants for external API
@@ -205,14 +206,21 @@ func genObject(obj *codegen.Object) error {
 	for _, field := range obj.Fields() {
 		if field.Name(false) == `schema` {
 			o.L(`if v := s.%s; s.isRoot && v != "" {`, field.Name(false))
-			o.L(`fields = append(fields, pair{Name: %q, Value: v})`, field.JSON())
+			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: v})`, field.Name(true))
 			o.L(`}`)
 		} else {
 			o.L(`if s.Has%s() {`, field.Name(true))
+			constName := field.Name(true)
+			switch constName {
+			case "Types":
+				constName = "Type"
+			case "IfSchema", "ThenSchema", "ElseSchema":
+				constName = strings.TrimSuffix(constName, "Schema")
+			}
 			if !isNilZeroType(field) && !isInterfaceField(field) {
-				o.L(`fields = append(fields, pair{Name: %q, Value: *(s.%s)})`, field.JSON(), field.Name(false))
+				o.L(`fields = append(fields, pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
 			} else {
-				o.L(`fields = append(fields, pair{Name: %q, Value: s.%s})`, field.JSON(), field.Name(false))
+				o.L(`fields = append(fields, pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
 			}
 			o.L(`}`)
 		}
@@ -261,7 +269,14 @@ func genObject(obj *codegen.Object) error {
 		_ = field
 		switch field.Type() {
 		default:
-			o.L("case %q:", field.JSON())
+			constName := field.Name(true)
+			switch constName {
+			case "Types":
+				constName = "Type"
+			case "IfSchema", "ThenSchema", "ElseSchema":
+				constName = strings.TrimSuffix(constName, "Schema")
+			}
+			o.L("case keywords.%s:", constName)
 			if field.Type() == "SchemaOrBool" {
 				// Handle single SchemaOrBool fields
 				o.L("var rawData json.RawMessage")
@@ -449,12 +464,12 @@ func genBuilder(obj *codegen.Object) error {
 	o.L("err error")
 	for _, field := range obj.Fields() {
 		fieldType := field.Type()
-		
+
 		switch fieldType {
 		case `map[string]*Schema`:
 			o.L("%s []*propPair", field.Name(false))
 		}
-		
+
 		if field.Type() != `map[string]*Schema` {
 			if !isNilZeroType(field) && !isInterfaceField(field) {
 				o.L("%s *%s", field.Name(false), fieldType)
@@ -517,7 +532,7 @@ func genBuilder(obj *codegen.Object) error {
 				o.L("}")
 			} else {
 				paramType := field.Type()
-				
+
 				o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), paramType)
 				o.L("if b.err != nil {")
 				o.L("return b")

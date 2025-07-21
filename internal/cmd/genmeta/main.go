@@ -43,6 +43,64 @@ func _main() error {
 	}
 
 	fmt.Printf("Successfully loaded meta-schema with ID: %s\n", metaSchema.ID())
+	
+	// Debug: Raw JSON check
+	if bytes.Contains(metaSchemaData, []byte(`"type"`)) {
+		fmt.Printf("Raw JSON contains 'type' field\n")
+	} else {
+		fmt.Printf("Raw JSON does NOT contain 'type' field\n")
+	}
+	
+	// Debug: Check if meta-schema has types
+	if metaSchema.HasTypes() {
+		types := metaSchema.Types()
+		fmt.Printf("Meta-schema has types: %v\n", types)
+		
+		// Debug: Test type compilation in isolation
+		fmt.Printf("Testing if 'type' keyword is enabled in context...\n")
+		testCtx := context.Background()
+		testVocabSet := validator.AllEnabled()
+		testCtx = validator.WithVocabularySet(testCtx, testVocabSet)
+		isTypeEnabled := validator.IsKeywordEnabledInContext(testCtx, "type")
+		fmt.Printf("Type keyword enabled: %v\n", isTypeEnabled)
+		
+		// Debug: Test what base schema would be created
+		fmt.Printf("Simulating createBaseSchema behavior...\n")
+		baseBuilder := schema.NewBuilder()
+		if len(metaSchema.Types()) > 0 {
+			baseBuilder.Types(metaSchema.Types()...)
+			fmt.Printf("Base schema would have types: %v\n", metaSchema.Types())
+		}
+		baseSchema := baseBuilder.MustBuild()
+		
+		// Test compiling the base schema in isolation
+		baseValidator, err := validator.Compile(testCtx, baseSchema)
+		if err != nil {
+			fmt.Printf("Base schema compilation failed: %v\n", err)
+		} else {
+			fmt.Printf("Base schema compiled successfully to: %T\n", baseValidator)
+			
+			// Test the base validator 
+			testValues := []any{"string", 123, true, map[string]any{"key": "value"}}
+			for _, value := range testValues {
+				_, err := baseValidator.Validate(testCtx, value)
+				fmt.Printf("Base validator - Value %T: %v\n", value, err == nil)
+			}
+			
+			// Debug: Check which allOf compilation path will be taken
+			fmt.Printf("Checking allOf compilation path...\n")
+			fmt.Printf("metaSchema.HasAllOf(): %v\n", metaSchema.HasAllOf())
+			fmt.Printf("hasBaseConstraints(metaSchema): %v\n", len(metaSchema.Types()) > 0) // This is what hasBaseConstraints checks for types
+			
+			// Check if it has unevaluated fields that would trigger special handling
+			hasUnevaluatedProperties := metaSchema.HasUnevaluatedProperties()
+			hasUnevaluatedItems := metaSchema.HasUnevaluatedItems()
+			fmt.Printf("metaSchema.HasUnevaluatedProperties(): %v\n", hasUnevaluatedProperties)
+			fmt.Printf("metaSchema.HasUnevaluatedItems(): %v\n", hasUnevaluatedItems)
+		}
+	} else {
+		fmt.Printf("Meta-schema has NO types field!\n")
+	}
 
 	// Compile the meta-schema to a validator
 	ctx := context.Background()
@@ -84,8 +142,14 @@ package meta
 
 import (
 	"context"
+	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 )
+
+func init() {
+	// Ensure keywords package is imported (referenced by generated code)
+	_ = keywords.Schema
+}
 
 // metaValidator holds the pre-compiled validator for the JSON Schema 2020-12 meta-schema
 var metaValidator validator.Interface
@@ -133,8 +197,8 @@ func Validate(ctx context.Context, jsonSchemaDocument any) error {
 		return fmt.Errorf("failed to create meta directory: %w", err)
 	}
 
-	// Write the generated code to meta/meta.go
-	outputPath := filepath.Join(metaDir, "meta.go")
+	// Write the generated code to meta/meta_gen.go
+	outputPath := filepath.Join(metaDir, "meta_gen.go")
 	if err := os.WriteFile(outputPath, formattedCode, 0644); err != nil {
 		return fmt.Errorf("failed to write generated code to %q: %w", outputPath, err)
 	}

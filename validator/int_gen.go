@@ -121,7 +121,7 @@ func compileIntegerValidator(ctx context.Context, s *schema.Schema) (Interface, 
 			}
 			l = append(l, tmp)
 		}
-		b.Enum(l)
+		b.Enum(l...)
 	}
 	return b.Build()
 }
@@ -193,7 +193,7 @@ func (b *IntegerValidatorBuilder) Const(v int) *IntegerValidatorBuilder {
 	return b
 }
 
-func (b *IntegerValidatorBuilder) Enum(v []int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) Enum(v ...int) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}

@@ -30,7 +30,7 @@ func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, 
 			}
 			l = append(l, b)
 		}
-		v.Enum(l)
+		v.Enum(l...)
 	}
 	return v.Build()
 }
@@ -57,11 +57,12 @@ func (b *BooleanValidatorBuilder) Const(v bool) *BooleanValidatorBuilder {
 	return b
 }
 
-func (b *BooleanValidatorBuilder) Enum(v []bool) *BooleanValidatorBuilder {
+func (b *BooleanValidatorBuilder) Enum(v ...bool) *BooleanValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.c.enum = v
+	b.c.enum = make([]bool, len(v))
+	copy(b.c.enum, v)
 	return b
 }
 

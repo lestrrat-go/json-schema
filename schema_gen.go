@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/lestrrat-go/json-schema/internal/field"
+	"github.com/lestrrat-go/json-schema/keywords"
 )
 
 // Field bit flags for tracking populated fields
@@ -575,160 +576,160 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	defer func() { s.isRoot = false }()
 	fields := make([]pair, 0, 52)
 	if s.HasAdditionalItems() {
-		fields = append(fields, pair{Name: "additionalItems", Value: s.additionalItems})
+		fields = append(fields, pair{Name: keywords.AdditionalItems, Value: s.additionalItems})
 	}
 	if s.HasAdditionalProperties() {
-		fields = append(fields, pair{Name: "additionalProperties", Value: s.additionalProperties})
+		fields = append(fields, pair{Name: keywords.AdditionalProperties, Value: s.additionalProperties})
 	}
 	if s.HasAllOf() {
-		fields = append(fields, pair{Name: "allOf", Value: s.allOf})
+		fields = append(fields, pair{Name: keywords.AllOf, Value: s.allOf})
 	}
 	if s.HasAnchor() {
-		fields = append(fields, pair{Name: "$anchor", Value: *(s.anchor)})
+		fields = append(fields, pair{Name: keywords.Anchor, Value: *(s.anchor)})
 	}
 	if s.HasAnyOf() {
-		fields = append(fields, pair{Name: "anyOf", Value: s.anyOf})
+		fields = append(fields, pair{Name: keywords.AnyOf, Value: s.anyOf})
 	}
 	if s.HasComment() {
-		fields = append(fields, pair{Name: "$comment", Value: *(s.comment)})
+		fields = append(fields, pair{Name: keywords.Comment, Value: *(s.comment)})
 	}
 	if s.HasConst() {
-		fields = append(fields, pair{Name: "const", Value: *(s.constantValue)})
+		fields = append(fields, pair{Name: keywords.Const, Value: *(s.constantValue)})
 	}
 	if s.HasContains() {
-		fields = append(fields, pair{Name: "contains", Value: s.contains})
+		fields = append(fields, pair{Name: keywords.Contains, Value: s.contains})
 	}
 	if s.HasContentEncoding() {
-		fields = append(fields, pair{Name: "contentEncoding", Value: *(s.contentEncoding)})
+		fields = append(fields, pair{Name: keywords.ContentEncoding, Value: *(s.contentEncoding)})
 	}
 	if s.HasContentMediaType() {
-		fields = append(fields, pair{Name: "contentMediaType", Value: *(s.contentMediaType)})
+		fields = append(fields, pair{Name: keywords.ContentMediaType, Value: *(s.contentMediaType)})
 	}
 	if s.HasContentSchema() {
-		fields = append(fields, pair{Name: "contentSchema", Value: s.contentSchema})
+		fields = append(fields, pair{Name: keywords.ContentSchema, Value: s.contentSchema})
 	}
 	if s.HasDefault() {
-		fields = append(fields, pair{Name: "default", Value: *(s.defaultValue)})
+		fields = append(fields, pair{Name: keywords.Default, Value: *(s.defaultValue)})
 	}
 	if s.HasDefinitions() {
-		fields = append(fields, pair{Name: "$defs", Value: s.definitions})
+		fields = append(fields, pair{Name: keywords.Definitions, Value: s.definitions})
 	}
 	if s.HasDependentRequired() {
-		fields = append(fields, pair{Name: "dependentRequired", Value: s.dependentRequired})
+		fields = append(fields, pair{Name: keywords.DependentRequired, Value: s.dependentRequired})
 	}
 	if s.HasDependentSchemas() {
-		fields = append(fields, pair{Name: "dependentSchemas", Value: s.dependentSchemas})
+		fields = append(fields, pair{Name: keywords.DependentSchemas, Value: s.dependentSchemas})
 	}
 	if s.HasDynamicAnchor() {
-		fields = append(fields, pair{Name: "$dynamicAnchor", Value: *(s.dynamicAnchor)})
+		fields = append(fields, pair{Name: keywords.DynamicAnchor, Value: *(s.dynamicAnchor)})
 	}
 	if s.HasDynamicReference() {
-		fields = append(fields, pair{Name: "$dynamicRef", Value: *(s.dynamicReference)})
+		fields = append(fields, pair{Name: keywords.DynamicReference, Value: *(s.dynamicReference)})
 	}
 	if s.HasElseSchema() {
-		fields = append(fields, pair{Name: "else", Value: s.elseSchema})
+		fields = append(fields, pair{Name: keywords.Else, Value: s.elseSchema})
 	}
 	if s.HasEnum() {
-		fields = append(fields, pair{Name: "enum", Value: s.enum})
+		fields = append(fields, pair{Name: keywords.Enum, Value: s.enum})
 	}
 	if s.HasExclusiveMaximum() {
-		fields = append(fields, pair{Name: "exclusiveMaximum", Value: *(s.exclusiveMaximum)})
+		fields = append(fields, pair{Name: keywords.ExclusiveMaximum, Value: *(s.exclusiveMaximum)})
 	}
 	if s.HasExclusiveMinimum() {
-		fields = append(fields, pair{Name: "exclusiveMinimum", Value: *(s.exclusiveMinimum)})
+		fields = append(fields, pair{Name: keywords.ExclusiveMinimum, Value: *(s.exclusiveMinimum)})
 	}
 	if s.HasFormat() {
-		fields = append(fields, pair{Name: "format", Value: *(s.format)})
+		fields = append(fields, pair{Name: keywords.Format, Value: *(s.format)})
 	}
 	if s.HasID() {
-		fields = append(fields, pair{Name: "$id", Value: *(s.id)})
+		fields = append(fields, pair{Name: keywords.ID, Value: *(s.id)})
 	}
 	if s.HasIfSchema() {
-		fields = append(fields, pair{Name: "if", Value: s.ifSchema})
+		fields = append(fields, pair{Name: keywords.If, Value: s.ifSchema})
 	}
 	if s.HasItems() {
-		fields = append(fields, pair{Name: "items", Value: s.items})
+		fields = append(fields, pair{Name: keywords.Items, Value: s.items})
 	}
 	if s.HasMaxContains() {
-		fields = append(fields, pair{Name: "maxContains", Value: *(s.maxContains)})
+		fields = append(fields, pair{Name: keywords.MaxContains, Value: *(s.maxContains)})
 	}
 	if s.HasMaxItems() {
-		fields = append(fields, pair{Name: "maxItems", Value: *(s.maxItems)})
+		fields = append(fields, pair{Name: keywords.MaxItems, Value: *(s.maxItems)})
 	}
 	if s.HasMaxLength() {
-		fields = append(fields, pair{Name: "maxLength", Value: *(s.maxLength)})
+		fields = append(fields, pair{Name: keywords.MaxLength, Value: *(s.maxLength)})
 	}
 	if s.HasMaxProperties() {
-		fields = append(fields, pair{Name: "maxProperties", Value: *(s.maxProperties)})
+		fields = append(fields, pair{Name: keywords.MaxProperties, Value: *(s.maxProperties)})
 	}
 	if s.HasMaximum() {
-		fields = append(fields, pair{Name: "maximum", Value: *(s.maximum)})
+		fields = append(fields, pair{Name: keywords.Maximum, Value: *(s.maximum)})
 	}
 	if s.HasMinContains() {
-		fields = append(fields, pair{Name: "minContains", Value: *(s.minContains)})
+		fields = append(fields, pair{Name: keywords.MinContains, Value: *(s.minContains)})
 	}
 	if s.HasMinItems() {
-		fields = append(fields, pair{Name: "minItems", Value: *(s.minItems)})
+		fields = append(fields, pair{Name: keywords.MinItems, Value: *(s.minItems)})
 	}
 	if s.HasMinLength() {
-		fields = append(fields, pair{Name: "minLength", Value: *(s.minLength)})
+		fields = append(fields, pair{Name: keywords.MinLength, Value: *(s.minLength)})
 	}
 	if s.HasMinProperties() {
-		fields = append(fields, pair{Name: "minProperties", Value: *(s.minProperties)})
+		fields = append(fields, pair{Name: keywords.MinProperties, Value: *(s.minProperties)})
 	}
 	if s.HasMinimum() {
-		fields = append(fields, pair{Name: "minimum", Value: *(s.minimum)})
+		fields = append(fields, pair{Name: keywords.Minimum, Value: *(s.minimum)})
 	}
 	if s.HasMultipleOf() {
-		fields = append(fields, pair{Name: "multipleOf", Value: *(s.multipleOf)})
+		fields = append(fields, pair{Name: keywords.MultipleOf, Value: *(s.multipleOf)})
 	}
 	if s.HasNot() {
-		fields = append(fields, pair{Name: "not", Value: s.not})
+		fields = append(fields, pair{Name: keywords.Not, Value: s.not})
 	}
 	if s.HasOneOf() {
-		fields = append(fields, pair{Name: "oneOf", Value: s.oneOf})
+		fields = append(fields, pair{Name: keywords.OneOf, Value: s.oneOf})
 	}
 	if s.HasPattern() {
-		fields = append(fields, pair{Name: "pattern", Value: *(s.pattern)})
+		fields = append(fields, pair{Name: keywords.Pattern, Value: *(s.pattern)})
 	}
 	if s.HasPatternProperties() {
-		fields = append(fields, pair{Name: "patternProperties", Value: s.patternProperties})
+		fields = append(fields, pair{Name: keywords.PatternProperties, Value: s.patternProperties})
 	}
 	if s.HasPrefixItems() {
-		fields = append(fields, pair{Name: "prefixItems", Value: s.prefixItems})
+		fields = append(fields, pair{Name: keywords.PrefixItems, Value: s.prefixItems})
 	}
 	if s.HasProperties() {
-		fields = append(fields, pair{Name: "properties", Value: s.properties})
+		fields = append(fields, pair{Name: keywords.Properties, Value: s.properties})
 	}
 	if s.HasPropertyNames() {
-		fields = append(fields, pair{Name: "propertyNames", Value: s.propertyNames})
+		fields = append(fields, pair{Name: keywords.PropertyNames, Value: s.propertyNames})
 	}
 	if s.HasReference() {
-		fields = append(fields, pair{Name: "$ref", Value: *(s.reference)})
+		fields = append(fields, pair{Name: keywords.Reference, Value: *(s.reference)})
 	}
 	if s.HasRequired() {
-		fields = append(fields, pair{Name: "required", Value: s.required})
+		fields = append(fields, pair{Name: keywords.Required, Value: s.required})
 	}
 	if v := s.schema; s.isRoot && v != "" {
-		fields = append(fields, pair{Name: "$schema", Value: v})
+		fields = append(fields, pair{Name: keywords.Schema, Value: v})
 	}
 	if s.HasThenSchema() {
-		fields = append(fields, pair{Name: "then", Value: s.thenSchema})
+		fields = append(fields, pair{Name: keywords.Then, Value: s.thenSchema})
 	}
 	if s.HasTypes() {
-		fields = append(fields, pair{Name: "type", Value: s.types})
+		fields = append(fields, pair{Name: keywords.Type, Value: s.types})
 	}
 	if s.HasUnevaluatedItems() {
-		fields = append(fields, pair{Name: "unevaluatedItems", Value: s.unevaluatedItems})
+		fields = append(fields, pair{Name: keywords.UnevaluatedItems, Value: s.unevaluatedItems})
 	}
 	if s.HasUnevaluatedProperties() {
-		fields = append(fields, pair{Name: "unevaluatedProperties", Value: s.unevaluatedProperties})
+		fields = append(fields, pair{Name: keywords.UnevaluatedProperties, Value: s.unevaluatedProperties})
 	}
 	if s.HasUniqueItems() {
-		fields = append(fields, pair{Name: "uniqueItems", Value: *(s.uniqueItems)})
+		fields = append(fields, pair{Name: keywords.UniqueItems, Value: *(s.uniqueItems)})
 	}
 	if s.HasVocabulary() {
-		fields = append(fields, pair{Name: "$vocabulary", Value: s.vocabulary})
+		fields = append(fields, pair{Name: keywords.Vocabulary, Value: s.vocabulary})
 	}
 	sort.Slice(fields, func(i, j int) bool {
 		return compareFieldNames(fields[i].Name, fields[j].Name)
@@ -771,7 +772,7 @@ LOOP:
 			}
 		case string: // Objects can only have string keys
 			switch tok {
-			case "additionalItems":
+			case keywords.AdditionalItems:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "additionalItems": %w`, err)
@@ -790,7 +791,7 @@ LOOP:
 					}
 				}
 				s.populatedFields |= AdditionalItemsField
-			case "additionalProperties":
+			case keywords.AdditionalProperties:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "additionalProperties": %w`, err)
@@ -809,42 +810,42 @@ LOOP:
 					}
 				}
 				s.populatedFields |= AdditionalPropertiesField
-			case "allOf":
+			case keywords.AllOf:
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "allOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.allOf = v
 				s.populatedFields |= AllOfField
-			case "$anchor":
+			case keywords.Anchor:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$anchor" (attempting to unmarshal as string): %w`, err)
 				}
 				s.anchor = &v
 				s.populatedFields |= AnchorField
-			case "anyOf":
+			case keywords.AnyOf:
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "anyOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.anyOf = v
 				s.populatedFields |= AnyOfField
-			case "$comment":
+			case keywords.Comment:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$comment" (attempting to unmarshal as string): %w`, err)
 				}
 				s.comment = &v
 				s.populatedFields |= CommentField
-			case "const":
+			case keywords.Const:
 				var v any
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "const" (attempting to unmarshal as any): %w`, err)
 				}
 				s.constantValue = &v
 				s.populatedFields |= ConstField
-			case "contains":
+			case keywords.Contains:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "contains": %w`, err)
@@ -863,21 +864,21 @@ LOOP:
 					}
 				}
 				s.populatedFields |= ContainsField
-			case "contentEncoding":
+			case keywords.ContentEncoding:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "contentEncoding" (attempting to unmarshal as string): %w`, err)
 				}
 				s.contentEncoding = &v
 				s.populatedFields |= ContentEncodingField
-			case "contentMediaType":
+			case keywords.ContentMediaType:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "contentMediaType" (attempting to unmarshal as string): %w`, err)
 				}
 				s.contentMediaType = &v
 				s.populatedFields |= ContentMediaTypeField
-			case "contentSchema":
+			case keywords.ContentSchema:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "contentSchema": %w`, err)
@@ -904,14 +905,14 @@ LOOP:
 					}
 				}
 				s.populatedFields |= ContentSchemaField
-			case "default":
+			case keywords.Default:
 				var v any
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "default" (attempting to unmarshal as any): %w`, err)
 				}
 				s.defaultValue = &v
 				s.populatedFields |= DefaultField
-			case "$defs":
+			case keywords.Definitions:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "$defs": %w`, err)
@@ -948,35 +949,35 @@ LOOP:
 				}
 				s.definitions = v
 				s.populatedFields |= DefinitionsField
-			case "dependentRequired":
+			case keywords.DependentRequired:
 				var v map[string][]string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "dependentRequired" (attempting to unmarshal as map[string][]string): %w`, err)
 				}
 				s.dependentRequired = v
 				s.populatedFields |= DependentRequiredField
-			case "dependentSchemas":
+			case keywords.DependentSchemas:
 				v, err := unmarshalSchemaOrBoolMap(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "dependentSchemas" (attempting to unmarshal as map[string]SchemaOrBool): %w`, err)
 				}
 				s.dependentSchemas = v
 				s.populatedFields |= DependentSchemasField
-			case "$dynamicAnchor":
+			case keywords.DynamicAnchor:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$dynamicAnchor" (attempting to unmarshal as string): %w`, err)
 				}
 				s.dynamicAnchor = &v
 				s.populatedFields |= DynamicAnchorField
-			case "$dynamicRef":
+			case keywords.DynamicReference:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$dynamicRef" (attempting to unmarshal as string): %w`, err)
 				}
 				s.dynamicReference = &v
 				s.populatedFields |= DynamicReferenceField
-			case "else":
+			case keywords.Else:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "else": %w`, err)
@@ -995,42 +996,42 @@ LOOP:
 					}
 				}
 				s.populatedFields |= ElseSchemaField
-			case "enum":
+			case keywords.Enum:
 				var v []any
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "enum" (attempting to unmarshal as []any): %w`, err)
 				}
 				s.enum = v
 				s.populatedFields |= EnumField
-			case "exclusiveMaximum":
+			case keywords.ExclusiveMaximum:
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "exclusiveMaximum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.exclusiveMaximum = &v
 				s.populatedFields |= ExclusiveMaximumField
-			case "exclusiveMinimum":
+			case keywords.ExclusiveMinimum:
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "exclusiveMinimum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.exclusiveMinimum = &v
 				s.populatedFields |= ExclusiveMinimumField
-			case "format":
+			case keywords.Format:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "format" (attempting to unmarshal as string): %w`, err)
 				}
 				s.format = &v
 				s.populatedFields |= FormatField
-			case "$id":
+			case keywords.ID:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$id" (attempting to unmarshal as string): %w`, err)
 				}
 				s.id = &v
 				s.populatedFields |= IDField
-			case "if":
+			case keywords.If:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "if": %w`, err)
@@ -1049,7 +1050,7 @@ LOOP:
 					}
 				}
 				s.populatedFields |= IfSchemaField
-			case "items":
+			case keywords.Items:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "items": %w`, err)
@@ -1068,84 +1069,84 @@ LOOP:
 					}
 				}
 				s.populatedFields |= ItemsField
-			case "maxContains":
+			case keywords.MaxContains:
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxContains" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxContains = &v
 				s.populatedFields |= MaxContainsField
-			case "maxItems":
+			case keywords.MaxItems:
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxItems" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxItems = &v
 				s.populatedFields |= MaxItemsField
-			case "maxLength":
+			case keywords.MaxLength:
 				var v int
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxLength" (attempting to unmarshal as int): %w`, err)
 				}
 				s.maxLength = &v
 				s.populatedFields |= MaxLengthField
-			case "maxProperties":
+			case keywords.MaxProperties:
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maxProperties" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.maxProperties = &v
 				s.populatedFields |= MaxPropertiesField
-			case "maximum":
+			case keywords.Maximum:
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "maximum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.maximum = &v
 				s.populatedFields |= MaximumField
-			case "minContains":
+			case keywords.MinContains:
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minContains" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minContains = &v
 				s.populatedFields |= MinContainsField
-			case "minItems":
+			case keywords.MinItems:
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minItems" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minItems = &v
 				s.populatedFields |= MinItemsField
-			case "minLength":
+			case keywords.MinLength:
 				var v int
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minLength" (attempting to unmarshal as int): %w`, err)
 				}
 				s.minLength = &v
 				s.populatedFields |= MinLengthField
-			case "minProperties":
+			case keywords.MinProperties:
 				var v uint
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minProperties" (attempting to unmarshal as uint): %w`, err)
 				}
 				s.minProperties = &v
 				s.populatedFields |= MinPropertiesField
-			case "minimum":
+			case keywords.Minimum:
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "minimum" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.minimum = &v
 				s.populatedFields |= MinimumField
-			case "multipleOf":
+			case keywords.MultipleOf:
 				var v float64
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "multipleOf" (attempting to unmarshal as float64): %w`, err)
 				}
 				s.multipleOf = &v
 				s.populatedFields |= MultipleOfField
-			case "not":
+			case keywords.Not:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "not": %w`, err)
@@ -1172,21 +1173,21 @@ LOOP:
 					}
 				}
 				s.populatedFields |= NotField
-			case "oneOf":
+			case keywords.OneOf:
 				v, err := unmarshalSchemaOrBoolSlice(dec)
 				if err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "oneOf" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.oneOf = v
 				s.populatedFields |= OneOfField
-			case "pattern":
+			case keywords.Pattern:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "pattern" (attempting to unmarshal as string): %w`, err)
 				}
 				s.pattern = &v
 				s.populatedFields |= PatternField
-			case "patternProperties":
+			case keywords.PatternProperties:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "patternProperties": %w`, err)
@@ -1223,14 +1224,14 @@ LOOP:
 				}
 				s.patternProperties = v
 				s.populatedFields |= PatternPropertiesField
-			case "prefixItems":
+			case keywords.PrefixItems:
 				var v []*Schema
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "prefixItems" (attempting to unmarshal as []*Schema): %w`, err)
 				}
 				s.prefixItems = v
 				s.populatedFields |= PrefixItemsField
-			case "properties":
+			case keywords.Properties:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "properties": %w`, err)
@@ -1267,7 +1268,7 @@ LOOP:
 				}
 				s.properties = v
 				s.populatedFields |= PropertiesField
-			case "propertyNames":
+			case keywords.PropertyNames:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "propertyNames": %w`, err)
@@ -1294,27 +1295,27 @@ LOOP:
 					}
 				}
 				s.populatedFields |= PropertyNamesField
-			case "$ref":
+			case keywords.Reference:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$ref" (attempting to unmarshal as string): %w`, err)
 				}
 				s.reference = &v
 				s.populatedFields |= ReferenceField
-			case "required":
+			case keywords.Required:
 				var v []string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "required" (attempting to unmarshal as []string): %w`, err)
 				}
 				s.required = v
 				s.populatedFields |= RequiredField
-			case "$schema":
+			case keywords.Schema:
 				var v string
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$schema" (attempting to unmarshal as string): %w`, err)
 				}
 				s.schema = v
-			case "then":
+			case keywords.Then:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "then": %w`, err)
@@ -1333,14 +1334,14 @@ LOOP:
 					}
 				}
 				s.populatedFields |= ThenSchemaField
-			case "type":
+			case keywords.Type:
 				var v PrimitiveTypes
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "type" (attempting to unmarshal as PrimitiveTypes): %w`, err)
 				}
 				s.types = v
 				s.populatedFields |= TypesField
-			case "unevaluatedItems":
+			case keywords.UnevaluatedItems:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "unevaluatedItems": %w`, err)
@@ -1359,7 +1360,7 @@ LOOP:
 					}
 				}
 				s.populatedFields |= UnevaluatedItemsField
-			case "unevaluatedProperties":
+			case keywords.UnevaluatedProperties:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode raw data for field "unevaluatedProperties": %w`, err)
@@ -1378,14 +1379,14 @@ LOOP:
 					}
 				}
 				s.populatedFields |= UnevaluatedPropertiesField
-			case "uniqueItems":
+			case keywords.UniqueItems:
 				var v bool
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "uniqueItems" (attempting to unmarshal as bool): %w`, err)
 				}
 				s.uniqueItems = &v
 				s.populatedFields |= UniqueItemsField
-			case "$vocabulary":
+			case keywords.Vocabulary:
 				var v map[string]bool
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$vocabulary" (attempting to unmarshal as map[string]bool): %w`, err)

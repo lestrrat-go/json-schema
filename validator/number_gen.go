@@ -116,7 +116,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 			}
 			l = append(l, tmp)
 		}
-		b.Enum(l)
+		b.Enum(l...)
 	}
 	return b.Build()
 }
@@ -188,7 +188,7 @@ func (b *NumberValidatorBuilder) Const(v float64) *NumberValidatorBuilder {
 	return b
 }
 
-func (b *NumberValidatorBuilder) Enum(v []float64) *NumberValidatorBuilder {
+func (b *NumberValidatorBuilder) Enum(v ...float64) *NumberValidatorBuilder {
 	if b.err != nil {
 		return b
 	}

@@ -37,7 +37,12 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			}
 			properties[name] = propValidator
 		}
-		v.Properties(properties)
+		// Convert map to PropertyPair slice
+		props := make([]PropertyPair, 0, len(properties))
+		for name, validator := range properties {
+			props = append(props, PropPair(name, validator))
+		}
+		v.Properties(props...)
 	}
 	if s.HasPatternProperties() {
 		patternProperties := make(map[*regexp.Regexp]Interface)
@@ -170,13 +175,19 @@ func (b *ObjectValidatorBuilder) DependentRequired(v map[string][]string) *Objec
 	return b
 }
 
-func (b *ObjectValidatorBuilder) Properties(v map[string]Interface) *ObjectValidatorBuilder {
+func (b *ObjectValidatorBuilder) Properties(props ...PropertyPair) *ObjectValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.c.properties = v
+	if b.c.properties == nil {
+		b.c.properties = make(map[string]Interface)
+	}
+	for _, prop := range props {
+		b.c.properties[prop.Name] = prop.Validator
+	}
 	return b
 }
+
 
 func (b *ObjectValidatorBuilder) PatternProperties(v map[*regexp.Regexp]Interface) *ObjectValidatorBuilder {
 	if b.err != nil {

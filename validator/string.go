@@ -185,7 +185,7 @@ func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bo
 			l = append(l, s)
 		}
 
-		v.Enum(l)
+		v.Enum(l...)
 	}
 
 	return v.Build()
@@ -252,7 +252,7 @@ func (b *StringValidatorBuilder) Format(format string) *StringValidatorBuilder {
 	return b
 }
 
-func (b *StringValidatorBuilder) Enum(enums []string) *StringValidatorBuilder {
+func (b *StringValidatorBuilder) Enum(enums ...string) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}

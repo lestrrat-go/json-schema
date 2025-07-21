@@ -1,0 +1,73 @@
+// package keywords provides constants for JSON Schema keywords, such as
+// "type", "properties", "required", etc. These constants are used to
+// avoid hardcoding strings throughout the codebase, ensuring consistency
+// and reducing the risk of typos.
+package keywords
+
+const (
+	AdditionalItems       = "additionalItems"
+	AdditionalProperties  = "additionalProperties"
+	AllOf                 = "allOf"
+	Anchor                = "$anchor"
+	AnyOf                 = "anyOf"
+	Comment               = "$comment"
+	Const                 = "const"
+	Contains              = "contains"
+	ContentEncoding       = "contentEncoding"
+	ContentMediaType      = "contentMediaType"
+	ContentSchema         = "contentSchema"
+	Default               = "default"
+	Definitions           = "$defs"
+	DependentRequired     = "dependentRequired"
+	DependentSchemas      = "dependentSchemas"
+	Deprecated            = "deprecated"
+	Description           = "description"
+	DynamicAnchor         = "$dynamicAnchor"
+	DynamicAnchorName     = "$dynamicAnchorName"
+	DynamicReference      = "$dynamicRef"
+	Else                  = "else"
+	Enum                  = "enum"
+	Examples              = "examples"
+	ExclusiveMaximum      = "exclusiveMaximum"
+	ExclusiveMinimum      = "exclusiveMinimum"
+	Format                = "format"
+	ID                    = "$id"
+	If                    = "if"
+	Items                 = "items"
+	MaxContains           = "maxContains"
+	MaxItems              = "maxItems"
+	MaxLength             = "maxLength"
+	Maximum               = "maximum"
+	MaxProperties         = "maxProperties"
+	MinContains           = "minContains"
+	MinItems              = "minItems"
+	MinLength             = "minLength"
+	Minimum               = "minimum"
+	MinProperties         = "minProperties"
+	MultipleOf            = "multipleOf"
+	Not                   = "not"
+	OneOf                 = "oneOf"
+	Pattern               = "pattern"
+	PatternProperties     = "patternProperties"
+	PrefixItems           = "prefixItems"
+	Properties            = "properties"
+	PropertyNames         = "propertyNames"
+	ReadOnly              = "readOnly"
+	Reference             = "$ref"
+	Required              = "required"
+	Schema                = "$schema"
+	Then                  = "then"
+	Title                 = "title"
+	Type                  = "type"
+	Types                 = "types"
+	UnevaluatedItems      = "unevaluatedItems"
+	UnevaluatedProperties = "unevaluatedProperties"
+	UniqueItems           = "uniqueItems"
+	Vocabulary            = "$vocabulary"
+	WriteOnly             = "writeOnly"
+
+	// Legacy keywords for backward compatibility
+	// These keywords were deprecated in JSON Schema 2020-12 but may still appear in older schemas
+	RecursiveAnchor       = "$recursiveAnchor" // Deprecated: use $dynamicAnchor instead
+	RecursiveRef          = "$recursiveRef"    // Deprecated: use $dynamicRef instead
+)

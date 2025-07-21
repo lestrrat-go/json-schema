@@ -5,8 +5,91 @@ import (
 	"go/format"
 	"io"
 	"strings"
+
+	"github.com/lestrrat-go/codegen"
+	"github.com/lestrrat-go/json-schema/keywords"
 )
 
+// Ensure keywords package is imported (referenced in string maps)
+var _ = keywords.Type
+
+// keywordConstantMap maps JSON Schema keywords to their keywords package constant names
+var keywordConstantMap = map[string]string{
+	"$id":                    "keywords.ID",
+	"$schema":                "keywords.Schema", 
+	"$anchor":                "keywords.Anchor",
+	"$dynamicAnchor":         "keywords.DynamicAnchor",
+	"$dynamicRef":            "keywords.DynamicReference",
+	"$ref":                   "keywords.Reference",
+	"$comment":               "keywords.Comment",
+	"$defs":                  "keywords.Definitions",
+	"$vocabulary":            "keywords.Vocabulary",
+	"type":                   "keywords.Type",
+	"enum":                   "keywords.Enum",
+	"const":                  "keywords.Const",
+	"multipleOf":             "keywords.MultipleOf",
+	"maximum":                "keywords.Maximum",
+	"exclusiveMaximum":       "keywords.ExclusiveMaximum",
+	"minimum":                "keywords.Minimum",
+	"exclusiveMinimum":       "keywords.ExclusiveMinimum",
+	"maxLength":              "keywords.MaxLength",
+	"minLength":              "keywords.MinLength",
+	"pattern":                "keywords.Pattern",
+	"additionalItems":        "keywords.AdditionalItems",
+	"items":                  "keywords.Items",
+	"maxItems":               "keywords.MaxItems",
+	"minItems":               "keywords.MinItems",
+	"uniqueItems":            "keywords.UniqueItems",
+	"contains":               "keywords.Contains",
+	"maxContains":            "keywords.MaxContains",
+	"minContains":            "keywords.MinContains",
+	"maxProperties":          "keywords.MaxProperties",
+	"minProperties":          "keywords.MinProperties", 
+	"required":               "keywords.Required",
+	"additionalProperties":   "keywords.AdditionalProperties",
+	"definitions":            "keywords.Definitions",
+	"properties":             "keywords.Properties",
+	"patternProperties":      "keywords.PatternProperties",
+	"dependencies":           "keywords.DependentSchemas", // Note: "dependencies" maps to DependentSchemas in 2020-12
+	"dependentSchemas":       "keywords.DependentSchemas",
+	"dependentRequired":      "keywords.DependentRequired",
+	"propertyNames":          "keywords.PropertyNames",
+	"allOf":                  "keywords.AllOf",
+	"anyOf":                  "keywords.AnyOf",
+	"oneOf":                  "keywords.OneOf",
+	"not":                    "keywords.Not",
+	"if":                     "keywords.If",
+	"then":                   "keywords.Then",
+	"else":                   "keywords.Else",
+	"format":                 "keywords.Format",
+	"contentEncoding":        "keywords.ContentEncoding",
+	"contentMediaType":       "keywords.ContentMediaType",
+	"contentSchema":          "keywords.ContentSchema",
+	"title":                  "keywords.Title",
+	"description":            "keywords.Description",
+	"default":                "keywords.Default",
+	"deprecated":             "keywords.Deprecated",
+	"readOnly":               "keywords.ReadOnly",
+	"writeOnly":              "keywords.WriteOnly",
+	"examples":               "keywords.Examples",
+	"prefixItems":            "keywords.PrefixItems",
+	"unevaluatedItems":       "keywords.UnevaluatedItems",
+	"unevaluatedProperties":  "keywords.UnevaluatedProperties",
+	// Legacy keywords for backward compatibility
+	"$recursiveRef":          "keywords.RecursiveRef",    // Deprecated in 2020-12 but still in some schemas
+	"$recursiveAnchor":       "keywords.RecursiveAnchor", // Deprecated in 2020-12 but still in some schemas
+}
+
+// getKeywordConstant returns the keywords package constant reference for a JSON Schema keyword,
+// or returns the quoted string if it's not a standard keyword
+func getKeywordConstant(propName string) string {
+	if constant, exists := keywordConstantMap[propName]; exists {
+		return constant
+	}
+	
+	// For non-standard keywords, return the quoted string
+	return fmt.Sprintf("%q", propName)
+}
 
 // Generate writes Go code that constructs the given validator to the provided Writer
 // The output is just the builder chain, e.g.: validator.String().MinLength(5).MaxLength(100)
@@ -118,18 +201,18 @@ func (g *codeGenerator) generateNumberBuilderChain(v *numberValidator) (string, 
 	}
 	if v.enum != nil {
 		enumStr := formatFloat64Slice(v.enum)
-		parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		// For multiline arguments, format differently
+		if len(v.enum) > 1 {
+			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
+		} else {
+			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		}
 	}
 	if v.constantValue != nil {
 		parts = append(parts, fmt.Sprintf("Const(%g)", *v.constantValue))
 	}
 	
-	builderCalls := strings.Join(parts, ".")
-	if builderCalls != "" {
-		builderCalls = "." + builderCalls
-	}
-	
-	return fmt.Sprintf("validator.Number()%s.MustBuild()", builderCalls), nil
+	return buildMethodChain("validator.Number()", parts), nil
 }
 
 // generateBooleanBuilderChain creates just the builder chain for boolean validators
@@ -138,18 +221,18 @@ func (g *codeGenerator) generateBooleanBuilderChain(v *booleanValidator) (string
 	
 	if v.enum != nil {
 		enumStr := formatBoolSlice(v.enum)
-		parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		// For multiline arguments, format differently
+		if len(v.enum) > 1 {
+			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
+		} else {
+			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		}
 	}
 	if v.constantValue != nil {
 		parts = append(parts, fmt.Sprintf("Const(%t)", *v.constantValue))
 	}
 	
-	builderCalls := strings.Join(parts, ".")
-	if builderCalls != "" {
-		builderCalls = "." + builderCalls
-	}
-	
-	return fmt.Sprintf("validator.Boolean()%s.MustBuild()", builderCalls), nil
+	return buildMethodChain("validator.Boolean()", parts), nil
 }
 
 // generateArrayBuilderChain creates just the builder chain for array validators
@@ -179,20 +262,11 @@ func (g *codeGenerator) generateArrayBuilderChain(v *arrayValidator) (string, er
 	if hasComplexItems {
 		// For now, create a basic array validator without complex items
 		// TODO: Add support for items/prefixItems generation
-		builderCalls := strings.Join(parts, ".")
-		if builderCalls != "" {
-			builderCalls = "." + builderCalls
-		}
-		return fmt.Sprintf("validator.Array()%s.MustBuild()", builderCalls), nil
+		return buildMethodChain("validator.Array()", parts), nil
 	}
 	
 	// Simple case - just constraints
-	builderCalls := strings.Join(parts, ".")
-	if builderCalls != "" {
-		builderCalls = "." + builderCalls
-	}
-	
-	return fmt.Sprintf("validator.Array()%s.MustBuild()", builderCalls), nil
+	return buildMethodChain("validator.Array()", parts), nil
 }
 
 // generateObjectBuilderChain creates just the builder chain for object validators
@@ -213,12 +287,12 @@ func (g *codeGenerator) generateObjectBuilderChain(v *objectValidator) (string, 
 	
 	// Handle complex properties
 	if v.properties != nil && len(v.properties) > 0 {
-		// Generate properties map
-		propertiesCode, err := g.generatePropertiesMap(v.properties)
+		// Generate properties as PropertyPair arguments
+		propertiesPairs, err := g.generatePropertyPairs(v.properties)
 		if err != nil {
-			return "", fmt.Errorf("failed to generate properties map: %w", err)
+			return "", fmt.Errorf("failed to generate property pairs: %w", err)
 		}
-		parts = append(parts, fmt.Sprintf("Properties(%s)", propertiesCode))
+		parts = append(parts, fmt.Sprintf("Properties(%s)", propertiesPairs))
 	}
 	
 	// Handle additional properties
@@ -252,21 +326,19 @@ func (g *codeGenerator) generateObjectBuilderChain(v *objectValidator) (string, 
 	}
 	
 	// Simple case - just constraints
-	builderCalls := strings.Join(parts, ".")
-	if builderCalls != "" {
-		builderCalls = "." + builderCalls
-	}
-	
-	return fmt.Sprintf("validator.Object()%s.MustBuild()", builderCalls), nil
+	// For meta-schema, all Object validators should be strict to reject non-objects
+	parts = append(parts, "StrictObjectType(true)")
+	return buildMethodChain("validator.Object()", parts), nil
 }
 
-// generatePropertiesMap generates Go code for a properties map
-func (g *codeGenerator) generatePropertiesMap(properties map[string]Interface) (string, error) {
+
+// generatePropertyPairs generates Go code for PropertyPair arguments
+func (g *codeGenerator) generatePropertyPairs(properties map[string]Interface) (string, error) {
 	if len(properties) == 0 {
-		return "nil", nil
+		return "", nil
 	}
 	
-	var mapEntries []string
+	var propPairs []string
 	
 	for propName, propValidator := range properties {
 		// Generate the validator code for this property
@@ -275,14 +347,15 @@ func (g *codeGenerator) generatePropertiesMap(properties map[string]Interface) (
 			return "", fmt.Errorf("failed to generate validator for property %s: %w", propName, err)
 		}
 		
-		// Escape the property name as a Go string literal
-		escapedName := fmt.Sprintf("%q", propName)
-		mapEntries = append(mapEntries, fmt.Sprintf("\t%s: %s", escapedName, propCode))
+		// Create the PropertyPair
+		propPairs = append(propPairs, fmt.Sprintf("validator.PropPair(%s, %s)", getKeywordConstant(propName), propCode))
 	}
 	
-	// Generate the complete map literal
-	mapCode := fmt.Sprintf("map[string]validator.Interface{\n%s,\n}", strings.Join(mapEntries, ",\n"))
-	return mapCode, nil
+	// Format with newlines if multiple properties
+	if len(propPairs) > 1 {
+		return "\n\t\t" + strings.Join(propPairs, ",\n\t\t") + ",\n\t", nil
+	}
+	return strings.Join(propPairs, ", "), nil
 }
 
 // generateMultiBuilderChain creates just the builder chain for multi validators
@@ -368,14 +441,20 @@ func (g *codeGenerator) generateGeneralBuilderChain(v *GeneralValidator) (string
 				enumStrs[i] = fmt.Sprintf("%#v", e)
 			}
 		}
-		enumSlice := fmt.Sprintf("[]string{%s}", strings.Join(enumStrs, ", "))
+		// Format enum arguments with newlines if there are multiple
+		var enumArgs string
+		if len(enumStrs) > 1 {
+			enumArgs = "\n\t\t" + strings.Join(enumStrs, ",\n\t\t") + ",\n\t"
+		} else {
+			enumArgs = strings.Join(enumStrs, ", ")
+		}
 		
 		return fmt.Sprintf(`func() validator.Interface {
 			mv := validator.NewMultiValidator(validator.OrMode)
 			mv.Append(validator.String().Enum(%s).MustBuild())
 			mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())
 			return mv
-		}()`, enumSlice), nil
+		}()`, enumArgs), nil
 	}
 	
 	if v.hasConst {
@@ -416,18 +495,18 @@ func (g *codeGenerator) generateStringBuilderChain(v *stringValidator) (string, 
 	}
 	if v.enum != nil {
 		enumStr := formatStringSlice(v.enum)
-		parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		// For multiline arguments, format differently
+		if len(v.enum) > 1 {
+			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
+		} else {
+			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		}
 	}
 	if v.constantValue != nil {
 		parts = append(parts, fmt.Sprintf("Const(%q)", *v.constantValue))
 	}
 	
-	builderCalls := strings.Join(parts, ".")
-	if builderCalls != "" {
-		builderCalls = "." + builderCalls
-	}
-	
-	return fmt.Sprintf("validator.String()%s.MustBuild()", builderCalls), nil
+	return buildMethodChain("validator.String()", parts), nil
 }
 
 // generateStringValidator creates code for string validators by directly accessing fields
@@ -466,18 +545,18 @@ func (g *codeGenerator) generateIntegerBuilderChain(v *integerValidator) (string
 	}
 	if v.enum != nil {
 		enumStr := formatIntSlice(v.enum)
-		parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		// For multiline arguments, format differently
+		if len(v.enum) > 1 {
+			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
+		} else {
+			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		}
 	}
 	if v.constantValue != nil {
 		parts = append(parts, fmt.Sprintf("Const(%d)", *v.constantValue))
 	}
 	
-	builderCalls := strings.Join(parts, ".")
-	if builderCalls != "" {
-		builderCalls = "." + builderCalls
-	}
-	
-	return fmt.Sprintf("validator.Integer()%s.MustBuild()", builderCalls), nil
+	return buildMethodChain("validator.Integer()", parts), nil
 }
 
 // generateIntegerValidator creates code for integer validators
@@ -858,14 +937,19 @@ func (g *codeGenerator) generateObjectValidator(name string, v *objectValidator)
 		}
 		childSetup = append(childSetup, propertySetup...)
 		
-		// Generate the properties map
+		// Generate PropertyPair arguments
 		var propertyPairs []string
 		for propName := range v.properties {
 			propVar := fmt.Sprintf("prop_%s", sanitizeVarName(propName))
-			propertyPairs = append(propertyPairs, fmt.Sprintf("\t\t%q: %s", propName, propVar))
+			propertyPairs = append(propertyPairs, fmt.Sprintf("\t\tvalidator.PropPair(%s, %s)", getKeywordConstant(propName), propVar))
 		}
-		childSetup = append(childSetup, fmt.Sprintf("\tproperties := map[string]validator.Interface{\n%s,\n\t}", strings.Join(propertyPairs, ",\n")))
-		parts = append(parts, "Properties(properties)")
+		
+		// Format Properties call with proper multiline structure
+		if len(propertyPairs) > 1 {
+			parts = append(parts, fmt.Sprintf("Properties(\n%s,\n\t)", strings.Join(propertyPairs, ",\n")))
+		} else {
+			parts = append(parts, fmt.Sprintf("Properties(%s)", strings.Join(propertyPairs, ", ")))
+		}
 	}
 
 	// Handle additional properties (simplified - just check if it's a boolean)
@@ -998,6 +1082,58 @@ func (g *codeGenerator) GeneratePackage(packageName string, validators map[strin
 
 // Helper functions
 
+// buildMethodChain creates a method chain with proper line formatting using codegen
+func buildMethodChain(baseMethod string, parts []string) string {
+	var buf strings.Builder
+	o := codegen.NewOutput(&buf)
+	
+	if len(parts) == 0 {
+		o.R("%s.MustBuild()", baseMethod)
+		return buf.String()
+	}
+	
+	// Write the base method call
+	o.L("%s.", baseMethod)
+	
+	// Write each method call on its own line with proper indentation
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			// Last part - add MustBuild and close
+			o.L("\t%s.", part)
+			o.L("\tMustBuild()")
+		} else {
+			o.L("\t%s.", part)
+		}
+	}
+	
+	return buf.String()
+}
+
+// buildMultilineCall creates a function call with arguments formatted across multiple lines
+func buildMultilineCall(funcName string, args []string) string {
+	var buf strings.Builder
+	o := codegen.NewOutput(&buf)
+	
+	if len(args) <= 1 {
+		// Single argument - keep on one line
+		if len(args) == 1 {
+			o.R("%s{%s}", funcName, args[0])
+		} else {
+			o.R("%s{}", funcName)
+		}
+		return buf.String()
+	}
+	
+	// Multiple arguments - format across multiple lines
+	o.L("%s{", funcName)
+	for _, arg := range args {
+		o.L("\t%s,", arg)
+	}
+	o.L("}")
+	
+	return buf.String()
+}
+
 // formatCode formats the generated Go code
 func (g *codeGenerator) formatCode(code string) (string, error) {
 	formatted, err := format.Source([]byte(code))
@@ -1014,7 +1150,7 @@ func formatStringSlice(strs []string) string {
 	for i, s := range strs {
 		quoted[i] = fmt.Sprintf("%q", s)
 	}
-	return fmt.Sprintf("[]string{%s}", strings.Join(quoted, ", "))
+	return buildMultilineCall("[]string", quoted)
 }
 
 // formatIntSlice formats an int slice for Go code
@@ -1023,7 +1159,7 @@ func formatIntSlice(ints []int) string {
 	for i, n := range ints {
 		strs[i] = fmt.Sprintf("%d", n)
 	}
-	return fmt.Sprintf("[]int{%s}", strings.Join(strs, ", "))
+	return buildMultilineCall("[]int", strs)
 }
 
 // formatFloat64Slice formats a float64 slice for Go code
@@ -1032,7 +1168,7 @@ func formatFloat64Slice(floats []float64) string {
 	for i, f := range floats {
 		strs[i] = fmt.Sprintf("%g", f)
 	}
-	return fmt.Sprintf("[]float64{%s}", strings.Join(strs, ", "))
+	return buildMultilineCall("[]float64", strs)
 }
 
 // formatBoolSlice formats a bool slice for Go code
@@ -1041,7 +1177,7 @@ func formatBoolSlice(bools []bool) string {
 	for i, b := range bools {
 		strs[i] = fmt.Sprintf("%t", b)
 	}
-	return fmt.Sprintf("[]bool{%s}", strings.Join(strs, ", "))
+	return buildMultilineCall("[]bool", strs)
 }
 
 // generateContentValidator creates code for content validators
@@ -1211,7 +1347,8 @@ func (g *codeGenerator) generateDynamicReferenceBuilderChain(v *DynamicReference
 	// 2. Any JSON value (for things like const/default)
 	// For meta-schema generation, assume these accept schema objects (type: object)
 	// This is better than EmptyValidator which accepts anything
-	return "validator.Object().MustBuild()", nil
+	// Use StrictObjectType(true) to ensure only objects are accepted
+	return "validator.Object().StrictObjectType(true).MustBuild()", nil
 }
 
 // generateContentBuilderChain creates just the builder chain for content validators

@@ -33,6 +33,20 @@ type ArrayIndexResolver interface {
 	ResolveArrayIndex(int) (any, error)
 }
 
+// PropertyPair represents a key-value pair for object properties
+type PropertyPair struct {
+	Name      string
+	Validator Interface
+}
+
+// PropPair creates a new PropertyPair with the given name and validator
+func PropPair(name string, validator Interface) PropertyPair {
+	return PropertyPair{
+		Name:      name,
+		Validator: validator,
+	}
+}
+
 // resolveObjectField resolves a field from an object, supporting multiple types:
 // - map[string]any: direct key lookup
 // - ObjectFieldResolver: custom resolution

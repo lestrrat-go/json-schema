@@ -114,7 +114,7 @@ func generateValidator(def definition, outputDir string) error {
 			o.L("}") // switch
 			o.L("l = append(l, tmp)")
 			o.L("}") // for
-			o.L("b.Enum(l)")
+			o.L("b.Enum(l...)")
 			o.L("}") // if s.HasEnum
 		} else {
 			runes := []rune(methodName)
@@ -195,7 +195,7 @@ func generateValidator(def definition, outputDir string) error {
 		}
 
 		if prop == "enum" {
-			o.LL("func (b *%[1]sValidatorBuilder) %[2]s(v []%[3]s) *%[1]sValidatorBuilder {", def.class, methodName, def.typ)
+			o.LL("func (b *%[1]sValidatorBuilder) %[2]s(v ...%[3]s) *%[1]sValidatorBuilder {", def.class, methodName, def.typ)
 			o.L("if b.err != nil {")
 			o.L("return b")
 			o.L("}")
