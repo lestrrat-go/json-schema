@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -94,172 +95,96 @@ func getKeywordConstant(propName string) string {
 // Generate writes Go code that constructs the given validator to the provided Writer
 // The output is just the builder chain, e.g.: validator.String().MinLength(5).MaxLength(100)
 func (g *codeGenerator) Generate(dst io.Writer, v Interface) error {
+	// Generate the code using the internal method
+	return g.generateInternal(dst, v)
+}
+
+// generateInternal generates code using the provided codegen.Output
+func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
+	o := codegen.NewOutput(dst) // only placed for compatibility. methods should receive dst instead
 	switch validator := v.(type) {
 	case *stringValidator:
-		return g.generateStringBuilderChain(dst, validator)
+		return g.generateString(dst, validator)
 	case *integerValidator:
-		return g.generateIntegerBuilderChain(dst, validator)
+		return g.generateInteger(dst, validator)
 	case *numberValidator:
-		return g.generateNumberBuilderChain(dst, validator)
+		return g.generateNumber(dst, validator)
 	case *booleanValidator:
-		return g.generateBooleanBuilderChain(dst, validator)
+		return g.generateBoolean(dst, validator)
 	case *arrayValidator:
-		return g.generateArrayBuilderChain(dst, validator)
+		return g.generateArray(dst, validator)
 	case *objectValidator:
-		return g.generateObjectBuilderChain(dst, validator)
+		return g.generateObject(dst, validator)
 	case *MultiValidator:
-		return g.generateMultiBuilderChain(dst, validator)
+		return g.generateMulti(dst, validator)
 	case *EmptyValidator:
-		return g.generateEmptyBuilderChain(dst)
+		return g.generateEmpty(dst)
 	case *NotValidator:
-		return g.generateNotBuilderChain(dst, validator)
+		return g.generateNot(dst, validator)
 	case *NullValidator:
-		return g.generateNullBuilderChain(dst)
+		return g.generateNull(dst)
 	case *GeneralValidator:
-		return g.generateGeneralBuilderChain(dst, validator)
+		return g.generateGeneral(dst, validator)
 	case *alwaysPassValidator:
-		return g.generateAlwaysPassBuilderChain(dst)
+		return g.generateAlwaysPass(dst)
 	case *alwaysFailValidator:
-		return g.generateAlwaysFailBuilderChain(dst)
+		return g.generateAlwaysFail(dst)
 	case *ReferenceValidator:
-		return g.generateReferenceBuilderChain(dst, validator)
+		return g.generateReference(dst, validator)
 	case *DynamicReferenceValidator:
-		return g.generateDynamicReferenceBuilderChain(dst, validator)
+		return g.generateDynamicReference(dst, validator)
 	case *contentValidator:
-		return g.generateContentBuilderChain(dst, validator)
+		return g.generateContent(dst, validator)
 	case *dependentSchemasValidator:
-		return g.generateDependentSchemasBuilderChain(dst, validator)
+		return g.generateDependentSchemas(dst, validator)
 	case *inferredNumberValidator:
-		return g.generateInferredNumberBuilderChain(dst, validator)
+		return g.generateInferredNumber(dst, validator)
 	case *UnevaluatedPropertiesCompositionValidator:
-		return g.generateUnevaluatedPropertiesCompositionBuilderChain(dst, validator)
+		return g.generateUnevaluatedPropertiesComposition(dst)
 	case *AnyOfUnevaluatedPropertiesCompositionValidator:
-		return g.generateAnyOfUnevaluatedPropertiesCompositionBuilderChain(dst, validator)
+		return g.generateAnyOfUnevaluatedPropertiesComposition(dst)
 	case *OneOfUnevaluatedPropertiesCompositionValidator:
-		return g.generateOneOfUnevaluatedPropertiesCompositionBuilderChain(dst, validator)
+		return g.generateOneOfUnevaluatedPropertiesComposition(dst)
 	case *RefUnevaluatedPropertiesCompositionValidator:
-		return g.generateRefUnevaluatedPropertiesCompositionBuilderChain(dst, validator)
+		return g.generateRefUnevaluatedPropertiesComposition(dst)
 	case *IfThenElseValidator:
-		return g.generateIfThenElseBuilderChain(dst, validator)
+		return g.generateIfThenElse(dst)
 	case *IfThenElseUnevaluatedPropertiesCompositionValidator:
-		return g.generateIfThenElseUnevaluatedPropertiesCompositionBuilderChain(dst, validator)
+		return g.generateIfThenElseUnevaluatedPropertiesComposition(dst)
 	default:
 		// Debug: Print what unsupported validator type we encountered
 		fmt.Printf("GENERATOR DEBUG: Unsupported validator type: %T, falling back to EmptyValidator\n", v)
-		_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-		return err
+		o.R("&validator.EmptyValidator{}")
+		return nil
 	}
-}
-
-// generateNumberBuilderChain creates just the builder chain for number validators
-func (g *codeGenerator) generateNumberBuilderChain(dst io.Writer, v *numberValidator) error {
-	var parts []string
-
-	if v.multipleOf != nil {
-		parts = append(parts, fmt.Sprintf("MultipleOf(%g)", *v.multipleOf))
-	}
-	if v.minimum != nil {
-		parts = append(parts, fmt.Sprintf("Minimum(%g)", *v.minimum))
-	}
-	if v.maximum != nil {
-		parts = append(parts, fmt.Sprintf("Maximum(%g)", *v.maximum))
-	}
-	if v.exclusiveMinimum != nil {
-		parts = append(parts, fmt.Sprintf("ExclusiveMinimum(%g)", *v.exclusiveMinimum))
-	}
-	if v.exclusiveMaximum != nil {
-		parts = append(parts, fmt.Sprintf("ExclusiveMaximum(%g)", *v.exclusiveMaximum))
-	}
-	if v.enum != nil {
-		enumStr := formatFloat64Slice(v.enum)
-		// For multiline arguments, format differently
-		if len(v.enum) > 1 {
-			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
-		} else {
-			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
-		}
-	}
-	if v.constantValue != nil {
-		parts = append(parts, fmt.Sprintf("Const(%g)", *v.constantValue))
-	}
-
-	return buildMethodChain(dst, "validator.Number()", parts)
-}
-
-// generateBooleanBuilderChain creates just the builder chain for boolean validators
-func (g *codeGenerator) generateBooleanBuilderChain(dst io.Writer, v *booleanValidator) error {
-	var parts []string
-
-	if v.enum != nil {
-		enumStr := formatBoolSlice(v.enum)
-		// For multiline arguments, format differently
-		if len(v.enum) > 1 {
-			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
-		} else {
-			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
-		}
-	}
-	if v.constantValue != nil {
-		parts = append(parts, fmt.Sprintf("Const(%t)", *v.constantValue))
-	}
-
-	return buildMethodChain(dst, "validator.Boolean()", parts)
-}
-
-// generateArrayBuilderChain creates just the builder chain for array validators
-func (g *codeGenerator) generateArrayBuilderChain(dst io.Writer, v *arrayValidator) error {
-	var parts []string
-
-	// Basic array constraints
-	if v.minItems != nil {
-		parts = append(parts, fmt.Sprintf("MinItems(%d)", *v.minItems))
-	}
-	if v.maxItems != nil {
-		parts = append(parts, fmt.Sprintf("MaxItems(%d)", *v.maxItems))
-	}
-	if v.uniqueItems {
-		parts = append(parts, "UniqueItems(true)")
-	}
-	if v.minContains != nil {
-		parts = append(parts, fmt.Sprintf("MinContains(%d)", *v.minContains))
-	}
-	if v.maxContains != nil {
-		parts = append(parts, fmt.Sprintf("MaxContains(%d)", *v.maxContains))
-	}
-
-	// For complex items, prefixItems etc, we'll need more complex generation
-	hasComplexItems := v.items != nil || v.prefixItems != nil || v.contains != nil
-
-	if hasComplexItems {
-		// For now, create a basic array validator without complex items
-		// TODO: Add support for items/prefixItems generation
-		return buildMethodChain(dst, "validator.Array()", parts)
-	}
-
-	// Simple case - just constraints
-	return buildMethodChain(dst, "validator.Array()", parts)
 }
 
 // generateObjectBuilderChain creates just the builder chain for object validators
-func (g *codeGenerator) generateObjectBuilderChain(dst io.Writer, v *objectValidator) error {
-	var parts []string
+func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
 
+	o.L("validator.Object().")
 	// Basic object constraints
 	if v.minProperties != nil {
-		parts = append(parts, fmt.Sprintf("MinProperties(%d)", *v.minProperties))
+		o.L("MinProperties(%d).", *v.minProperties)
 	}
 	if v.maxProperties != nil {
-		parts = append(parts, fmt.Sprintf("MaxProperties(%d)", *v.maxProperties))
+		o.L("MaxProperties(%d).", *v.maxProperties)
 	}
 	if len(v.required) > 0 {
-		requiredStr := formatStringSlice(v.required)
-		parts = append(parts, fmt.Sprintf("Required(%s)", requiredStr))
+		o.L("Required(")
+		for i, req := range v.required {
+			if i > 0 {
+				o.R(",")
+			}
+			o.L("%q", req)
+		}
+		o.L(")")
 	}
 
 	// Handle complex properties
 	if len(v.properties) > 0 {
-		var propPairs []string
-
 		// Sort property names for deterministic output
 		var propNames []string
 		for propName := range v.properties {
@@ -267,41 +192,35 @@ func (g *codeGenerator) generateObjectBuilderChain(dst io.Writer, v *objectValid
 		}
 		sort.Strings(propNames)
 
+		o.L("Properties(")
 		for _, propName := range propNames {
 			propValidator := v.properties[propName]
 			// Generate the validator code for this property
-			var propBuf strings.Builder
-			if err := g.Generate(&propBuf, propValidator); err != nil {
+			o.L("validator.PropPair(")
+			o.L("%s,", getKeywordConstant(propName))
+			if err := g.Generate(&buf, propValidator); err != nil {
 				return fmt.Errorf("failed to generate validator for property %s: %w", propName, err)
 			}
-			propCode := propBuf.String()
-
-			// Create the PropertyPair
-			propPairs = append(propPairs, fmt.Sprintf("validator.PropPair(%s, %s)", getKeywordConstant(propName), propCode))
+			o.R(",")
+			o.L("),")
 		}
-
-		// Format with newlines if multiple properties
-		var propertiesArg string
-		if len(propPairs) > 1 {
-			propertiesArg = "\n\t\t" + strings.Join(propPairs, ",\n\t\t") + ",\n\t"
-		} else {
-			propertiesArg = strings.Join(propPairs, ", ")
-		}
-		parts = append(parts, fmt.Sprintf("Properties(%s)", propertiesArg))
+		o.L(").")
 	}
 
 	// Handle additional properties
 	if v.additionalProperties != nil {
 		switch ap := v.additionalProperties.(type) {
 		case bool:
-			parts = append(parts, fmt.Sprintf("AdditionalPropertiesBool(%t)", ap))
+			o.L("AdditionalPropertiesBool(%t).", ap)
 		case Interface:
-			var apBuf strings.Builder
-			if err := g.Generate(&apBuf, ap); err != nil {
+			o.L("AdditionalPropertiesSchema(")
+			// force newline
+			o.L("")
+			if err := g.Generate(&buf, ap); err != nil {
 				return fmt.Errorf("failed to generate additional properties validator: %w", err)
 			}
-			apCode := apBuf.String()
-			parts = append(parts, fmt.Sprintf("AdditionalPropertiesSchema(%s)", apCode))
+			o.R(",")
+			o.L(").")
 		}
 	}
 
@@ -314,21 +233,26 @@ func (g *codeGenerator) generateObjectBuilderChain(dst io.Writer, v *objectValid
 
 	// Handle property names validator
 	if v.propertyNames != nil {
-		var pnBuf strings.Builder
-		if err := g.Generate(&pnBuf, v.propertyNames); err != nil {
+		o.L("PropertyNames(")
+		if err := g.Generate(&buf, v.propertyNames); err != nil {
 			return fmt.Errorf("failed to generate property names validator: %w", err)
 		}
-		pnCode := pnBuf.String()
-		parts = append(parts, fmt.Sprintf("PropertyNames(%s)", pnCode))
+		o.R(",")
+		o.L(").")
 	}
 
 	// For meta-schema, all Object validators should be strict to reject non-objects
-	parts = append(parts, "StrictObjectType(true)")
-	return buildMethodChain(dst, "validator.Object()", parts)
+	o.L("StrictObjectType(true).")
+	o.L("MustBuild()")
+	_, err := buf.WriteTo(dst)
+	return err
 }
 
-// generateMultiBuilderChain creates just the builder chain for multi validators
-func (g *codeGenerator) generateMultiBuilderChain(dst io.Writer, v *MultiValidator) error {
+// generateMulti creates the builder chain for multi validators
+func (g *codeGenerator) generateMulti(dst io.Writer, v *MultiValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
 	// Determine the mode
 	var mode string
 	if v.and {
@@ -341,61 +265,60 @@ func (g *codeGenerator) generateMultiBuilderChain(dst io.Writer, v *MultiValidat
 
 	// If we have child validators, create a proper MultiValidator
 	if len(v.validators) > 0 {
-		var childParts []string
-
+		o.L("func() validator.Interface {")
+		o.L("mv := validator.NewMultiValidator(validator.%s)", mode)
+		
 		// Generate each child validator
 		for i, child := range v.validators {
-			var childBuf strings.Builder
-			if err := g.Generate(&childBuf, child); err != nil {
+			o.L("mv.Append(")
+			if err := g.Generate(&buf, child); err != nil {
 				return fmt.Errorf("failed to generate child validator %d: %w", i, err)
 			}
-			childParts = append(childParts, childBuf.String())
+			o.R(")")
 		}
-
-		// Generate append calls
-		var appendCalls []string
-		for _, childPart := range childParts {
-			appendCalls = append(appendCalls, fmt.Sprintf("\t\tmv.Append(%s)", childPart))
-		}
-
-		appendCallsStr := strings.Join(appendCalls, "\n")
-		_, err := fmt.Fprintf(dst, "func() validator.Interface {\n\t\tmv := validator.NewMultiValidator(validator.%s)\n%s\n\t\treturn mv\n\t}()", mode, appendCallsStr)
-		return err
+		
+		o.L("return mv")
+		o.L("}()")
+	} else {
+		o.R("&validator.EmptyValidator{}")
 	}
 
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateEmptyBuilderChain creates just the builder chain for empty validators
-func (g *codeGenerator) generateEmptyBuilderChain(dst io.Writer) error {
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+
+// generateEmpty creates the builder chain for empty validators
+func (g *codeGenerator) generateEmpty(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	
+	o.R("&validator.EmptyValidator{}")
+	
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateNotBuilderChain creates just the builder chain for not validators
-func (g *codeGenerator) generateNotBuilderChain(dst io.Writer, v *NotValidator) error {
-	if _, err := fmt.Fprint(dst, "func() validator.Interface { child := "); err != nil {
-		return err
-	}
-	if err := g.Generate(dst, v.validator); err != nil {
+// generateNot creates the builder chain for not validators
+func (g *codeGenerator) generateNot(dst io.Writer, v *NotValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	
+	o.L("func() validator.Interface { child := ")
+	if err := g.Generate(&buf, v.validator); err != nil {
 		return fmt.Errorf("failed to generate child validator for not: %w", err)
 	}
-	_, err := fmt.Fprint(dst, "; return &validator.NotValidator{validator: child} }()")
+	o.R("; return &validator.NotValidator{validator: child} }()")
+	
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateNullBuilderChain creates just the builder chain for null validators
-func (g *codeGenerator) generateNullBuilderChain(dst io.Writer) error {
-	_, err := fmt.Fprint(dst, "&validator.NullValidator{}")
-	return err
-}
 
 // generateGeneralBuilderChain creates just the builder chain for general validators
-func (g *codeGenerator) generateGeneralBuilderChain(dst io.Writer, v *GeneralValidator) error {
-	// GeneralValidator with enum is typically used for "type" property validation
-	// which can be either a single string or array of strings
-	// Since we can't access unexported fields, create a MultiValidator with proper constraints
+func (g *codeGenerator) generateGeneral(dst io.Writer, v *GeneralValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
 
 	if v.enum != nil {
 		// For enum validation, create a MultiValidator that accepts either:
@@ -416,104 +339,105 @@ func (g *codeGenerator) generateGeneralBuilderChain(dst io.Writer, v *GeneralVal
 			enumArgs = strings.Join(enumStrs, ", ")
 		}
 
-		_, err := fmt.Fprintf(dst, `func() validator.Interface {
-			mv := validator.NewMultiValidator(validator.OrMode)
-			mv.Append(validator.String().Enum(%s).MustBuild())
-			mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())
-			return mv
-		}()`, enumArgs)
-		return err
-	}
-
-	if v.hasConst {
+		o.L("func() validator.Interface {")
+		o.L("mv := validator.NewMultiValidator(validator.OrMode)")
+		o.L("mv.Append(validator.String().Enum(%s).MustBuild())", enumArgs)
+		o.L("mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())")
+		o.L("return mv")
+		o.L("}()")
+	} else if v.hasConst {
 		// For const validation, accept any matching value
 		// Since we can't access the const value, return EmptyValidator
-		_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-		return err
+		o.R("&validator.EmptyValidator{}")
+	} else {
+		o.R("&validator.EmptyValidator{}")
 	}
 
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateAlwaysPassBuilderChain creates just the builder chain for always pass validators
-func (g *codeGenerator) generateAlwaysPassBuilderChain(dst io.Writer) error {
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-	return err
-}
 
-// generateAlwaysFailBuilderChain creates just the builder chain for always fail validators
-func (g *codeGenerator) generateAlwaysFailBuilderChain(dst io.Writer) error {
-	_, err := fmt.Fprint(dst, "&validator.NotValidator{validator: &validator.EmptyValidator{}}")
-	return err
-}
 
-// generateStringBuilderChain creates just the builder chain for string validators
-func (g *codeGenerator) generateStringBuilderChain(dst io.Writer, v *stringValidator) error {
-	var parts []string
+// generateString creates the builder chain for string validators
+func (g *codeGenerator) generateString(dst io.Writer, v *stringValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.String().")
 
 	// Directly access validator fields - no intermediate map needed!
 	if v.minLength != nil {
-		parts = append(parts, fmt.Sprintf("MinLength(%d)", *v.minLength))
+		o.L("MinLength(%d).", *v.minLength)
 	}
 	if v.maxLength != nil {
-		parts = append(parts, fmt.Sprintf("MaxLength(%d)", *v.maxLength))
+		o.L("MaxLength(%d).", *v.maxLength)
 	}
 	if v.pattern != nil {
-		parts = append(parts, fmt.Sprintf("Pattern(%q)", v.pattern.String()))
+		o.L("Pattern(%q).", v.pattern.String())
 	}
 	if v.format != nil {
-		parts = append(parts, fmt.Sprintf("Format(%q)", *v.format))
+		o.L("Format(%q).", *v.format)
 	}
 	if v.enum != nil {
-		enumStr := formatStringSlice(v.enum)
-		// For multiline arguments, format differently
-		if len(v.enum) > 1 {
-			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
+		if len(v.enum) == 1 {
+			o.L("Enum([]string{%q}).", v.enum[0])
 		} else {
-			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+			o.L("Enum(")
+			o.L("[]string{")
+			for _, s := range v.enum {
+				o.L("%q,", s)
+			}
+			o.L("}).")
 		}
 	}
 	if v.constantValue != nil {
-		parts = append(parts, fmt.Sprintf("Const(%q)", *v.constantValue))
+		o.L("Const(%q).", *v.constantValue)
 	}
 
-	return buildMethodChain(dst, "validator.String()", parts)
+	o.L("MustBuild()")
+	_, err := buf.WriteTo(dst)
+	return err
 }
 
-// generateIntegerBuilderChain creates just the builder chain for integer validators
-func (g *codeGenerator) generateIntegerBuilderChain(dst io.Writer, v *integerValidator) error {
-	var parts []string
+
+// generateInteger creates the builder chain for integer validators
+func (g *codeGenerator) generateInteger(dst io.Writer, v *integerValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.Integer().")
 
 	if v.multipleOf != nil {
-		parts = append(parts, fmt.Sprintf("MultipleOf(%d)", *v.multipleOf))
+		o.L("MultipleOf(%d).", *v.multipleOf)
 	}
 	if v.minimum != nil {
-		parts = append(parts, fmt.Sprintf("Minimum(%d)", *v.minimum))
+		o.L("Minimum(%d).", *v.minimum)
 	}
 	if v.maximum != nil {
-		parts = append(parts, fmt.Sprintf("Maximum(%d)", *v.maximum))
+		o.L("Maximum(%d).", *v.maximum)
 	}
 	if v.exclusiveMinimum != nil {
-		parts = append(parts, fmt.Sprintf("ExclusiveMinimum(%d)", *v.exclusiveMinimum))
+		o.L("ExclusiveMinimum(%d).", *v.exclusiveMinimum)
 	}
 	if v.exclusiveMaximum != nil {
-		parts = append(parts, fmt.Sprintf("ExclusiveMaximum(%d)", *v.exclusiveMaximum))
+		o.L("ExclusiveMaximum(%d).", *v.exclusiveMaximum)
 	}
 	if v.enum != nil {
-		enumStr := formatIntSlice(v.enum)
-		// For multiline arguments, format differently
-		if len(v.enum) > 1 {
-			parts = append(parts, fmt.Sprintf("Enum(\n\t%s\n)", enumStr))
-		} else {
-			parts = append(parts, fmt.Sprintf("Enum(%s)", enumStr))
+		strs := make([]string, len(v.enum))
+		for i, n := range v.enum {
+			strs[i] = fmt.Sprintf("%d", n)
 		}
+		enumStr := fmt.Sprintf("[]int{%s}", strings.Join(strs, ", "))
+		o.L("Enum(%s).", enumStr)
 	}
 	if v.constantValue != nil {
-		parts = append(parts, fmt.Sprintf("Const(%d)", *v.constantValue))
+		o.L("Const(%d).", *v.constantValue)
 	}
 
-	return buildMethodChain(dst, "validator.Integer()", parts)
+	o.L("MustBuild()")
+	_, err := buf.WriteTo(dst)
+	return err
 }
 
 // sanitizeVarName sanitizes a property name to be a valid Go variable name
@@ -533,150 +457,71 @@ func sanitizeVarName(name string) string {
 	return result
 }
 
-// buildMethodChain creates a method chain with proper line formatting using codegen
-func buildMethodChain(dst io.Writer, baseMethod string, parts []string) error {
-	o := codegen.NewOutput(dst)
-
-	if len(parts) == 0 {
-		o.R("%s.MustBuild()", baseMethod)
-		return nil
-	}
-
-	// Write the base method call
-	o.L("%s.", baseMethod)
-
-	// Write each method call on its own line with proper indentation
-	for i, part := range parts {
-		if i == len(parts)-1 {
-			// Last part - add MustBuild and close
-			o.L("\t%s.", part)
-			o.L("\tMustBuild()")
-		} else {
-			o.L("\t%s.", part)
-		}
-	}
-
-	return nil
-}
-
-// buildMultilineCall creates a function call with arguments formatted across multiple lines
-func buildMultilineCall(funcName string, args []string) string {
-	var buf strings.Builder
-	o := codegen.NewOutput(&buf)
-
-	if len(args) <= 1 {
-		// Single argument - keep on one line
-		if len(args) == 1 {
-			o.R("%s{%s}", funcName, args[0])
-		} else {
-			o.R("%s{}", funcName)
-		}
-		return buf.String()
-	}
-
-	// Multiple arguments - format across multiple lines
-	o.L("%s{", funcName)
-	for _, arg := range args {
-		o.L("\t%s,", arg)
-	}
-	o.L("}")
-
-	return buf.String()
-}
-
-// formatStringSlice formats a string slice for Go code
-func formatStringSlice(strs []string) string {
-	quoted := make([]string, len(strs))
-	for i, s := range strs {
-		quoted[i] = fmt.Sprintf("%q", s)
-	}
-	return buildMultilineCall("[]string", quoted)
-}
-
-// formatIntSlice formats an int slice for Go code
-func formatIntSlice(ints []int) string {
-	strs := make([]string, len(ints))
-	for i, n := range ints {
-		strs[i] = fmt.Sprintf("%d", n)
-	}
-	return buildMultilineCall("[]int", strs)
-}
-
-// formatFloat64Slice formats a float64 slice for Go code
-func formatFloat64Slice(floats []float64) string {
-	strs := make([]string, len(floats))
-	for i, f := range floats {
-		strs[i] = fmt.Sprintf("%g", f)
-	}
-	return buildMultilineCall("[]float64", strs)
-}
-
-// formatBoolSlice formats a bool slice for Go code
-func formatBoolSlice(bools []bool) string {
-	strs := make([]string, len(bools))
-	for i, b := range bools {
-		strs[i] = fmt.Sprintf("%t", b)
-	}
-	return buildMultilineCall("[]bool", strs)
-}
 
 // generateReferenceBuilderChain creates just the builder chain for reference validators
-func (g *codeGenerator) generateReferenceBuilderChain(dst io.Writer, v *ReferenceValidator) error {
+func (g *codeGenerator) generateReference(dst io.Writer, v *ReferenceValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
 	// If the reference has been resolved, generate the resolved validator
 	if v.resolved != nil {
 		// Generate the resolved validator, but watch out for circular references
 		if v.resolved == v {
 			// Self-reference - create EmptyValidator to avoid infinite recursion
-			_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-			return err
+			o.R("&validator.EmptyValidator{}")
+		} else {
+			if err := g.Generate(&buf, v.resolved); err != nil {
+				// If we can't generate the resolved validator, fall back to EmptyValidator
+				o.R("&validator.EmptyValidator{}")
+			}
 		}
-
-		if err := g.Generate(dst, v.resolved); err != nil {
-			// If we can't generate the resolved validator, fall back to EmptyValidator
-			_, fallbackErr := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-			return fallbackErr
-		}
-		return nil
+	} else {
+		// If not resolved, we can't generate proper code, fall back to EmptyValidator
+		// This happens when references can't be resolved at compile time
+		o.R("&validator.EmptyValidator{}")
 	}
 
-	// If not resolved, we can't generate proper code, fall back to EmptyValidator
-	// This happens when references can't be resolved at compile time
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
 // generateDynamicReferenceBuilderChain creates just the builder chain for dynamic reference validators
-func (g *codeGenerator) generateDynamicReferenceBuilderChain(dst io.Writer, v *DynamicReferenceValidator) error {
+func (g *codeGenerator) generateDynamicReference(dst io.Writer, v *DynamicReferenceValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
 	// If the dynamic reference has been resolved, generate the resolved validator
 	if v.resolved != nil {
 		// Generate the resolved validator, but watch out for circular references
 		if v.resolved == v {
 			// Self-reference - create EmptyValidator to avoid infinite recursion
-			_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-			return err
+			o.R("&validator.EmptyValidator{}")
+		} else {
+			if err := g.Generate(&buf, v.resolved); err != nil {
+				// If we can't generate the resolved validator, fall back to EmptyValidator
+				o.R("&validator.EmptyValidator{}")
+			}
 		}
-
-		if err := g.Generate(dst, v.resolved); err != nil {
-			// If we can't generate the resolved validator, fall back to EmptyValidator
-			_, fallbackErr := fmt.Fprint(dst, "&validator.EmptyValidator{}")
-			return fallbackErr
-		}
-		return nil
+	} else {
+		// If not resolved, create a reasonable validator based on JSON Schema expectations
+		// Most unresolved dynamic references in meta-schemas expect either:
+		// 1. JSON Schema objects (which should be objects)
+		// 2. Any JSON value (for things like const/default)
+		// For meta-schema generation, assume these accept schema objects (type: object)
+		// This is better than EmptyValidator which accepts anything
+		// Use StrictObjectType(true) to ensure only objects are accepted
+		o.R("validator.Object().StrictObjectType(true).MustBuild()")
 	}
 
-	// If not resolved, create a reasonable validator based on JSON Schema expectations
-	// Most unresolved dynamic references in meta-schemas expect either:
-	// 1. JSON Schema objects (which should be objects)
-	// 2. Any JSON value (for things like const/default)
-	// For meta-schema generation, assume these accept schema objects (type: object)
-	// This is better than EmptyValidator which accepts anything
-	// Use StrictObjectType(true) to ensure only objects are accepted
-	_, err := fmt.Fprint(dst, "validator.Object().StrictObjectType(true).MustBuild()")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
 // generateContentBuilderChain creates just the builder chain for content validators
-func (g *codeGenerator) generateContentBuilderChain(dst io.Writer, v *contentValidator) error {
+func (g *codeGenerator) generateContent(dst io.Writer, v *contentValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
 	// Content validators are complex but we can create a basic structure
 	var parts []string
 
@@ -699,121 +544,252 @@ func (g *codeGenerator) generateContentBuilderChain(dst io.Writer, v *contentVal
 
 	if len(parts) > 0 {
 		fieldsStr := strings.Join(parts, ",\n\t\t")
-		_, err := fmt.Fprintf(dst, "&validator.contentValidator{\n\t\t%s,\n\t}", fieldsStr)
-		return err
+		o.L("&validator.contentValidator{")
+		o.L("%s,", fieldsStr)
+		o.L("}")
+	} else {
+		o.R("&validator.contentValidator{}")
 	}
 
-	_, err := fmt.Fprint(dst, "&validator.contentValidator{}")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
 // generateDependentSchemasBuilderChain creates just the builder chain for dependent schemas validators
-func (g *codeGenerator) generateDependentSchemasBuilderChain(dst io.Writer, v *dependentSchemasValidator) error {
+func (g *codeGenerator) generateDependentSchemas(dst io.Writer, v *dependentSchemasValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
 	// Generate the dependent schemas map
 	if len(v.dependentSchemas) == 0 {
-		_, err := fmt.Fprint(dst, "&validator.dependentSchemasValidator{dependentSchemas: make(map[string]validator.Interface)}")
-		return err
-	}
+		o.R("&validator.dependentSchemasValidator{dependentSchemas: make(map[string]validator.Interface)}")
+	} else {
+		var mapEntries []string
+		var childSetup []string
 
-	var mapEntries []string
-	var childSetup []string
-
-	// Sort property names for deterministic output
-	var propNames []string
-	for propName := range v.dependentSchemas {
-		propNames = append(propNames, propName)
-	}
-	sort.Strings(propNames)
-
-	for _, propName := range propNames {
-		propValidator := v.dependentSchemas[propName]
-		childVar := fmt.Sprintf("dep_%s", sanitizeVarName(propName))
-
-		// Generate child validator code into a buffer
-		var childBuf strings.Builder
-		if err := g.Generate(&childBuf, propValidator); err != nil {
-			return fmt.Errorf("failed to generate dependent schema for %q: %w", propName, err)
+		// Sort property names for deterministic output
+		var propNames []string
+		for propName := range v.dependentSchemas {
+			propNames = append(propNames, propName)
 		}
-		childChain := childBuf.String()
+		sort.Strings(propNames)
 
-		childSetup = append(childSetup, fmt.Sprintf("\t%s := %s", childVar, childChain))
-		mapEntries = append(mapEntries, fmt.Sprintf("\t\t%q: %s", propName, childVar))
-	}
+		for _, propName := range propNames {
+			propValidator := v.dependentSchemas[propName]
+			childVar := fmt.Sprintf("dep_%s", sanitizeVarName(propName))
 
-	if len(childSetup) > 0 {
+			// Generate child validator code into a buffer
+			var childBuf strings.Builder
+			if err := g.Generate(&childBuf, propValidator); err != nil {
+				return fmt.Errorf("failed to generate dependent schema for %q: %w", propName, err)
+			}
+			childChain := childBuf.String()
+
+			childSetup = append(childSetup, fmt.Sprintf("\t%s := %s", childVar, childChain))
+			mapEntries = append(mapEntries, fmt.Sprintf("\t\t%q: %s", propName, childVar))
+		}
+
 		setupStr := strings.Join(childSetup, "\n")
 		entriesStr := strings.Join(mapEntries, ",\n")
 
-		_, err := fmt.Fprintf(dst, `func() validator.Interface {
-%s
-	return &validator.dependentSchemasValidator{
-		dependentSchemas: map[string]validator.Interface{
-%s,
-		},
-	}
-}()`, setupStr, entriesStr)
-		return err
+		o.L("func() validator.Interface {")
+		o.R("%s", setupStr)
+		o.L("return &validator.dependentSchemasValidator{")
+		o.L("dependentSchemas: map[string]validator.Interface{")
+		o.R("%s,", entriesStr)
+		o.L("},")
+		o.L("}")
+		o.L("}()")
 	}
 
-	_, err := fmt.Fprint(dst, "&validator.dependentSchemasValidator{dependentSchemas: make(map[string]validator.Interface)}")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
 // generateInferredNumberBuilderChain creates just the builder chain for inferred number validators
-func (g *codeGenerator) generateInferredNumberBuilderChain(dst io.Writer, v *inferredNumberValidator) error {
-	// Generate the underlying number validator
-	if err := g.Generate(dst, v.numberValidator); err != nil {
-		return fmt.Errorf("failed to generate inferred number validator: %w", err)
+func (g *codeGenerator) generateInferredNumber(dst io.Writer, v *inferredNumberValidator) error {
+	// Generate the underlying number validator - it's just a wrapper
+	return g.Generate(dst, v.numberValidator)
+}
+
+
+// Stub implementations for the remaining internal methods - these will be properly implemented later
+// generateNumber creates the builder chain for number validators
+func (g *codeGenerator) generateNumber(dst io.Writer, v *numberValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.Number().")
+
+	if v.multipleOf != nil {
+		o.L("MultipleOf(%g).", *v.multipleOf)
+	}
+	if v.minimum != nil {
+		o.L("Minimum(%g).", *v.minimum)
+	}
+	if v.maximum != nil {
+		o.L("Maximum(%g).", *v.maximum)
+	}
+	if v.exclusiveMinimum != nil {
+		o.L("ExclusiveMinimum(%g).", *v.exclusiveMinimum)
+	}
+	if v.exclusiveMaximum != nil {
+		o.L("ExclusiveMaximum(%g).", *v.exclusiveMaximum)
+	}
+	if v.enum != nil {
+		if len(v.enum) == 1 {
+			o.L("Enum([]float64{%g}).", v.enum[0])
+		} else {
+			o.L("Enum(")
+			o.L("[]float64{")
+			for _, f := range v.enum {
+				o.L("%g,", f)
+			}
+			o.L("}).")
+		}
+	}
+	if v.constantValue != nil {
+		o.L("Const(%g).", *v.constantValue)
 	}
 
-	// inferredNumberValidator is a wrapper around numberValidator
-	return nil
-}
-
-// generateUnevaluatedPropertiesCompositionBuilderChain creates just the builder chain for unevaluated properties composition validators
-func (g *codeGenerator) generateUnevaluatedPropertiesCompositionBuilderChain(dst io.Writer, _ *UnevaluatedPropertiesCompositionValidator) error {
-	// Unevaluated properties validators are very complex
-	// Create a basic validator that accepts everything
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+	o.L("MustBuild()")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateAnyOfUnevaluatedPropertiesCompositionBuilderChain creates just the builder chain for anyOf unevaluated properties composition validators
-func (g *codeGenerator) generateAnyOfUnevaluatedPropertiesCompositionBuilderChain(dst io.Writer, _ *AnyOfUnevaluatedPropertiesCompositionValidator) error {
-	// AnyOf unevaluated properties validators are very complex
-	// Create a basic validator that accepts everything
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+// generateBoolean creates the builder chain for boolean validators
+func (g *codeGenerator) generateBoolean(dst io.Writer, v *booleanValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.Boolean().")
+
+	if v.enum != nil {
+		if len(v.enum) == 1 {
+			o.L("Enum([]bool{%t}).", v.enum[0])
+		} else {
+			o.L("Enum(")
+			o.L("[]bool{")
+			for _, b := range v.enum {
+				o.L("%t,", b)
+			}
+			o.L("}).")
+		}
+	}
+	if v.constantValue != nil {
+		o.L("Const(%t).", *v.constantValue)
+	}
+
+	o.L("MustBuild()")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateOneOfUnevaluatedPropertiesCompositionBuilderChain creates just the builder chain for oneOf unevaluated properties composition validators
-func (g *codeGenerator) generateOneOfUnevaluatedPropertiesCompositionBuilderChain(dst io.Writer, _ *OneOfUnevaluatedPropertiesCompositionValidator) error {
-	// OneOf unevaluated properties validators are very complex
-	// Create a basic validator that accepts everything
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+// generateArray creates the builder chain for array validators
+func (g *codeGenerator) generateArray(dst io.Writer, v *arrayValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.Array().")
+
+	// Basic array constraints
+	if v.minItems != nil {
+		o.L("MinItems(%d).", *v.minItems)
+	}
+	if v.maxItems != nil {
+		o.L("MaxItems(%d).", *v.maxItems)
+	}
+	if v.uniqueItems {
+		o.L("UniqueItems(true).")
+	}
+	if v.minContains != nil {
+		o.L("MinContains(%d).", *v.minContains)
+	}
+	if v.maxContains != nil {
+		o.L("MaxContains(%d).", *v.maxContains)
+	}
+
+	// Note: Complex items, prefixItems etc. would need more complex generation
+	// For now, create basic array validator without complex items
+
+	o.L("MustBuild()")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateRefUnevaluatedPropertiesCompositionBuilderChain creates just the builder chain for ref unevaluated properties composition validators
-func (g *codeGenerator) generateRefUnevaluatedPropertiesCompositionBuilderChain(dst io.Writer, _ *RefUnevaluatedPropertiesCompositionValidator) error {
-	// Ref unevaluated properties validators are very complex
-	// Create a basic validator that accepts everything
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+
+
+// generateNull creates the builder chain for null validators
+func (g *codeGenerator) generateNull(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	
+	o.R("&validator.NullValidator{}")
+	
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateIfThenElseBuilderChain creates just the builder chain for if-then-else validators
-func (g *codeGenerator) generateIfThenElseBuilderChain(dst io.Writer, _ *IfThenElseValidator) error {
-	// If-then-else validators are complex conditional validators
-	// Create a basic validator that accepts everything
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+func (g *codeGenerator) generateAlwaysPass(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
 	return err
 }
 
-// generateIfThenElseUnevaluatedPropertiesCompositionBuilderChain creates just the builder chain for if-then-else unevaluated properties composition validators
-func (g *codeGenerator) generateIfThenElseUnevaluatedPropertiesCompositionBuilderChain(dst io.Writer, _ *IfThenElseUnevaluatedPropertiesCompositionValidator) error {
-	// If-then-else unevaluated properties validators are very complex
-	// Create a basic validator that accepts everything
-	_, err := fmt.Fprint(dst, "&validator.EmptyValidator{}")
+func (g *codeGenerator) generateAlwaysFail(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.NotValidator{validator: &validator.EmptyValidator{}}")
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateAnyOfUnevaluatedPropertiesComposition(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateOneOfUnevaluatedPropertiesComposition(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateRefUnevaluatedPropertiesComposition(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateIfThenElse(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateIfThenElseUnevaluatedPropertiesComposition(dst io.Writer) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+	o.R("&validator.EmptyValidator{}")
+	_, err := buf.WriteTo(dst)
 	return err
 }

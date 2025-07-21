@@ -20,348 +20,570 @@ var metaValidator validator.Interface
 
 func init() {
 	// Generated validator using the code generator from the actual meta-schema
-	metaValidator = func() validator.Interface {
-		mv := validator.NewMultiValidator(validator.AndMode)
-		mv.Append(func() validator.Interface {
+	metaValidator =
+		func() validator.Interface {
 			mv := validator.NewMultiValidator(validator.AndMode)
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.RecursiveAnchor,
-								validator.String().
-									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
-									MustBuild()),
-							validator.PropPair(keywords.RecursiveRef,
-								validator.String().
-									Format("uri-reference").
-									MustBuild()),
-							validator.PropPair(keywords.Definitions,
+			mv.Append(
+				func() validator.Interface {
+					mv := validator.NewMultiValidator(validator.AndMode)
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
 								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
+									Properties(
+										validator.PropPair(
+											keywords.RecursiveAnchor,
+											validator.String().
+												Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.RecursiveRef,
+											validator.String().
+												Format("uri-reference").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Definitions,
+											validator.Object().
+												AdditionalPropertiesSchema(
+													validator.Object().StrictObjectType(true).MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.DependentSchemas,
+											validator.Object().
+												AdditionalPropertiesSchema(
+
+													func() validator.Interface {
+														mv := validator.NewMultiValidator(validator.OrMode)
+														mv.Append(validator.Object().StrictObjectType(true).MustBuild())
+														mv.Append(
+															validator.Array().
+																UniqueItems(true).
+																MustBuild())
+														return mv
+													}(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+									).
 									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.DependentSchemas,
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
 								validator.Object().
-									AdditionalPropertiesSchema(func() validator.Interface {
-										mv := validator.NewMultiValidator(validator.OrMode)
-										mv.Append(validator.Object().StrictObjectType(true).MustBuild())
-										mv.Append(
+									Properties(
+										validator.PropPair(
+											keywords.Anchor,
+											validator.String().
+												Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Comment,
+											validator.String().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Definitions,
+											validator.Object().
+												AdditionalPropertiesSchema(
+													validator.Object().StrictObjectType(true).MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.DynamicAnchor,
+											validator.String().
+												Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.DynamicReference,
+											validator.String().
+												Format("uri-reference").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.ID,
+											func() validator.Interface {
+												mv := validator.NewMultiValidator(validator.AndMode)
+												mv.Append(
+													validator.String().
+														Format("uri-reference").
+														MustBuild())
+												mv.Append(
+													validator.String().
+														Pattern("^[^#]*#?$").
+														MustBuild())
+												return mv
+											}(),
+										),
+										validator.PropPair(
+											keywords.Reference,
+											validator.String().
+												Format("uri-reference").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Schema,
+											validator.String().
+												Format("uri").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Vocabulary,
+											validator.Object().
+												AdditionalPropertiesSchema(
+
+													validator.Boolean().
+														MustBuild(),
+												).
+												PropertyNames(
+													validator.String().
+														Format("uri").
+														MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+									).
+									StrictObjectType(true).
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
+								validator.Object().
+									Properties(
+										validator.PropPair(
+											keywords.AdditionalProperties, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.AllOf,
+											validator.Array().
+												MinItems(1).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.AnyOf,
+											validator.Array().
+												MinItems(1).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Contains, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.DependentSchemas,
+											validator.Object().
+												AdditionalPropertiesSchema(
+													validator.Object().StrictObjectType(true).MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Else, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.If, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Items, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Not, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.OneOf,
+											validator.Array().
+												MinItems(1).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.PatternProperties,
+											validator.Object().
+												AdditionalPropertiesSchema(
+													validator.Object().StrictObjectType(true).MustBuild(),
+												).
+												PropertyNames(
+													validator.String().
+														Format("regex").
+														MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.PrefixItems,
+											validator.Array().
+												MinItems(1).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Properties,
+											validator.Object().
+												AdditionalPropertiesSchema(
+													validator.Object().StrictObjectType(true).MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.PropertyNames, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Then, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+									).
+									StrictObjectType(true).
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
+								validator.Object().
+									Properties(
+										validator.PropPair(
+											keywords.UnevaluatedItems, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+										validator.PropPair(
+											keywords.UnevaluatedProperties, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+									).
+									StrictObjectType(true).
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
+								validator.Object().
+									Properties(
+										validator.PropPair(
+											keywords.Const, &validator.EmptyValidator{},
+										),
+										validator.PropPair(
+											keywords.DependentRequired,
+											validator.Object().
+												AdditionalPropertiesSchema(
+
+													validator.Array().
+														UniqueItems(true).
+														MustBuild(),
+												).
+												StrictObjectType(true).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Enum,
+											validator.Array().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.ExclusiveMaximum,
+											validator.Number().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.ExclusiveMinimum,
+											validator.Number().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MaxContains,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MaxItems,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MaxLength,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MaxProperties,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Maximum,
+											validator.Number().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MinContains,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MinItems,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MinLength,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MinProperties,
+											validator.Integer().
+												Minimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Minimum,
+											validator.Number().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.MultipleOf,
+											validator.Number().
+												ExclusiveMinimum(0).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Pattern,
+											validator.String().
+												Format("regex").
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Required,
 											validator.Array().
 												UniqueItems(true).
-												MustBuild())
-										return mv
-									}()).
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Type,
+											func() validator.Interface {
+												mv := validator.NewMultiValidator(validator.OrMode)
+												mv.Append(
+													func() validator.Interface {
+														mv := validator.NewMultiValidator(validator.OrMode)
+														mv.Append(validator.String().Enum(
+															"array",
+															"boolean",
+															"integer",
+															"null",
+															"number",
+															"object",
+															"string",
+														).MustBuild())
+														mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())
+														return mv
+													}())
+												mv.Append(
+													validator.Array().
+														MinItems(1).
+														UniqueItems(true).
+														MustBuild())
+												return mv
+											}(),
+										),
+										validator.PropPair(
+											keywords.UniqueItems,
+											validator.Boolean().
+												MustBuild(),
+										),
+									).
 									StrictObjectType(true).
-									MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.Anchor,
-								validator.String().
-									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
-									MustBuild()),
-							validator.PropPair(keywords.Comment, validator.String().MustBuild()),
-							validator.PropPair(keywords.Definitions,
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
 								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
+									Properties(
+										validator.PropPair(
+											keywords.Default, &validator.EmptyValidator{},
+										),
+										validator.PropPair(
+											keywords.Deprecated,
+											validator.Boolean().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Description,
+											validator.String().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Examples,
+											validator.Array().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.ReadOnly,
+											validator.Boolean().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.Title,
+											validator.String().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.WriteOnly,
+											validator.Boolean().
+												MustBuild(),
+										),
+									).
 									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.DynamicAnchor,
-								validator.String().
-									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
-									MustBuild()),
-							validator.PropPair(keywords.DynamicReference,
-								validator.String().
-									Format("uri-reference").
-									MustBuild()),
-							validator.PropPair(keywords.ID, func() validator.Interface {
-								mv := validator.NewMultiValidator(validator.AndMode)
-								mv.Append(
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
+								validator.Object().
+									Properties(
+										validator.PropPair(
+											keywords.Format,
+											validator.String().
+												MustBuild(),
+										),
+									).
+									StrictObjectType(true).
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					mv.Append(
+						func() validator.Interface {
+							mv := validator.NewMultiValidator(validator.OrMode)
+							mv.Append(
+								validator.Object().
+									Properties(
+										validator.PropPair(
+											keywords.ContentEncoding,
+											validator.String().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.ContentMediaType,
+											validator.String().
+												MustBuild(),
+										),
+										validator.PropPair(
+											keywords.ContentSchema, validator.Object().StrictObjectType(true).MustBuild(),
+										),
+									).
+									StrictObjectType(true).
+									MustBuild())
+							mv.Append(
+								validator.Boolean().
+									MustBuild())
+							return mv
+						}())
+					return mv
+				}())
+			mv.Append(
+				func() validator.Interface {
+					mv := validator.NewMultiValidator(validator.OrMode)
+					mv.Append(
+						validator.Object().
+							Properties(
+								validator.PropPair(
+									keywords.RecursiveAnchor,
+									validator.String().
+										Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
+										MustBuild(),
+								),
+								validator.PropPair(
+									keywords.RecursiveRef,
 									validator.String().
 										Format("uri-reference").
-										MustBuild())
-								mv.Append(
-									validator.String().
-										Pattern("^[^#]*#?$").
-										MustBuild())
-								return mv
-							}()),
-							validator.PropPair(keywords.Reference,
-								validator.String().
-									Format("uri-reference").
-									MustBuild()),
-							validator.PropPair(keywords.Schema,
-								validator.String().
-									Format("uri").
-									MustBuild()),
-							validator.PropPair(keywords.Vocabulary,
-								validator.Object().
-									AdditionalPropertiesSchema(validator.Boolean().MustBuild()).
-									PropertyNames(
-										validator.String().
-											Format("uri").
-											MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.AdditionalProperties, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.AllOf,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
-							validator.PropPair(keywords.AnyOf,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
-							validator.PropPair(keywords.Contains, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.DependentSchemas,
-								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.Else, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.If, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Items, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Not, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.OneOf,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
-							validator.PropPair(keywords.PatternProperties,
-								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
-									PropertyNames(
-										validator.String().
-											Format("regex").
-											MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.PrefixItems,
-								validator.Array().
-									MinItems(1).
-									MustBuild()),
-							validator.PropPair(keywords.Properties,
-								validator.Object().
-									AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.PropertyNames, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.Then, validator.Object().StrictObjectType(true).MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.UnevaluatedItems, validator.Object().StrictObjectType(true).MustBuild()),
-							validator.PropPair(keywords.UnevaluatedProperties, validator.Object().StrictObjectType(true).MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.Const, &validator.EmptyValidator{}),
-							validator.PropPair(keywords.DependentRequired,
-								validator.Object().
-									AdditionalPropertiesSchema(
-										validator.Array().
-											UniqueItems(true).
-											MustBuild()).
-									StrictObjectType(true).
-									MustBuild()),
-							validator.PropPair(keywords.Enum, validator.Array().MustBuild()),
-							validator.PropPair(keywords.ExclusiveMaximum, validator.Number().MustBuild()),
-							validator.PropPair(keywords.ExclusiveMinimum, validator.Number().MustBuild()),
-							validator.PropPair(keywords.MaxContains,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MaxItems,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MaxLength,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MaxProperties,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.Maximum, validator.Number().MustBuild()),
-							validator.PropPair(keywords.MinContains,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MinItems,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MinLength,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.MinProperties,
-								validator.Integer().
-									Minimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.Minimum, validator.Number().MustBuild()),
-							validator.PropPair(keywords.MultipleOf,
-								validator.Number().
-									ExclusiveMinimum(0).
-									MustBuild()),
-							validator.PropPair(keywords.Pattern,
-								validator.String().
-									Format("regex").
-									MustBuild()),
-							validator.PropPair(keywords.Required,
-								validator.Array().
-									UniqueItems(true).
-									MustBuild()),
-							validator.PropPair(keywords.Type, func() validator.Interface {
-								mv := validator.NewMultiValidator(validator.OrMode)
-								mv.Append(func() validator.Interface {
-									mv := validator.NewMultiValidator(validator.OrMode)
-									mv.Append(validator.String().Enum(
-										"array",
-										"boolean",
-										"integer",
-										"null",
-										"number",
-										"object",
-										"string",
-									).MustBuild())
-									mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())
-									return mv
-								}())
-								mv.Append(
-									validator.Array().
-										MinItems(1).
-										UniqueItems(true).
-										MustBuild())
-								return mv
-							}()),
-							validator.PropPair(keywords.UniqueItems, validator.Boolean().MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.Default, &validator.EmptyValidator{}),
-							validator.PropPair(keywords.Deprecated, validator.Boolean().MustBuild()),
-							validator.PropPair(keywords.Description, validator.String().MustBuild()),
-							validator.PropPair(keywords.Examples, validator.Array().MustBuild()),
-							validator.PropPair(keywords.ReadOnly, validator.Boolean().MustBuild()),
-							validator.PropPair(keywords.Title, validator.String().MustBuild()),
-							validator.PropPair(keywords.WriteOnly, validator.Boolean().MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(validator.PropPair(keywords.Format, validator.String().MustBuild())).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
-			mv.Append(func() validator.Interface {
-				mv := validator.NewMultiValidator(validator.OrMode)
-				mv.Append(
-					validator.Object().
-						Properties(
-							validator.PropPair(keywords.ContentEncoding, validator.String().MustBuild()),
-							validator.PropPair(keywords.ContentMediaType, validator.String().MustBuild()),
-							validator.PropPair(keywords.ContentSchema, validator.Object().StrictObjectType(true).MustBuild()),
-						).
-						StrictObjectType(true).
-						MustBuild())
-				mv.Append(validator.Boolean().MustBuild())
-				return mv
-			}())
+										MustBuild(),
+								),
+								validator.PropPair(
+									keywords.Definitions,
+									validator.Object().
+										AdditionalPropertiesSchema(
+											validator.Object().StrictObjectType(true).MustBuild(),
+										).
+										StrictObjectType(true).
+										MustBuild(),
+								),
+								validator.PropPair(
+									keywords.DependentSchemas,
+									validator.Object().
+										AdditionalPropertiesSchema(
+
+											func() validator.Interface {
+												mv := validator.NewMultiValidator(validator.OrMode)
+												mv.Append(validator.Object().StrictObjectType(true).MustBuild())
+												mv.Append(
+													validator.Array().
+														UniqueItems(true).
+														MustBuild())
+												return mv
+											}(),
+										).
+										StrictObjectType(true).
+										MustBuild(),
+								),
+							).
+							StrictObjectType(true).
+							MustBuild())
+					mv.Append(
+						validator.Boolean().
+							MustBuild())
+					return mv
+				}())
 			return mv
-		}())
-		mv.Append(func() validator.Interface {
-			mv := validator.NewMultiValidator(validator.OrMode)
-			mv.Append(
-				validator.Object().
-					Properties(
-						validator.PropPair(keywords.RecursiveAnchor,
-							validator.String().
-								Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
-								MustBuild()),
-						validator.PropPair(keywords.RecursiveRef,
-							validator.String().
-								Format("uri-reference").
-								MustBuild()),
-						validator.PropPair(keywords.Definitions,
-							validator.Object().
-								AdditionalPropertiesSchema(validator.Object().StrictObjectType(true).MustBuild()).
-								StrictObjectType(true).
-								MustBuild()),
-						validator.PropPair(keywords.DependentSchemas,
-							validator.Object().
-								AdditionalPropertiesSchema(func() validator.Interface {
-									mv := validator.NewMultiValidator(validator.OrMode)
-									mv.Append(validator.Object().StrictObjectType(true).MustBuild())
-									mv.Append(
-										validator.Array().
-											UniqueItems(true).
-											MustBuild())
-									return mv
-								}()).
-								StrictObjectType(true).
-								MustBuild()),
-					).
-					StrictObjectType(true).
-					MustBuild())
-			mv.Append(validator.Boolean().MustBuild())
-			return mv
-		}())
-		return mv
-	}()
+		}()
 }
 
 // Validator returns a pre-compiled validator for the JSON Schema 2020-12 meta-schema.
