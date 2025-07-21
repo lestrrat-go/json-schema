@@ -438,9 +438,6 @@ package validator
 type CodeGenerator interface {
     // GenerateCode creates Go code that constructs the given validator
     GenerateCode(validatorName string, v Interface) (string, error)
-    
-    // GeneratePackage creates a complete Go package with validators
-    GeneratePackage(packageName string, validators map[string]Interface) (string, error)
 }
 
 // NewCodeGenerator creates a new code generator
@@ -635,20 +632,6 @@ code, err := generator.GenerateCode("UserEmailValidator", validator)
 
 // Write to file
 ioutil.WriteFile("validators_gen.go", []byte(code), 0644)
-```
-
-### Package Generation
-
-```go
-validators := map[string]validator.Interface{
-    "Email":    emailValidator,
-    "Password": passwordValidator,
-    "UserID":   userIDValidator,
-}
-
-generator := validator.NewCodeGenerator()
-
-packageCode, err := generator.GeneratePackage("validators", validators)
 ```
 
 ## Integration Points
