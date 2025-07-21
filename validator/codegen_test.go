@@ -2,12 +2,14 @@ package validator
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/stretchr/testify/require"
 )
+
 
 func TestCodeGeneration(t *testing.T) {
 	tests := []struct {
@@ -106,6 +108,73 @@ func TestCodeGeneration(t *testing.T) {
 				require.Contains(t, code, "MinItems(1).")
 				require.Contains(t, code, "MaxItems(5).")
 				require.Contains(t, code, "UniqueItems(true).")
+			},
+		},
+		{
+			name: "ObjectWithPatternPropertiesValidator",
+			createValidator: func(t *testing.T) Interface {
+				// Create pattern validators
+				stringValidator := String().MinLength(1).MustBuild()
+				numValidator := Integer().Minimum(0).MustBuild()
+				
+				// Create regexps manually
+				strPattern, _ := regexp.Compile("^str_")
+				numPattern, _ := regexp.Compile("^num_")
+				
+				return &objectValidator{
+					patternProperties: map[*regexp.Regexp]Interface{
+						strPattern: stringValidator,
+						numPattern: numValidator,
+					},
+					strictObjectType: true,
+				}
+			},
+			testValue:  map[string]any{"str_test": "hello", "num_count": 42},
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "validator.Object().")
+				require.Contains(t, code, "PatternProperties(")
+				require.Contains(t, code, "map[*regexp.Regexp]validator.Interface")
+				require.Contains(t, code, "regexp.Compile(")
+				require.Contains(t, code, "StrictObjectType(true).")
+			},
+		},
+		{
+			name: "ComplexArrayValidator",
+			createValidator: func(t *testing.T) Interface {
+				// Create an array validator with all complex features
+				itemsValidator := String().MinLength(1).MustBuild()
+				containsValidator := String().Pattern("test").MustBuild()
+				prefixItem1 := Integer().Minimum(0).MustBuild()
+				prefixItem2 := String().MaxLength(10).MustBuild()
+				
+				return &arrayValidator{
+					minItems:     uintPtr(1),
+					maxItems:     uintPtr(10),
+					uniqueItems:  true,
+					minContains:  uintPtr(1),
+					maxContains:  uintPtr(3),
+					prefixItems:  []Interface{prefixItem1, prefixItem2},
+					items:        itemsValidator,
+					contains:     containsValidator,
+					strictArrayType: true,
+					unevaluatedItems: false, // Test boolean unevaluated items
+				}
+			},
+			testValue:  []any{5, "hello", "test", "more"},
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "validator.Array().")
+				require.Contains(t, code, "MinItems(1).")
+				require.Contains(t, code, "MaxItems(10).")
+				require.Contains(t, code, "UniqueItems(true).")
+				require.Contains(t, code, "MinContains(1).")
+				require.Contains(t, code, "MaxContains(3).")
+				require.Contains(t, code, "PrefixItems(")
+				require.Contains(t, code, "Items(")
+				require.Contains(t, code, "Contains(")
+				require.Contains(t, code, "UnevaluatedItemsBool(false).")
+				require.Contains(t, code, "StrictArrayType(true).")
 			},
 		},
 		{
@@ -265,6 +334,158 @@ func TestUnsupportedValidatorType(t *testing.T) {
 	require.NoError(t, err)
 	code := buf.String()
 	require.Contains(t, code, "EmptyValidator")
+}
+
+func TestComplexValidatorsCodeGeneration(t *testing.T) {
+	// Test the complex validators I implemented
+	tests := []struct {
+		name            string
+		createValidator func(t *testing.T) Interface
+		testValue       any
+		shouldPass      bool
+		checkGenerated  func(t *testing.T, code string)
+	}{
+		{
+			name: "IfThenElseValidator",
+			createValidator: func(t *testing.T) Interface {
+				ifValidator := String().MinLength(1).MustBuild()
+				thenValidator := String().MaxLength(10).MustBuild()
+				elseValidator := String().MaxLength(5).MustBuild()
+				return &IfThenElseValidator{
+					ifValidator:   ifValidator,
+					thenValidator: thenValidator,
+					elseValidator: elseValidator,
+				}
+			},
+			testValue:  "test",
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "&validator.IfThenElseValidator{")
+				require.Contains(t, code, "ifValidator:")
+				require.Contains(t, code, "thenValidator:")
+				require.Contains(t, code, "elseValidator:")
+			},
+		},
+		{
+			name: "UnevaluatedPropertiesCompositionValidator",
+			createValidator: func(t *testing.T) Interface {
+				allOfValidator := String().MinLength(1).MustBuild()
+				baseValidator := String().MaxLength(10).MustBuild()
+				return &UnevaluatedPropertiesCompositionValidator{
+					allOfValidators: []Interface{allOfValidator},
+					baseValidator:   baseValidator,
+				}
+			},
+			testValue:  "test",
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "&validator.UnevaluatedPropertiesCompositionValidator{")
+				require.Contains(t, code, "allOfValidators:")
+				require.Contains(t, code, "baseValidator:")
+			},
+		},
+		{
+			name: "AnyOfUnevaluatedPropertiesCompositionValidator",
+			createValidator: func(t *testing.T) Interface {
+				anyOfValidator := String().MinLength(1).MustBuild()
+				baseValidator := String().MaxLength(10).MustBuild()
+				return &AnyOfUnevaluatedPropertiesCompositionValidator{
+					anyOfValidators: []Interface{anyOfValidator},
+					baseValidator:   baseValidator,
+				}
+			},
+			testValue:  "test",
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "&validator.AnyOfUnevaluatedPropertiesCompositionValidator{")
+				require.Contains(t, code, "anyOfValidators:")
+				require.Contains(t, code, "baseValidator:")
+			},
+		},
+		{
+			name: "OneOfUnevaluatedPropertiesCompositionValidator",
+			createValidator: func(t *testing.T) Interface {
+				oneOfValidator := String().MinLength(1).MustBuild()
+				baseValidator := String().MaxLength(10).MustBuild()
+				return &OneOfUnevaluatedPropertiesCompositionValidator{
+					oneOfValidators: []Interface{oneOfValidator},
+					baseValidator:   baseValidator,
+				}
+			},
+			testValue:  "test",
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "&validator.OneOfUnevaluatedPropertiesCompositionValidator{")
+				require.Contains(t, code, "oneOfValidators:")
+				require.Contains(t, code, "baseValidator:")
+			},
+		},
+		{
+			name: "RefUnevaluatedPropertiesCompositionValidator",
+			createValidator: func(t *testing.T) Interface {
+				refValidator := String().MinLength(1).MustBuild()
+				baseValidator := String().MaxLength(10).MustBuild()
+				return &RefUnevaluatedPropertiesCompositionValidator{
+					refValidator:  refValidator,
+					baseValidator: baseValidator,
+				}
+			},
+			testValue:  "test",
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "&validator.RefUnevaluatedPropertiesCompositionValidator{")
+				require.Contains(t, code, "refValidator:")
+				require.Contains(t, code, "baseValidator:")
+			},
+		},
+		{
+			name: "IfThenElseUnevaluatedPropertiesCompositionValidator",
+			createValidator: func(t *testing.T) Interface {
+				ifValidator := String().MinLength(1).MustBuild()
+				thenValidator := String().MaxLength(10).MustBuild()
+				elseValidator := String().MaxLength(5).MustBuild()
+				baseValidator := String().MinLength(0).MustBuild()
+				return &IfThenElseUnevaluatedPropertiesCompositionValidator{
+					ifValidator:   ifValidator,
+					thenValidator: thenValidator,
+					elseValidator: elseValidator,
+					baseValidator: baseValidator,
+				}
+			},
+			testValue:  "test",
+			shouldPass: true,
+			checkGenerated: func(t *testing.T, code string) {
+				require.Contains(t, code, "&validator.IfThenElseUnevaluatedPropertiesCompositionValidator{")
+				require.Contains(t, code, "ifValidator:")
+				require.Contains(t, code, "thenValidator:")
+				require.Contains(t, code, "elseValidator:")
+				require.Contains(t, code, "baseValidator:")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create original validator
+			originalValidator := tt.createValidator(t)
+
+			// Generate code
+			generator := NewCodeGenerator()
+			var buf strings.Builder
+			err := generator.Generate(&buf, originalValidator)
+			require.NoError(t, err, "Code generation should succeed")
+			code := buf.String()
+			require.NotEmpty(t, code, "Generated code should not be empty")
+
+			// Check that generated code contains expected elements
+			if tt.checkGenerated != nil {
+				tt.checkGenerated(t, code)
+			}
+
+			// Print generated code for debugging
+			t.Logf("Generated code for %s:\n%s", tt.name, code)
+		})
+	}
 }
 
 func TestComplexNestedValidator(t *testing.T) {

@@ -64,6 +64,10 @@ func init() {
 														mv.Append(
 															validator.Array().
 																UniqueItems(true).
+																Items(
+																	validator.String().
+																		MustBuild()).
+																StrictArrayType(true).
 																MustBuild())
 														return mv
 													}(),
@@ -181,12 +185,16 @@ func init() {
 											keywords.AllOf,
 											validator.Array().
 												MinItems(1).
+												Items(validator.Object().StrictObjectType(true).MustBuild()).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
 											keywords.AnyOf,
 											validator.Array().
 												MinItems(1).
+												Items(validator.Object().StrictObjectType(true).MustBuild()).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
@@ -217,6 +225,8 @@ func init() {
 											keywords.OneOf,
 											validator.Array().
 												MinItems(1).
+												Items(validator.Object().StrictObjectType(true).MustBuild()).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
@@ -237,6 +247,8 @@ func init() {
 											keywords.PrefixItems,
 											validator.Array().
 												MinItems(1).
+												Items(validator.Object().StrictObjectType(true).MustBuild()).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
@@ -298,6 +310,10 @@ func init() {
 
 													validator.Array().
 														UniqueItems(true).
+														Items(
+															validator.String().
+																MustBuild()).
+														StrictArrayType(true).
 														MustBuild(),
 												).
 												StrictObjectType(true).
@@ -306,6 +322,8 @@ func init() {
 										validator.PropPair(
 											keywords.Enum,
 											validator.Array().
+												Items(&validator.EmptyValidator{}).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
@@ -392,6 +410,10 @@ func init() {
 											keywords.Required,
 											validator.Array().
 												UniqueItems(true).
+												Items(
+													validator.String().
+														MustBuild()).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
@@ -417,6 +439,22 @@ func init() {
 													validator.Array().
 														MinItems(1).
 														UniqueItems(true).
+														Items(
+															func() validator.Interface {
+																mv := validator.NewMultiValidator(validator.OrMode)
+																mv.Append(validator.String().Enum(
+																	"array",
+																	"boolean",
+																	"integer",
+																	"null",
+																	"number",
+																	"object",
+																	"string",
+																).MustBuild())
+																mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())
+																return mv
+															}()).
+														StrictArrayType(true).
 														MustBuild())
 												return mv
 											}(),
@@ -456,6 +494,8 @@ func init() {
 										validator.PropPair(
 											keywords.Examples,
 											validator.Array().
+												Items(&validator.EmptyValidator{}).
+												StrictArrayType(true).
 												MustBuild(),
 										),
 										validator.PropPair(
@@ -567,6 +607,10 @@ func init() {
 												mv.Append(
 													validator.Array().
 														UniqueItems(true).
+														Items(
+															validator.String().
+																MustBuild()).
+														StrictArrayType(true).
 														MustBuild())
 												return mv
 											}(),

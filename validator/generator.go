@@ -140,17 +140,17 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 	case *inferredNumberValidator:
 		return g.generateInferredNumber(dst, validator)
 	case *UnevaluatedPropertiesCompositionValidator:
-		return g.generateUnevaluatedPropertiesComposition(dst)
+		return g.generateUnevaluatedPropertiesComposition(dst, validator)
 	case *AnyOfUnevaluatedPropertiesCompositionValidator:
-		return g.generateAnyOfUnevaluatedPropertiesComposition(dst)
+		return g.generateAnyOfUnevaluatedPropertiesComposition(dst, validator)
 	case *OneOfUnevaluatedPropertiesCompositionValidator:
-		return g.generateOneOfUnevaluatedPropertiesComposition(dst)
+		return g.generateOneOfUnevaluatedPropertiesComposition(dst, validator)
 	case *RefUnevaluatedPropertiesCompositionValidator:
-		return g.generateRefUnevaluatedPropertiesComposition(dst)
+		return g.generateRefUnevaluatedPropertiesComposition(dst, validator)
 	case *IfThenElseValidator:
-		return g.generateIfThenElse(dst)
+		return g.generateIfThenElse(dst, validator)
 	case *IfThenElseUnevaluatedPropertiesCompositionValidator:
-		return g.generateIfThenElseUnevaluatedPropertiesComposition(dst)
+		return g.generateIfThenElseUnevaluatedPropertiesComposition(dst, validator)
 	default:
 		// Debug: Print what unsupported validator type we encountered
 		fmt.Printf("GENERATOR DEBUG: Unsupported validator type: %T, falling back to EmptyValidator\n", v)
@@ -226,9 +226,34 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 
 	// Handle pattern properties
 	if len(v.patternProperties) > 0 {
-		// For pattern properties, we need to generate a more complex structure
-		// For now, we'll skip this as it's complex to generate regexp objects
-		fmt.Printf("GENERATOR DEBUG: Skipping pattern properties generation (not implemented)\n")
+		o.L("PatternProperties(")
+		o.L("func() map[*regexp.Regexp]validator.Interface {")
+		o.L("patternProps := make(map[*regexp.Regexp]validator.Interface)")
+		
+		patternIndex := 0
+		for pattern, patternValidator := range v.patternProperties {
+			// Generate unique variable names for each pattern
+			validatorVar := fmt.Sprintf("patternValidator%d", patternIndex)
+			regexVar := fmt.Sprintf("patternRegex%d", patternIndex)
+			
+			// Generate the validator for this pattern
+			o.L("%s := ", validatorVar)
+			if err := g.Generate(&buf, patternValidator); err != nil {
+				return fmt.Errorf("failed to generate pattern property validator for %s: %w", pattern.String(), err)
+			}
+			o.R("")
+			
+			// Generate the regex compilation
+			patternStr := pattern.String()
+			o.L("%s, _ := regexp.Compile(%q)", regexVar, patternStr)
+			o.L("patternProps[%s] = %s", regexVar, validatorVar)
+			
+			patternIndex++
+		}
+		
+		o.L("return patternProps")
+		o.L("}(),")
+		o.L(").") 
 	}
 
 	// Handle property names validator
@@ -613,7 +638,6 @@ func (g *codeGenerator) generateInferredNumber(dst io.Writer, v *inferredNumberV
 }
 
 
-// Stub implementations for the remaining internal methods - these will be properly implemented later
 // generateNumber creates the builder chain for number validators
 func (g *codeGenerator) generateNumber(dst io.Writer, v *numberValidator) error {
 	var buf bytes.Buffer
@@ -709,8 +733,68 @@ func (g *codeGenerator) generateArray(dst io.Writer, v *arrayValidator) error {
 		o.L("MaxContains(%d).", *v.maxContains)
 	}
 
-	// Note: Complex items, prefixItems etc. would need more complex generation
-	// For now, create basic array validator without complex items
+	// Handle prefixItems
+	if len(v.prefixItems) > 0 {
+		o.L("PrefixItems(")
+		for i, prefixItem := range v.prefixItems {
+			if i > 0 {
+				o.R(",")
+			}
+			if err := g.Generate(&buf, prefixItem); err != nil {
+				return fmt.Errorf("failed to generate prefixItem %d: %w", i, err)
+			}
+		}
+		o.L(").")
+	}
+
+	// Handle items validator
+	if v.items != nil {
+		o.L("Items(")
+		if err := g.Generate(&buf, v.items); err != nil {
+			return fmt.Errorf("failed to generate items validator: %w", err)
+		}
+		o.R(").")
+	}
+
+	// Handle additionalItems
+	if v.additionalItems != nil {
+		o.L("AdditionalItems(")
+		if err := g.Generate(&buf, v.additionalItems); err != nil {
+			return fmt.Errorf("failed to generate additionalItems validator: %w", err)
+		}
+		o.R(").")
+	}
+
+	// Handle contains validator
+	if v.contains != nil {
+		o.L("Contains(")
+		if err := g.Generate(&buf, v.contains); err != nil {
+			return fmt.Errorf("failed to generate contains validator: %w", err)
+		}
+		o.R(").")
+	}
+
+	// Handle unevaluatedItems (can be bool or Interface)
+	if v.unevaluatedItems != nil {
+		switch ui := v.unevaluatedItems.(type) {
+		case bool:
+			o.L("UnevaluatedItemsBool(%t).", ui)
+		case Interface:
+			o.L("UnevaluatedItemsSchema(")
+			if err := g.Generate(&buf, ui); err != nil {
+				return fmt.Errorf("failed to generate unevaluatedItems validator: %w", err)
+			}
+			o.R(").")
+		default:
+			// Fallback for unexpected type
+			o.L("UnevaluatedItemsBool(true).")
+		}
+	}
+
+	// Handle strict array type
+	if v.strictArrayType {
+		o.L("StrictArrayType(true).")
+	}
 
 	o.L("MustBuild()")
 	_, err := buf.WriteTo(dst)
@@ -746,50 +830,292 @@ func (g *codeGenerator) generateAlwaysFail(dst io.Writer) error {
 	return err
 }
 
-func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer) error {
+func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer, v *UnevaluatedPropertiesCompositionValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
+
+	// UnevaluatedPropertiesComposition validators have allOf validators and a base validator
+	o.L("func() validator.Interface {")
+
+	// Generate allOf validators
+	if len(v.allOfValidators) > 0 {
+		o.L("allOfValidators := make([]validator.Interface, %d)", len(v.allOfValidators))
+		for i, allOfValidator := range v.allOfValidators {
+			o.L("allOfValidators[%d] = ", i)
+			if err := g.Generate(&buf, allOfValidator); err != nil {
+				return fmt.Errorf("failed to generate allOf validator %d: %w", i, err)
+			}
+			o.R("")
+		}
+	} else {
+		o.L("allOfValidators := make([]validator.Interface, 0)")
+	}
+
+	// Generate base validator
+	if v.baseValidator != nil {
+		o.L("baseValidator := ")
+		if err := g.Generate(&buf, v.baseValidator); err != nil {
+			return fmt.Errorf("failed to generate base validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("baseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Create the UnevaluatedPropertiesCompositionValidator
+	o.L("return &validator.UnevaluatedPropertiesCompositionValidator{")
+	o.L("allOfValidators: allOfValidators,")
+	o.L("baseValidator: baseValidator,")
+	o.L("schema: nil, // Schema not available during generation")
+	o.L("}")
+	o.L("}()")
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
 
-func (g *codeGenerator) generateAnyOfUnevaluatedPropertiesComposition(dst io.Writer) error {
+func (g *codeGenerator) generateAnyOfUnevaluatedPropertiesComposition(dst io.Writer, v *AnyOfUnevaluatedPropertiesCompositionValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
+
+	// AnyOfUnevaluatedPropertiesComposition validators have anyOf validators and a base validator
+	o.L("func() validator.Interface {")
+
+	// Generate anyOf validators
+	if len(v.anyOfValidators) > 0 {
+		o.L("anyOfValidators := make([]validator.Interface, %d)", len(v.anyOfValidators))
+		for i, anyOfValidator := range v.anyOfValidators {
+			o.L("anyOfValidators[%d] = ", i)
+			if err := g.Generate(&buf, anyOfValidator); err != nil {
+				return fmt.Errorf("failed to generate anyOf validator %d: %w", i, err)
+			}
+			o.R("")
+		}
+	} else {
+		o.L("anyOfValidators := make([]validator.Interface, 0)")
+	}
+
+	// Generate base validator
+	if v.baseValidator != nil {
+		o.L("baseValidator := ")
+		if err := g.Generate(&buf, v.baseValidator); err != nil {
+			return fmt.Errorf("failed to generate base validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("baseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Create the AnyOfUnevaluatedPropertiesCompositionValidator
+	o.L("return &validator.AnyOfUnevaluatedPropertiesCompositionValidator{")
+	o.L("anyOfValidators: anyOfValidators,")
+	o.L("baseValidator: baseValidator,")
+	o.L("schema: nil, // Schema not available during generation")
+	o.L("}")
+	o.L("}()")
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
 
-func (g *codeGenerator) generateOneOfUnevaluatedPropertiesComposition(dst io.Writer) error {
+func (g *codeGenerator) generateOneOfUnevaluatedPropertiesComposition(dst io.Writer, v *OneOfUnevaluatedPropertiesCompositionValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
+
+	// OneOfUnevaluatedPropertiesComposition validators have oneOf validators and a base validator
+	o.L("func() validator.Interface {")
+
+	// Generate oneOf validators
+	if len(v.oneOfValidators) > 0 {
+		o.L("oneOfValidators := make([]validator.Interface, %d)", len(v.oneOfValidators))
+		for i, oneOfValidator := range v.oneOfValidators {
+			o.L("oneOfValidators[%d] = ", i)
+			if err := g.Generate(&buf, oneOfValidator); err != nil {
+				return fmt.Errorf("failed to generate oneOf validator %d: %w", i, err)
+			}
+			o.R("")
+		}
+	} else {
+		o.L("oneOfValidators := make([]validator.Interface, 0)")
+	}
+
+	// Generate base validator
+	if v.baseValidator != nil {
+		o.L("baseValidator := ")
+		if err := g.Generate(&buf, v.baseValidator); err != nil {
+			return fmt.Errorf("failed to generate base validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("baseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Create the OneOfUnevaluatedPropertiesCompositionValidator
+	o.L("return &validator.OneOfUnevaluatedPropertiesCompositionValidator{")
+	o.L("oneOfValidators: oneOfValidators,")
+	o.L("baseValidator: baseValidator,")
+	o.L("schema: nil, // Schema not available during generation")
+	o.L("}")
+	o.L("}()")
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
 
-func (g *codeGenerator) generateRefUnevaluatedPropertiesComposition(dst io.Writer) error {
+func (g *codeGenerator) generateRefUnevaluatedPropertiesComposition(dst io.Writer, v *RefUnevaluatedPropertiesCompositionValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
+
+	// RefUnevaluatedPropertiesComposition validators have a ref validator and a base validator
+	o.L("func() validator.Interface {")
+
+	// Generate ref validator
+	if v.refValidator != nil {
+		o.L("refValidator := ")
+		if err := g.Generate(&buf, v.refValidator); err != nil {
+			return fmt.Errorf("failed to generate ref validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("refValidator := &validator.EmptyValidator{}")
+	}
+
+	// Generate base validator
+	if v.baseValidator != nil {
+		o.L("baseValidator := ")
+		if err := g.Generate(&buf, v.baseValidator); err != nil {
+			return fmt.Errorf("failed to generate base validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("baseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Create the RefUnevaluatedPropertiesCompositionValidator
+	o.L("return &validator.RefUnevaluatedPropertiesCompositionValidator{")
+	o.L("refValidator: refValidator,")
+	o.L("baseValidator: baseValidator,")
+	o.L("schema: nil, // Schema not available during generation")
+	o.L("}")
+	o.L("}()")
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
 
-func (g *codeGenerator) generateIfThenElse(dst io.Writer) error {
+func (g *codeGenerator) generateIfThenElse(dst io.Writer, v *IfThenElseValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
+
+	// IfThenElse validators are complex composites with three child validators
+	o.L("func() validator.Interface {")
+
+	// Generate if validator
+	if v.ifValidator != nil {
+		o.L("ifValidator := ")
+		if err := g.Generate(&buf, v.ifValidator); err != nil {
+			return fmt.Errorf("failed to generate if validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("ifValidator := &validator.EmptyValidator{}")
+	}
+
+	// Generate then validator
+	if v.thenValidator != nil {
+		o.L("thenValidator := ")
+		if err := g.Generate(&buf, v.thenValidator); err != nil {
+			return fmt.Errorf("failed to generate then validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("thenValidator := &validator.EmptyValidator{}")
+	}
+
+	// Generate else validator
+	if v.elseValidator != nil {
+		o.L("elseValidator := ")
+		if err := g.Generate(&buf, v.elseValidator); err != nil {
+			return fmt.Errorf("failed to generate else validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("elseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Create the IfThenElse validator
+	o.L("return &validator.IfThenElseValidator{")
+	o.L("ifValidator: ifValidator,")
+	o.L("thenValidator: thenValidator,")
+	o.L("elseValidator: elseValidator,")
+	o.L("}")
+	o.L("}()")
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
 
-func (g *codeGenerator) generateIfThenElseUnevaluatedPropertiesComposition(dst io.Writer) error {
+func (g *codeGenerator) generateIfThenElseUnevaluatedPropertiesComposition(dst io.Writer, v *IfThenElseUnevaluatedPropertiesCompositionValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
+
+	// IfThenElseUnevaluatedPropertiesComposition validators have if/then/else validators and a base validator
+	o.L("func() validator.Interface {")
+
+	// Generate if validator
+	if v.ifValidator != nil {
+		o.L("ifValidator := ")
+		if err := g.Generate(&buf, v.ifValidator); err != nil {
+			return fmt.Errorf("failed to generate if validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("ifValidator := &validator.EmptyValidator{}")
+	}
+
+	// Generate then validator
+	if v.thenValidator != nil {
+		o.L("thenValidator := ")
+		if err := g.Generate(&buf, v.thenValidator); err != nil {
+			return fmt.Errorf("failed to generate then validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("thenValidator := &validator.EmptyValidator{}")
+	}
+
+	// Generate else validator
+	if v.elseValidator != nil {
+		o.L("elseValidator := ")
+		if err := g.Generate(&buf, v.elseValidator); err != nil {
+			return fmt.Errorf("failed to generate else validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("elseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Generate base validator
+	if v.baseValidator != nil {
+		o.L("baseValidator := ")
+		if err := g.Generate(&buf, v.baseValidator); err != nil {
+			return fmt.Errorf("failed to generate base validator: %w", err)
+		}
+		o.R("")
+	} else {
+		o.L("baseValidator := &validator.EmptyValidator{}")
+	}
+
+	// Create the IfThenElseUnevaluatedPropertiesCompositionValidator
+	o.L("return &validator.IfThenElseUnevaluatedPropertiesCompositionValidator{")
+	o.L("ifValidator: ifValidator,")
+	o.L("thenValidator: thenValidator,")
+	o.L("elseValidator: elseValidator,")
+	o.L("baseValidator: baseValidator,")
+	o.L("schema: nil, // Schema not available during generation")
+	o.L("}")
+	o.L("}()")
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
