@@ -127,8 +127,8 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateNot(dst, validator)
 	case *nullValidator:
 		return g.generateNull(dst)
-	case *GeneralValidator:
-		return g.generateGeneral(dst, validator)
+	case *untypedValidator:
+		return g.generateUntyped(dst, validator)
 	case *alwaysPassValidator:
 		return g.generateAlwaysPass(dst)
 	case *alwaysFailValidator:
@@ -354,40 +354,27 @@ func (g *codeGenerator) generateNot(dst io.Writer, v *NotValidator) error {
 	return err
 }
 
-// generateGeneralBuilderChain creates just the builder chain for general validators
-func (g *codeGenerator) generateGeneral(dst io.Writer, v *GeneralValidator) error {
+// generateUntyped creates the builder chain for untyped validators
+func (g *codeGenerator) generateUntyped(dst io.Writer, v *untypedValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
 
-	if v.enum != nil {
-		// For enum validation, create a MultiValidator that accepts either:
-		// 1. String with enum values, or 2. Array of unique enum values
-		enumStrs := make([]string, len(v.enum))
-		for i, e := range v.enum {
-			if s, ok := e.(string); ok {
-				enumStrs[i] = fmt.Sprintf("%q", s)
-			} else {
-				enumStrs[i] = fmt.Sprintf("%#v", e)
-			}
-		}
-		// Format enum arguments with newlines if there are multiple
-		var enumArgs string
-		if len(enumStrs) > 1 {
-			enumArgs = "\n\t\t" + strings.Join(enumStrs, ",\n\t\t") + ",\n\t"
+	if v.constantValue != nil {
+		// For const validation, use the public builder API
+		o.L("validator.Untyped().Const(%#v).MustBuild()", *v.constantValue)
+	} else if len(v.enum) > 0 {
+		// For enum validation, use the public builder API
+		if len(v.enum) == 1 {
+			o.L("validator.Untyped().Enum(%#v).MustBuild()", v.enum[0])
 		} else {
-			enumArgs = strings.Join(enumStrs, ", ")
+			o.L("validator.Untyped().Enum(")
+			for _, e := range v.enum {
+				o.L("\t%#v,", e)
+			}
+			o.L(").MustBuild()")
 		}
-
-		o.L("validator.AnyOf(")
-		o.L("validator.String().Enum(%s).MustBuild(),", enumArgs)
-		o.L("validator.Array().MinItems(1).UniqueItems(true).MustBuild(),")
-		o.L(")")
-	} else if v.hasConst {
-		// For const validation, accept any matching value
-		// Since we can't access the const value, return EmptyValidator
-		o.R("&validator.EmptyValidator{}")
 	} else {
-		o.R("&validator.EmptyValidator{}")
+		o.L("&validator.EmptyValidator{}")
 	}
 
 	_, err := buf.WriteTo(dst)
@@ -416,18 +403,17 @@ func (g *codeGenerator) generateString(dst io.Writer, v *stringValidator) error 
 	}
 	if v.enum != nil {
 		if len(v.enum) == 1 {
-			o.L("Enum([]string{%q}).", v.enum[0])
+			o.L("Enum(%#v).", v.enum[0])
 		} else {
 			o.L("Enum(")
-			o.L("[]string{")
 			for _, s := range v.enum {
-				o.L("%q,", s)
+				o.L("%#v,", s)
 			}
-			o.L("}).")
+			o.L(").")
 		}
 	}
 	if v.constantValue != nil {
-		o.L("Const(%q).", *v.constantValue)
+		o.L("Const(%#v).", v.constantValue)
 	}
 
 	o.L("MustBuild()")
@@ -697,18 +683,17 @@ func (g *codeGenerator) generateBoolean(dst io.Writer, v *booleanValidator) erro
 
 	if v.enum != nil {
 		if len(v.enum) == 1 {
-			o.L("Enum([]bool{%t}).", v.enum[0])
+			o.L("Enum(%#v).", v.enum[0])
 		} else {
 			o.L("Enum(")
-			o.L("[]bool{")
 			for _, b := range v.enum {
-				o.L("%t,", b)
+				o.L("%#v,", b)
 			}
-			o.L("}).")
+			o.L(").")
 		}
 	}
 	if v.constantValue != nil {
-		o.L("Const(%t).", *v.constantValue)
+		o.L("Const(%#v).", v.constantValue)
 	}
 
 	o.L("MustBuild()")

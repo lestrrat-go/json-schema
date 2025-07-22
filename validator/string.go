@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
-	"slices"
 	"time"
 	"unicode/utf8"
 
@@ -37,8 +36,8 @@ type stringValidator struct {
 	minLength        *uint
 	pattern          *regexp.Regexp
 	format           *string
-	enum             []string
-	constantValue    *string
+	enum             []any
+	constantValue    any
 	strictStringType bool // true when schema explicitly declares type: string
 }
 
@@ -71,10 +70,9 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 	l := uint(utf8.RuneCountInString(str))
 	logger.Info("string validator checking constraints", "length", l, "value_preview", truncateString(str, 50))
 
-	if v := v.constantValue; v != nil {
-		logger.Info("string validator checking const", "expected", *v, "actual", str)
-		if *v != str {
-			return nil, fmt.Errorf(`invalid value passed to StringValidator: string must be const value %q`, *v)
+	if v.constantValue != nil {
+		if err := validateConst(ctx, str, v.constantValue); err != nil {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
 		}
 	}
 
@@ -99,10 +97,9 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 		}
 	}
 
-	if enums := v.enum; len(enums) > 0 {
-		logger.Info("string validator checking enum", "allowed_values", enums, "actual", str)
-		if !slices.Contains(enums, str) {
-			return nil, fmt.Errorf(`invalid value passed to StringValidator: string not found in enum`)
+	if len(v.enum) > 0 {
+		if err := validateEnum(ctx, str, v.enum); err != nil {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
 		}
 	}
 
@@ -171,11 +168,7 @@ func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bo
 	v := String()
 	v.StrictStringType(strictType)
 	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
-		c, ok := s.Const().(string)
-		if !ok {
-			return nil, fmt.Errorf(`invalid element in const: expected string element, got %T`, s.Const())
-		}
-		v.Const(c)
+		v.Const(s.Const())
 	}
 	if s.HasMaxLength() && IsKeywordEnabledInContext(ctx, "maxLength") {
 		v.MaxLength(s.MaxLength())
@@ -196,17 +189,7 @@ func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bo
 		// If only format-annotation is enabled, we skip format validation (annotation-only behavior)
 	}
 	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
-		enums := s.Enum()
-		l := make([]string, 0, len(enums))
-		for i, e := range s.Enum() {
-			s, ok := e.(string)
-			if !ok {
-				return nil, fmt.Errorf(`invalid element in enum: expected string element, got %T for element %d`, e, i)
-			}
-			l = append(l, s)
-		}
-
-		v.Enum(l...)
+		v.Enum(s.Enum()...)
 	}
 
 	return v.Build()
@@ -273,22 +256,22 @@ func (b *StringValidatorBuilder) Format(format string) *StringValidatorBuilder {
 	return b
 }
 
-func (b *StringValidatorBuilder) Enum(enums ...string) *StringValidatorBuilder {
+func (b *StringValidatorBuilder) Enum(enums ...any) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
 
-	b.c.enum = make([]string, len(enums))
+	b.c.enum = make([]any, len(enums))
 	copy(b.c.enum, enums)
 	return b
 }
 
-func (b *StringValidatorBuilder) Const(c string) *StringValidatorBuilder {
+func (b *StringValidatorBuilder) Const(c any) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
 
-	b.c.constantValue = &c
+	b.c.constantValue = c
 	return b
 }
 

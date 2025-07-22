@@ -52,7 +52,6 @@ func TestCodeGeneration(t *testing.T) {
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
 				require.Contains(t, code, `Enum(`)
-				require.Contains(t, code, `[]string{`)
 				require.Contains(t, code, `"foo",`)
 				require.Contains(t, code, `"bar",`)
 				require.Contains(t, code, `"baz",`)

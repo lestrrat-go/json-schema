@@ -6,7 +6,6 @@ package meta
 
 import (
 	"context"
-
 	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 )
@@ -386,8 +385,8 @@ func init() {
 							validator.PropPair(
 								keywords.Type,
 								validator.AnyOf(
-									validator.AnyOf(
-										validator.String().Enum(
+									validator.String().
+										Enum(
 											"array",
 											"boolean",
 											"integer",
@@ -395,15 +394,14 @@ func init() {
 											"number",
 											"object",
 											"string",
-										).MustBuild(),
-										validator.Array().MinItems(1).UniqueItems(true).MustBuild(),
-									),
+										).
+										MustBuild(),
 									validator.Array().
 										MinItems(1).
 										UniqueItems(true).
 										Items(
-											validator.AnyOf(
-												validator.String().Enum(
+											validator.String().
+												Enum(
 													"array",
 													"boolean",
 													"integer",
@@ -411,9 +409,8 @@ func init() {
 													"number",
 													"object",
 													"string",
-												).MustBuild(),
-												validator.Array().MinItems(1).UniqueItems(true).MustBuild(),
-											)).
+												).
+												MustBuild()).
 										StrictArrayType(true).
 										MustBuild(),
 								),

@@ -390,6 +390,42 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 	return builder.MustBuild()
 }
 
+// getValueType determines the JSON Schema primitive type of a value
+func getValueType(value any) schema.PrimitiveType {
+	switch value.(type) {
+	case string:
+		return schema.StringType
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return schema.IntegerType
+	case float32, float64:
+		return schema.NumberType
+	case bool:
+		return schema.BooleanType
+	case []any:
+		return schema.ArrayType
+	case map[string]any:
+		return schema.ObjectType
+	case nil:
+		return schema.NullType
+	default:
+		// Default to string for unknown types
+		return schema.StringType
+	}
+}
+
+// isPrimitiveType returns true if the given type is a simple primitive type
+// (not a complex type like object or array) that's safe for enum type inference
+func isPrimitiveType(typ schema.PrimitiveType) bool {
+	switch typ {
+	case schema.StringType, schema.IntegerType, schema.NumberType, schema.BooleanType, schema.NullType:
+		return true
+	case schema.ObjectType, schema.ArrayType:
+		return false
+	default:
+		return false
+	}
+}
+
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Set up context with default resolver if none provided
 	if schema.ResolverFromContext(ctx) == nil {
@@ -769,11 +805,40 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Handle general enum/const validation when no specific type is set
 	// Skip this if we have composition validators that will handle these constraints
 	if len(types) == 0 && s.HasAny(schema.ValueConstraintFields) && !hasCompositionValidator {
-		validator, err := compileGeneralValidator(ctx, s)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to compile general validator: %w`, err)
+		// Try to infer type from enum values if they're homogeneous
+		var inferredType *schema.PrimitiveType
+		if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
+			enumValues := s.Enum()
+			if len(enumValues) > 0 {
+				// Check if all enum values are of the same type
+				firstType := getValueType(enumValues[0])
+				allSameType := true
+				for _, val := range enumValues[1:] {
+					if getValueType(val) != firstType {
+						allSameType = false
+						break
+					}
+				}
+				// Only infer primitive types (string, number, integer, boolean, null)
+				// For complex types (object, array), keep as untyped to avoid validation conflicts
+				if allSameType && isPrimitiveType(firstType) {
+					inferredType = &firstType
+				}
+			}
 		}
-		allValidators = append(allValidators, validator)
+
+		// If we inferred a specific type, use that type's validator
+		if inferredType != nil {
+			types = append(types, *inferredType)
+			inferredTypes[*inferredType] = true
+		} else {
+			// Fall back to untyped validator for mixed-type or const-only constraints
+			validator, err := compileUntypedValidator(ctx, s)
+			if err != nil {
+				return nil, fmt.Errorf(`failed to compile general validator: %w`, err)
+			}
+			allValidators = append(allValidators, validator)
+		}
 	}
 
 	for _, typ := range types {
@@ -781,8 +846,9 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// OR all types
 		switch typ {
 		case schema.StringType:
-			// Use strict type checking only for explicitly declared string types
-			strictType := !inferredTypes[schema.StringType]
+			// Use strict type checking for explicitly declared string types OR
+			// for inferred string types that have enum constraints (since enum values determine the type)
+			strictType := !inferredTypes[schema.StringType] || (inferredTypes[schema.StringType] && s.HasEnum())
 			v, err := compileStringValidator(ctx, s, strictType)
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile string validator: %w`, err)
@@ -929,52 +995,6 @@ func compileNullValidator(_ context.Context, _ *schema.Schema) (Interface, error
 	return nullValidator{}, nil
 }
 
-// GeneralValidator handles enum and const validation for schemas without specific types
-type GeneralValidator struct {
-	enum       []any
-	constValue any
-	hasConst   bool
-}
-
-func compileGeneralValidator(_ context.Context, s *schema.Schema) (Interface, error) {
-	v := &GeneralValidator{}
-
-	if s.HasEnum() {
-		v.enum = s.Enum()
-	}
-
-	if s.HasConst() {
-		v.constValue = s.Const()
-		v.hasConst = true
-	}
-
-	return v, nil
-}
-
-func (g *GeneralValidator) Validate(_ context.Context, value any) (Result, error) {
-	// Check const first
-	if g.hasConst {
-		if !reflect.DeepEqual(value, g.constValue) {
-			return nil, fmt.Errorf(`invalid value: must equal const value %v, got %v`, g.constValue, value)
-		}
-		//nolint: nilnil
-		return nil, nil
-	}
-
-	// Check enum
-	if g.enum != nil {
-		for _, enumVal := range g.enum {
-			if reflect.DeepEqual(value, enumVal) {
-				//nolint: nilnil
-				return nil, nil
-			}
-		}
-		return nil, fmt.Errorf(`invalid value: %v not found in enum %v`, value, g.enum)
-	}
-
-	//nolint: nilnil
-	return nil, nil
-}
 
 // ReferenceValidator handles schema references ($ref) with lazy resolution and circular detection
 type ReferenceValidator struct {
