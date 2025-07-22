@@ -41,7 +41,7 @@ func init() {
 							validator.PropPair(
 								keywords.Definitions,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 										validator.Object().StrictObjectType(true).MustBuild(),
 									).
 									StrictObjectType(true).
@@ -50,7 +50,7 @@ func init() {
 							validator.PropPair(
 								keywords.DependentSchemas,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 
 										validator.AnyOf(validator.Object().StrictObjectType(true).MustBuild(),
 											validator.Array().
@@ -88,7 +88,7 @@ func init() {
 							validator.PropPair(
 								keywords.Definitions,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 										validator.Object().StrictObjectType(true).MustBuild(),
 									).
 									StrictObjectType(true).
@@ -132,7 +132,7 @@ func init() {
 							validator.PropPair(
 								keywords.Vocabulary,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 
 										validator.Boolean().
 											MustBuild(),
@@ -179,7 +179,7 @@ func init() {
 							validator.PropPair(
 								keywords.DependentSchemas,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 										validator.Object().StrictObjectType(true).MustBuild(),
 									).
 									StrictObjectType(true).
@@ -208,7 +208,7 @@ func init() {
 							validator.PropPair(
 								keywords.PatternProperties,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 										validator.Object().StrictObjectType(true).MustBuild(),
 									).
 									PropertyNames(
@@ -230,7 +230,7 @@ func init() {
 							validator.PropPair(
 								keywords.Properties,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 										validator.Object().StrictObjectType(true).MustBuild(),
 									).
 									StrictObjectType(true).
@@ -272,7 +272,7 @@ func init() {
 							validator.PropPair(
 								keywords.DependentRequired,
 								validator.Object().
-									AdditionalPropertiesSchema(
+									AdditionalProperties(
 
 										validator.Array().
 											UniqueItems(true).
@@ -525,7 +525,7 @@ func init() {
 						validator.PropPair(
 							keywords.Definitions,
 							validator.Object().
-								AdditionalPropertiesSchema(
+								AdditionalProperties(
 									validator.Object().StrictObjectType(true).MustBuild(),
 								).
 								StrictObjectType(true).
@@ -534,7 +534,7 @@ func init() {
 						validator.PropPair(
 							keywords.DependentSchemas,
 							validator.Object().
-								AdditionalPropertiesSchema(
+								AdditionalProperties(
 
 									validator.AnyOf(validator.Object().StrictObjectType(true).MustBuild(),
 										validator.Array().

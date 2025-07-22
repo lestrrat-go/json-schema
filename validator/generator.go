@@ -215,9 +215,9 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 	if v.additionalProperties != nil {
 		switch ap := v.additionalProperties.(type) {
 		case bool:
-			o.L("AdditionalPropertiesBool(%t).", ap)
+			o.L("AdditionalProperties(%t).", ap)
 		case Interface:
-			o.L("AdditionalPropertiesSchema(")
+			o.L("AdditionalProperties(")
 			// force newline
 			o.L("")
 			if err := g.Generate(&buf, ap); err != nil {

@@ -66,14 +66,14 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			switch val := additionalProps.(type) {
 			case schema.BoolSchema:
 				// This is a boolean value
-				v.AdditionalPropertiesBool(bool(val))
+				v.AdditionalProperties(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate additional properties with this schema
 				propValidator, err := Compile(ctx, val)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile additional properties validator: %w", err)
 				}
-				v.AdditionalPropertiesSchema(propValidator)
+				v.AdditionalProperties(propValidator)
 			default:
 				return nil, fmt.Errorf("unexpected additionalProperties type: %T", additionalProps)
 			}
@@ -96,14 +96,14 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			switch val := unevaluatedProps.(type) {
 			case schema.BoolSchema:
 				// This is a boolean value
-				v.UnevaluatedPropertiesBool(bool(val))
+				v.UnevaluatedProperties(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate unevaluated properties with this schema
 				propValidator, err := Compile(ctx, val)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile unevaluated properties validator: %w", err)
 				}
-				v.UnevaluatedPropertiesSchema(propValidator)
+				v.UnevaluatedProperties(propValidator)
 			default:
 				return nil, fmt.Errorf("unexpected unevaluatedProperties type: %T", unevaluatedProps)
 			}
@@ -213,35 +213,33 @@ func (b *ObjectValidatorBuilder) PatternProperties(v map[*regexp.Regexp]Interfac
 	return b
 }
 
-func (b *ObjectValidatorBuilder) AdditionalPropertiesBool(v bool) *ObjectValidatorBuilder {
+// AdditionalProperties sets the additional properties validator.
+// Accepts either bool or Interface (validator).
+func (b *ObjectValidatorBuilder) AdditionalProperties(v any) *ObjectValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.c.additionalProperties = v
+
+	switch val := v.(type) {
+	case bool, Interface:
+		b.c.additionalProperties = val
+	default:
+		b.err = fmt.Errorf("AdditionalProperties expects bool or Interface, got %T", v)
+	}
 	return b
 }
 
-func (b *ObjectValidatorBuilder) AdditionalPropertiesSchema(v Interface) *ObjectValidatorBuilder {
+func (b *ObjectValidatorBuilder) UnevaluatedProperties(v any) *ObjectValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.c.additionalProperties = v
-	return b
-}
 
-func (b *ObjectValidatorBuilder) UnevaluatedPropertiesBool(v bool) *ObjectValidatorBuilder {
-	if b.err != nil {
-		return b
+	switch val := v.(type) {
+	case bool, Interface:
+		b.c.unevaluatedProperties = val
+	default:
+		b.err = fmt.Errorf("UnevaluatedProperties expects bool or Interface, got %T", v)
 	}
-	b.c.unevaluatedProperties = v
-	return b
-}
-
-func (b *ObjectValidatorBuilder) UnevaluatedPropertiesSchema(v Interface) *ObjectValidatorBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.c.unevaluatedProperties = v
 	return b
 }
 
