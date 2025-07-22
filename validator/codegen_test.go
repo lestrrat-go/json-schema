@@ -366,7 +366,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 			createValidator: func(t *testing.T) Interface {
 				allOfValidator := String().MinLength(1).MustBuild()
 				baseValidator := String().MaxLength(10).MustBuild()
-				return &UnevaluatedPropertiesCompositionValidator{
+				return &unevaluatedPropertiesValidator{
 					allOfValidators: []Interface{allOfValidator},
 					baseValidator:   baseValidator,
 				}

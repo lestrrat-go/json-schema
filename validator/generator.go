@@ -143,7 +143,7 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateDependentSchemas(dst, validator)
 	case *inferredNumberValidator:
 		return g.generateInferredNumber(dst, validator)
-	case *UnevaluatedPropertiesCompositionValidator:
+	case *unevaluatedPropertiesValidator:
 		return g.generateUnevaluatedPropertiesComposition(dst, validator)
 	case *AnyOfUnevaluatedPropertiesCompositionValidator:
 		return g.generateAnyOfUnevaluatedPropertiesComposition(dst, validator)
@@ -820,7 +820,7 @@ func (g *codeGenerator) generateAlwaysFail(dst io.Writer) error {
 	return err
 }
 
-func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer, v *UnevaluatedPropertiesCompositionValidator) error {
+func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer, v *unevaluatedPropertiesValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
 

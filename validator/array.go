@@ -264,6 +264,9 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		rv = rv.Elem()
 	}
 
+	var ec schemactx.EvaluationContext
+	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+
 	switch rv.Kind() {
 	case reflect.Array, reflect.Slice:
 		length := uint(rv.Len())
@@ -295,12 +298,8 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		result := NewArrayResult()
 
 		// Merge evaluated items from previous validators
-		var evaluatedItems []bool
-		if err := schemactx.EvaluatedItemsFromContext(ctx, &evaluatedItems); err == nil {
-			if evaluatedItems != nil {
-				result.SetEvaluatedItems(evaluatedItems)
-			}
-		}
+		var evaluatedItems schemactx.EvaluatedItems
+		evaluatedItems.Copy(&ec.Items)
 
 		// Validate items according to prefixItems and items
 		arrayLength := rv.Len()

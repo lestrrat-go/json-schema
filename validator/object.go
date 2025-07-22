@@ -290,14 +290,10 @@ func (b *ObjectValidatorBuilder) Reset() *ObjectValidatorBuilder {
 // Validate implements the Interface
 func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Get previously evaluated properties from context
-	var previouslyEvaluated map[string]bool
-	var contextProps schemactx.EvaluatedProperties
-	if err := schemactx.EvaluatedPropertiesFromContext(ctx, &contextProps); err == nil {
-		// Convert from map[string]struct{} to map[string]bool
-		previouslyEvaluated = make(map[string]bool)
-		for prop := range contextProps {
-			previouslyEvaluated[prop] = true
-		}
+	var ec *schemactx.EvaluationContext
+	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+	if ec == nil {
+		ec = &schemactx.EvaluationContext{}
 	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
@@ -379,11 +375,11 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	}
 
 	// Track evaluated properties for result reporting
-	evaluatedProperties := make(map[string]bool)
+	var evaluatedProperties schemactx.EvaluatedProperties
 
 	// Include previously evaluated properties from earlier validators (e.g., allOf subschemas)
-	for prop := range previouslyEvaluated {
-		evaluatedProperties[prop] = true
+	for _, prop := range ec.Properties.Keys() {
+		evaluatedProperties.MarkEvaluated(prop)
 	}
 
 	// Validate properties
@@ -392,9 +388,9 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		validated := false
 
 		// Check if this property was already evaluated by a previous validator
-		if previouslyEvaluated != nil && previouslyEvaluated[propName] {
+		if ec.Properties.IsEvaluated(propName) {
+			evaluatedProperties.MarkEvaluated(propName)
 			validated = true
-			evaluatedProperties[propName] = true
 		}
 
 		// Check explicit properties
@@ -405,7 +401,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: property validation failed for %s: %w`, propName, err)
 				}
 				validated = true
-				evaluatedProperties[propName] = true
+				evaluatedProperties.MarkEvaluated(propName)
 			}
 		}
 
@@ -418,7 +414,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 						return nil, fmt.Errorf(`invalid value passed to ObjectValidator: pattern property validation failed for %s: %w`, propName, err)
 					}
 					validated = true
-					evaluatedProperties[propName] = true
+					evaluatedProperties.MarkEvaluated(propName)
 				}
 			}
 		}
@@ -431,7 +427,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				}
 				// If additionalProperties is true, it means this property is now "evaluated"
 				validated = true
-				evaluatedProperties[propName] = true
+				evaluatedProperties.MarkEvaluated(propName)
 			} else if propValidator, ok := c.additionalProperties.(Interface); ok {
 				_, err := propValidator.Validate(ctx, propValue)
 				if err != nil {
@@ -439,7 +435,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				}
 				// Property was validated by additionalProperties schema, so it's "evaluated"
 				validated = true
-				evaluatedProperties[propName] = true
+				evaluatedProperties.MarkEvaluated(propName)
 			}
 		}
 
@@ -466,7 +462,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
 					evaluatedProps := objResult.EvaluatedProperties()
 					for prop := range evaluatedProps {
-						evaluatedProperties[prop] = true
+						evaluatedProperties.MarkEvaluated(prop)
 						// Remove from unevaluated list if it was marked as evaluated by dependent schema
 						for i, unevalProp := range unevaluatedProps {
 							if unevalProp == prop {
@@ -489,21 +485,21 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: unevaluated property not allowed: %s`, propName)
 				}
 				// If unevaluatedProperties is true, mark this property as evaluated
-				evaluatedProperties[propName] = true
+				evaluatedProperties.MarkEvaluated(propName)
 			} else if propValidator, ok := c.unevaluatedProperties.(Interface); ok {
 				_, err := propValidator.Validate(ctx, propValue)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: unevaluated property validation failed for %s: %w`, propName, err)
 				}
 				// If property passes unevaluatedProperties schema validation, mark it as evaluated
-				evaluatedProperties[propName] = true
+				evaluatedProperties.MarkEvaluated(propName)
 			}
 		}
 	}
 
 	// Always return ObjectResult with evaluated properties information for annotation tracking
 	result := NewObjectResult()
-	for prop := range evaluatedProperties {
+	for _, prop := range evaluatedProperties.Keys() {
 		result.SetEvaluatedProperty(prop)
 	}
 	return result, nil

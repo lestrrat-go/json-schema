@@ -9,28 +9,99 @@ import (
 	"github.com/lestrrat-go/blackmagic"
 )
 
-// EvaluatedProperties is a map that tracks properties that have been evaluated
-// by previous validators. The key is the property name, and the value is
-// a struct{} to indicate that the property has been evaluated.
-type EvaluatedProperties map[string]struct{} // NOT map[string]bool, because the presence of the key should indicate evaluation
+type EvaluatedProperties struct {
+	props map[string]struct{} // Evaluated properties
+}
 
-// EvaluatedItems is a slice of booleans indicating whether each item in an array
-// has been evaluated by previous validators. The index corresponds to the item
-// position in the array, and the boolean indicates whether that item has been evaluated.
-type EvaluatedItems []bool // A slice of booleans indicating whether each item has been evaluated
+func (ep *EvaluatedProperties) Keys() []string {
+	if ep == nil || ep.props == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(ep.props))
+	for k := range ep.props {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (ep *EvaluatedProperties) IsEvaluated(prop string) bool {
+	if ep == nil || ep.props == nil {
+		return false
+	}
+	_, exists := ep.props[prop]
+	return exists
+}
+
+func (ep *EvaluatedProperties) MarkEvaluated(prop string) {
+	if ep == nil {
+		return
+	}
+
+	if ep.props == nil {
+		ep.props = make(map[string]struct{})
+	}
+	ep.props[prop] = struct{}{}
+}
+
+type EvaluatedItems struct {
+	items []bool // Evaluated items
+}
+
+func (ei *EvaluatedItems) IsEvaluated(index int) bool {
+	if ei == nil || ei.items == nil || index < 0 || index >= len(ei.items) {
+		return false
+	}
+	return ei.items[index]
+}
+
+func (ei *EvaluatedItems) Set(index int, value bool) {
+	if cap(ei.items) < index+1 {
+		allocated := make([]bool, index+1)
+		copy(allocated, ei.items)
+		ei.items = allocated
+	}
+
+	ei.items[index] = true
+}
+
+func (ei *EvaluatedItems) Copy(other *EvaluatedItems) {
+	for i, v := range other.Values() {
+		ei.Set(i, v)
+	}
+}
+
+func (ei *EvaluatedItems) Values() []bool {
+	if ei == nil || ei.items == nil {
+		return nil
+	}
+	return ei.items
+}
+
+// EvaluationContext holds the context for validation evaluation, including
+// evaluated properties and items. This context is used to track which properties
+// and items have been evaluated by previous validators.
+type EvaluationContext struct {
+	// Properties is a map that tracks properties that have been evaluated
+	// by previous validators. The key is the property name, and the value is
+	// a struct{} to indicate that the property has been evaluated.
+	Properties EvaluatedProperties
+	// Items is a slice of booleans indicating whether each item in an array
+	// has been evaluated by previous validators. The index corresponds to the item
+	// position in the array, and the boolean indicates whether that item has been evaluated.
+	Items EvaluatedItems // Evaluated items
+}
 
 // ValidationContext consolidates all validation-related context data into a single struct
 // to reduce the proliferation of individual context helper functions
 type ValidationContext struct {
-	Resolver            any
-	RootSchema          any
-	BaseSchema          any
-	BaseURI             string
-	DynamicScope        []any
-	VocabularySet       any
-	ReferenceStack      []string
-	EvaluatedProperties EvaluatedProperties
-	EvaluatedItems      EvaluatedItems
+	Resolver       any
+	RootSchema     any
+	BaseSchema     any
+	BaseURI        string
+	DynamicScope   []any
+	VocabularySet  any
+	ReferenceStack []string
+	Evaluation     *EvaluationContext
 }
 
 // Context key for the consolidated validation context
@@ -126,13 +197,13 @@ func BaseURIFromContext(ctx context.Context, dst any) error {
 func WithDynamicScope(ctx context.Context, s any) context.Context {
 	vctx := ValidationContextFrom(ctx)
 	newVctx := *vctx // copy
-	
+
 	// Add new schema to chain
 	newScope := make([]any, len(vctx.DynamicScope)+1)
 	copy(newScope, vctx.DynamicScope)
 	newScope[len(vctx.DynamicScope)] = s
 	newVctx.DynamicScope = newScope
-	
+
 	return WithValidationContext(ctx, &newVctx)
 }
 
@@ -179,38 +250,20 @@ func ReferenceStackFromContext(ctx context.Context, dst any) error {
 	return blackmagic.AssignIfCompatible(dst, vctx.ReferenceStack)
 }
 
-// WithEvaluatedProperties adds evaluated properties to the context
-func WithEvaluatedProperties(ctx context.Context, props EvaluatedProperties) context.Context {
+// WithEvaluationContext adds evaluation context to the context
+func WithEvaluationContext(ctx context.Context, ec *EvaluationContext) context.Context {
 	vctx := ValidationContextFrom(ctx)
 	newVctx := *vctx // copy
-	newVctx.EvaluatedProperties = props
+	newVctx.Evaluation = ec
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// EvaluatedPropertiesFromContext retrieves evaluated properties from context
-func EvaluatedPropertiesFromContext(ctx context.Context, dst any) error {
+func EvaluationContextFromContext(ctx context.Context, dst any) error {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.EvaluatedProperties == nil {
-		return fmt.Errorf("evaluated properties not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.EvaluatedProperties)
-}
-
-// WithEvaluatedItems adds evaluated items to the context
-func WithEvaluatedItems(ctx context.Context, items EvaluatedItems) context.Context {
-	vctx := ValidationContextFrom(ctx)
-	newVctx := *vctx // copy
-	newVctx.EvaluatedItems = items
-	return WithValidationContext(ctx, &newVctx)
-}
-
-// EvaluatedItemsFromContext retrieves evaluated items from context
-func EvaluatedItemsFromContext(ctx context.Context, dst any) error {
-	vctx := ValidationContextFrom(ctx)
-	if vctx.EvaluatedItems == nil {
+	if vctx.Evaluation == nil {
 		return fmt.Errorf("evaluated items not found in context")
 	}
-	return blackmagic.AssignIfCompatible(dst, vctx.EvaluatedItems)
+	return blackmagic.AssignIfCompatible(dst, vctx.Evaluation)
 }
 
 // Logging context functions

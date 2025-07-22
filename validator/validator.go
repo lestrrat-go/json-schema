@@ -286,19 +286,6 @@ func MergeResults(dst any, results ...any) error {
 	}
 }
 
-// Helper functions to convert between map[string]bool and map[string]struct{}
-func boolMapToStructMap(boolMap map[string]bool) map[string]struct{} {
-	if boolMap == nil {
-		return nil
-	}
-	structMap := make(map[string]struct{})
-	for key := range boolMap {
-		if boolMap[key] {
-			structMap[key] = struct{}{}
-		}
-	}
-	return structMap
-}
 
 // dependentSchemasKey is now handled by the public schema package
 
@@ -617,7 +604,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Special handling for allOf with unevaluatedProperties or unevaluatedItems in base schema
 		if hasBaseConstraints(s) && s.HasAny(schema.UnevaluatedFields) {
 			// Create a special validator that evaluates allOf first, then base constraints with annotation context
-			compositionValidator, err := NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, schema.ResolverFromContext(ctx))
+			compositionValidator, err := compileUnevaluatedPropertiesValidator(ctx, s)
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile allOf composition validator: %w`, err)
 			}
@@ -993,23 +980,15 @@ func compileNullValidator(_ context.Context, _ *schema.Schema) (Interface, error
 	return nullValidator{}, nil
 }
 
-// UnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with allOf
-type UnevaluatedPropertiesCompositionValidator struct {
+// unevaluatedPropertiesValidator handles complex unevaluatedProperties with allOf
+type unevaluatedPropertiesValidator struct {
 	allOfValidators []Interface
 	baseValidator   Interface
 	schema          *schema.Schema
 }
 
-func NewUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *UnevaluatedPropertiesCompositionValidator {
-	v, err := NewUnevaluatedPropertiesCompositionValidatorWithResolver(context.Background(), s, nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create composition validator: %v", err))
-	}
-	return v
-}
-
-func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, _ *schema.Resolver) (*UnevaluatedPropertiesCompositionValidator, error) {
-	v := &UnevaluatedPropertiesCompositionValidator{
+func compileUnevaluatedPropertiesValidator(ctx context.Context, s *schema.Schema) (*unevaluatedPropertiesValidator, error) {
+	v := &unevaluatedPropertiesValidator{
 		schema: s,
 	}
 
@@ -1033,7 +1012,15 @@ func NewUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Contex
 	return v, nil
 }
 
-func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context, in any) (Result, error) {
+// User: This looks suspiciously like an allOf() validator with the base validator being
+// evaluated at the end. Instead of createing yet another validator, can't we just
+// use the existing allOf() validator and pass the base validator as the last one? The only
+// major difference loooks like we need to pass the evaluated properties from the first
+// set of allOf validators to the base validator.
+//
+// Perhaps, what's happening here is more of a collecting data from an allOf() validator
+// and then passing the collected data to a child validator, which is the base validator.
+func (v *unevaluatedPropertiesValidator) Validate(ctx context.Context, in any) (Result, error) {
 	// First, validate all allOf subschemas and collect their annotations
 	var mergedObjectResult *ObjectResult
 	var mergedArrayResult *ArrayResult
@@ -1170,7 +1157,21 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(c
 	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil {
 		evalProps := objResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
-			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
+			// Get existing evaluation context or create a new one
+			var ec *schemactx.EvaluationContext
+			_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+			if ec == nil {
+				ec = &schemactx.EvaluationContext{}
+			}
+			
+			// Mark properties as evaluated
+			for prop := range evalProps {
+				if evalProps[prop] {
+					ec.Properties.MarkEvaluated(prop)
+				}
+			}
+			
+			ctx = schemactx.WithEvaluationContext(ctx, ec)
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // AllOf is a convnience function to create a Validator that can handle allOf validation.
@@ -43,7 +44,21 @@ func (v *allOfValidator) Validate(ctx context.Context, in any) (Result, error) {
 		if mergedArrayResult != nil {
 			evalItems := mergedArrayResult.EvaluatedItems()
 			if len(evalItems) > 0 {
-				currentCtx = schema.WithEvaluatedItems(ctx, evalItems)
+				// Get existing evaluation context or create a new one
+				var ec *schemactx.EvaluationContext
+				_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+				if ec == nil {
+					ec = &schemactx.EvaluationContext{}
+				}
+				
+				// Copy evaluated items
+				for i, evaluated := range evalItems {
+					if evaluated {
+						ec.Items.Set(i, true)
+					}
+				}
+				
+				currentCtx = schemactx.WithEvaluationContext(ctx, ec)
 			}
 		}
 
@@ -83,6 +98,7 @@ func (v *allOfValidator) Validate(ctx context.Context, in any) (Result, error) {
 	if mergedObjectResult != nil && mergedArrayResult != nil {
 		// Both object and array results - this shouldn't happen in normal validation
 		// but prioritize object result for now
+		// User: No, this should be an error (in fact, if you can detect this earlier, you should).
 		return mergedObjectResult, nil
 	}
 
@@ -155,20 +171,39 @@ func hasBaseConstraints(s *schema.Schema) bool {
 }
 
 // validateBaseWithContext validates the base schema with annotation context
-func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousObjectResult *ObjectResult, previousArrayResult *ArrayResult) (Result, error) {
+func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Context, in any, previousObjectResult *ObjectResult, previousArrayResult *ArrayResult) (Result, error) {
+	// Get existing evaluation context or create a new one
+	var ec *schemactx.EvaluationContext
+	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+	if ec == nil {
+		ec = &schemactx.EvaluationContext{}
+	}
+	
 	if previousObjectResult != nil {
 		evalProps := previousObjectResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
-			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
+			// Mark properties as evaluated
+			for prop := range evalProps {
+				if evalProps[prop] {
+					ec.Properties.MarkEvaluated(prop)
+				}
+			}
 		}
 	}
 
 	if previousArrayResult != nil {
 		evalItems := previousArrayResult.EvaluatedItems()
 		if len(evalItems) > 0 {
-			ctx = schema.WithEvaluatedItems(ctx, evalItems)
+			// Copy evaluated items
+			for i, evaluated := range evalItems {
+				if evaluated {
+					ec.Items.Set(i, true)
+				}
+			}
 		}
 	}
+	
+	ctx = schemactx.WithEvaluationContext(ctx, ec)
 
 	return v.baseValidator.Validate(ctx, in)
 }
@@ -271,7 +306,21 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			previouslyEvaluated = previousResult.EvaluatedProperties()
 		}
 		if len(previouslyEvaluated) > 0 {
-			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
+			// Get existing evaluation context or create a new one
+			var ec *schemactx.EvaluationContext
+			_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+			if ec == nil {
+				ec = &schemactx.EvaluationContext{}
+			}
+			
+			// Mark properties as evaluated
+			for prop := range previouslyEvaluated {
+				if previouslyEvaluated[prop] {
+					ec.Properties.MarkEvaluated(prop)
+				}
+			}
+			
+			ctx = schemactx.WithEvaluationContext(ctx, ec)
 		}
 		return objValidator.Validate(ctx, in)
 	}
@@ -308,7 +357,21 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 				previouslyEvaluated = previousResult.EvaluatedProperties()
 			}
 			if len(previouslyEvaluated) > 0 {
-				ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
+				// Get existing evaluation context or create a new one
+				var ec *schemactx.EvaluationContext
+				_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+				if ec == nil {
+					ec = &schemactx.EvaluationContext{}
+				}
+				
+				// Mark properties as evaluated
+				for prop := range previouslyEvaluated {
+					if previouslyEvaluated[prop] {
+						ec.Properties.MarkEvaluated(prop)
+					}
+				}
+				
+				ctx = schemactx.WithEvaluationContext(ctx, ec)
 			}
 		}
 		result, err := subValidator.Validate(ctx, in)
@@ -427,7 +490,21 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			previouslyEvaluated = previousResult.EvaluatedProperties()
 		}
 		if len(previouslyEvaluated) > 0 {
-			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
+			// Get existing evaluation context or create a new one
+			var ec *schemactx.EvaluationContext
+			_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+			if ec == nil {
+				ec = &schemactx.EvaluationContext{}
+			}
+			
+			// Mark properties as evaluated
+			for prop := range previouslyEvaluated {
+				if previouslyEvaluated[prop] {
+					ec.Properties.MarkEvaluated(prop)
+				}
+			}
+			
+			ctx = schemactx.WithEvaluationContext(ctx, ec)
 		}
 		return objValidator.Validate(ctx, in)
 	}
@@ -468,7 +545,21 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 				previouslyEvaluated = previousResult.EvaluatedProperties()
 			}
 			if len(previouslyEvaluated) > 0 {
-				ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
+				// Get existing evaluation context or create a new one
+				var ec *schemactx.EvaluationContext
+				_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+				if ec == nil {
+					ec = &schemactx.EvaluationContext{}
+				}
+				
+				// Mark properties as evaluated
+				for prop := range previouslyEvaluated {
+					if previouslyEvaluated[prop] {
+						ec.Properties.MarkEvaluated(prop)
+					}
+				}
+				
+				ctx = schemactx.WithEvaluationContext(ctx, ec)
 			}
 			result, err = objValidator.Validate(ctx, in)
 		} else {
