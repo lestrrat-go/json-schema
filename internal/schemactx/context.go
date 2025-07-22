@@ -3,6 +3,8 @@ package schemactx
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 
 	"github.com/lestrrat-go/blackmagic"
 )
@@ -209,4 +211,26 @@ func EvaluatedItemsFromContext(ctx context.Context, dst any) error {
 		return fmt.Errorf("evaluated items not found in context")
 	}
 	return blackmagic.AssignIfCompatible(dst, vctx.EvaluatedItems)
+}
+
+// Logging context functions
+
+// Context key for trace slog logger
+type traceSlogKey struct{}
+
+// WithTraceSlog adds a trace slog logger to the context
+func WithTraceSlog(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, traceSlogKey{}, logger)
+}
+
+// TraceSlogFromContext retrieves the trace slog logger from context
+// Returns a no-op logger if no logger is associated with the context
+func TraceSlogFromContext(ctx context.Context) *slog.Logger {
+	if v := ctx.Value(traceSlogKey{}); v != nil {
+		if logger, ok := v.(*slog.Logger); ok {
+			return logger
+		}
+	}
+	// Return no-op logger that discards all output
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

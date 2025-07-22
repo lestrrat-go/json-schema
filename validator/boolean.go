@@ -86,7 +86,10 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 	return b
 }
 
-func (c *booleanValidator) Validate(_ context.Context, v any) (Result, error) {
+func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
+	logger := TraceSlogFromContext(ctx)
+	logger.Info("boolean validator starting", "value", v, "type", fmt.Sprintf("%T", v))
+	
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr, reflect.Interface:
@@ -96,9 +99,11 @@ func (c *booleanValidator) Validate(_ context.Context, v any) (Result, error) {
 	switch rv.Kind() {
 	case reflect.Bool:
 		boolVal := rv.Bool()
+		logger.Info("boolean validator processing boolean value", "value", boolVal)
 
 		// Check const constraint
 		if c.constantValue != nil {
+			logger.Info("boolean validator checking const", "expected", *c.constantValue, "actual", boolVal)
 			if boolVal != *c.constantValue {
 				return nil, fmt.Errorf(`invalid value passed to BooleanValidator: must be const value %t, got %t`, *c.constantValue, boolVal)
 			}
@@ -106,6 +111,7 @@ func (c *booleanValidator) Validate(_ context.Context, v any) (Result, error) {
 
 		// Check enum constraint
 		if len(c.enum) > 0 {
+			logger.Info("boolean validator checking enum", "allowed_values", c.enum, "actual", boolVal)
 			found := false
 			for _, allowed := range c.enum {
 				if boolVal == allowed {
@@ -121,6 +127,7 @@ func (c *booleanValidator) Validate(_ context.Context, v any) (Result, error) {
 		//nolint: nilnil
 		return nil, nil
 	default:
+		logger.Info("boolean validator rejecting non-boolean", "type", fmt.Sprintf("%T", v))
 		return nil, fmt.Errorf(`invalid value passed to BooleanValidator: expected boolean, got %T`, v)
 	}
 }

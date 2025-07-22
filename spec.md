@@ -1008,3 +1008,20 @@ mux.HandleFunc("/", func(...) {
 })
 server.Config.Handler = mux
 ```
+
+# Logging
+
+Logging should be done by passing a log object in the context. Below example shows how we pass a logger for tracing (i.e. used for debugging)
+
+```
+v := validator.Compile(schema)
+
+ctx := context.Background()
+ctx = validator.WithTraceSlog(ctx, slog.New(...))
+v.Validate(ctx, in)
+```
+
+The logger is accessed by using `validator.TraceSlogFromContext(ctx)`. These methods should return a no-op
+logging handler if a handler is not associated with the context.
+
+Tests should pass a slog with JSONHandler when testing.Verbose() is true

@@ -2,6 +2,8 @@ package validator_test
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -9,15 +11,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// contextWithLogging creates a context with trace slog when verbose testing is enabled
+func contextWithLogging(t *testing.T) context.Context {
+	ctx := context.Background()
+	if testing.Verbose() {
+		logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+		ctx = validator.WithTraceSlog(ctx, logger)
+	}
+	return ctx
+}
+
 func makeSanityTestFunc(tc *sanityTestCase, c validator.Interface) func(*testing.T) {
 	return func(t *testing.T) {
+		ctx := contextWithLogging(t)
 		if tc.Error {
-			_, err := c.Validate(context.Background(), tc.Object)
+			_, err := c.Validate(ctx, tc.Object)
 			if !assert.Error(t, err, `c.check should fail`) {
 				return
 			}
 		} else {
-			_, err := c.Validate(context.Background(), tc.Object)
+			_, err := c.Validate(ctx, tc.Object)
 			if !assert.NoError(t, err, `c.Validate should succeed`) {
 				return
 			}
