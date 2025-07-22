@@ -911,9 +911,13 @@ func (n *NotValidator) Validate(ctx context.Context, v any) (Result, error) {
 	return nil, nil
 }
 
-type NullValidator struct{}
+type nullValidator struct{}
 
-func (n *NullValidator) Validate(_ context.Context, v any) (Result, error) {
+func Null() Interface {
+	return nullValidator{}
+}
+
+func (nullValidator) Validate(_ context.Context, v any) (Result, error) {
 	if v == nil {
 		//nolint: nilnil
 		return nil, nil
@@ -922,7 +926,7 @@ func (n *NullValidator) Validate(_ context.Context, v any) (Result, error) {
 }
 
 func compileNullValidator(_ context.Context, _ *schema.Schema) (Interface, error) {
-	return &NullValidator{}, nil
+	return nullValidator{}, nil
 }
 
 // GeneralValidator handles enum and const validation for schemas without specific types

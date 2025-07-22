@@ -6,6 +6,7 @@ package meta
 
 import (
 	"context"
+
 	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 )

@@ -675,7 +675,7 @@ func (g *codeGenerator) GenerateCode(validatorName string, v Interface) (string,
         return g.generateEmptyValidator(validatorName)
     case *NotValidator:
         return g.generateNotValidator(validatorName, validator)
-    case *NullValidator:
+    case *nullValidator:
         return g.generateNullValidator(validatorName)
     // Add cases for all other validator types...
     default:

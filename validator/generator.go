@@ -125,7 +125,7 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateEmpty(dst)
 	case *NotValidator:
 		return g.generateNot(dst, validator)
-	case *NullValidator:
+	case *nullValidator:
 		return g.generateNull(dst)
 	case *GeneralValidator:
 		return g.generateGeneral(dst, validator)
@@ -813,7 +813,7 @@ func (g *codeGenerator) generateNull(dst io.Writer) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
 
-	o.R("&validator.NullValidator{}")
+	o.R("validator.Null()")
 
 	_, err := buf.WriteTo(dst)
 	return err
