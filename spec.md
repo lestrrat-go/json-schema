@@ -311,17 +311,33 @@ For this reason,
 
 ## allOf/anyOf/oneOf
 
-These composite validators only differ in the success status. For example, given N
-schemas for each of the above,
+These composite validators are implemented as separate validator types: `allOfValidator`, `anyOfValidator`, and `oneOfValidator`. Each has distinct validation logic:
 
-| Name   | Required Number of successful validators |
-|--------|------------------------------------------|
-| allOf  | == N                                     |
-| anyOf  | >  1                                     |
-| oneOf  | == 1                                     |
+| Name   | Required Number of successful validators | Implementation |
+|--------|------------------------------------------|----------------|
+| allOf  | == N (all must pass)                     | `allOfValidator` - fails on first validator failure, merges results |
+| anyOf  | >= 1 (at least one must pass)           | `anyOfValidator` - succeeds on first validator success |
+| oneOf  | == 1 (exactly one must pass)            | `oneOfValidator` - counts successful validators, fails if count != 1 |
 
-Therefore the implementation can mostly be the same. They just need different logic
-for evaluation of a successful validation.
+The validators are created using convenience functions:
+
+```go
+// Create validators using function calls with child validators as arguments
+allOfValidator := validator.AllOf(
+    validator.String().MinLength(3).MustBuild(),
+    validator.String().MaxLength(10).MustBuild(),
+)
+
+anyOfValidator := validator.AnyOf(
+    validator.String().MustBuild(),
+    validator.Integer().MustBuild(),
+)
+
+oneOfValidator := validator.OneOf(
+    validator.String().Format("email").MustBuild(),
+    validator.String().Format("uri").MustBuild(),
+)
+```
 
 # Resolver
 
@@ -477,10 +493,10 @@ func NewComplexValidator() validator.Interface {
         Minimum(0).
         MustBuild()
     
-    return validator.NewMultiValidator(validator.AndMode).
-        Add(stringValidator).
-        Add(numberValidator).
-        MustBuild()
+    return validator.AllOf(
+        stringValidator,
+        numberValidator,
+    )
 }
 ```
 
@@ -490,51 +506,7 @@ Instead of using intermediate data structures, the code generator directly acces
 
 ### Implementation Strategy
 
-1. **Add Introspection Methods**: Each validator struct implements `Introspectable`
-
-```go
-func (v *stringValidator) IntrospectConfig() ValidatorConfig {
-    constraints := make(map[string]any)
-    if v.minLength != nil {
-        constraints["minLength"] = *v.minLength
-    }
-    if v.maxLength != nil {
-        constraints["maxLength"] = *v.maxLength
-    }
-    if v.pattern != nil {
-        constraints["pattern"] = v.pattern.String()
-    }
-    // ... other constraints
-    
-    return ValidatorConfig{
-        Type:        StringValidatorType,
-        Constraints: constraints,
-    }
-}
-```
-
-2. **Recursive Introspection**: Complex validators introspect their children
-
-```go
-func (v *MultiValidator) IntrospectConfig() ValidatorConfig {
-    children := make([]ValidatorConfig, len(v.validators))
-    for i, child := range v.validators {
-        if intro, ok := child.(Introspectable); ok {
-            children[i] = intro.IntrospectConfig()
-        }
-    }
-    
-    constraints := map[string]any{
-        "mode": v.mode,
-    }
-    
-    return ValidatorConfig{
-        Type:        MultiValidatorType,
-        Constraints: constraints,
-        Children:    children,
-    }
-}
-```
+The direct field access approach eliminates the need for intermediate introspection interfaces. Instead, the code generator directly accesses validator struct fields using type switches and generates the appropriate builder code.
 
 ## Code Generation Implementation
 
@@ -693,8 +665,12 @@ func (g *codeGenerator) GenerateCode(validatorName string, v Interface) (string,
         return g.generateBooleanValidator(validatorName, validator)
     case *arrayValidator:
         return g.generateArrayValidator(validatorName, validator)
-    case *MultiValidator:
-        return g.generateMultiValidator(validatorName, validator)
+    case *allOfValidator:
+        return g.generateAllOf(validatorName, validator)
+    case *anyOfValidator:
+        return g.generateAnyOf(validatorName, validator)
+    case *oneOfValidator:
+        return g.generateOneOf(validatorName, validator)
     case *EmptyValidator:
         return g.generateEmptyValidator(validatorName)
     case *NotValidator:
@@ -779,7 +755,7 @@ func (g *codeGenerator) generateIntegerValidator(name string, v *integerValidato
 }`, name, builderCalls), nil
 }
 
-func (g *codeGenerator) generateMultiValidator(name string, v *MultiValidator) (string, error) {
+func (g *codeGenerator) generateAllOf(name string, v *allOfValidator) (string, error) {
     var childDefs []string
     var childVars []string
     
@@ -797,34 +773,27 @@ func (g *codeGenerator) generateMultiValidator(name string, v *MultiValidator) (
         childVars = append(childVars, childVar)
     }
     
-    var mode string
-    if v.and {
-        mode = "AndMode"
-    } else if v.oneOf {
-        mode = "OneOfMode" 
-    } else {
-        mode = "OrMode"
-    }
-    
     template := `func New%s() validator.Interface {
 %s
     
-    return validator.NewMultiValidator(validator.%s).
-%s.
-        MustBuild()
+    return validator.AllOf(
+%s
+    )
 }`
     
     childDefsStr := strings.Join(childDefs, "\n")
-    addCalls := strings.Join(func() []string {
-        var calls []string
+    childArgsStr := strings.Join(func() []string {
+        var args []string
         for _, childVar := range childVars {
-            calls = append(calls, fmt.Sprintf("        Add(%s)", childVar))
+            args = append(args, fmt.Sprintf("        %s,", childVar))
         }
-        return calls
-    }(), ".\n")
+        return args
+    }(), "\n")
     
-    return fmt.Sprintf(template, name, childDefsStr, mode, addCalls), nil
+    return fmt.Sprintf(template, name, childDefsStr, childArgsStr), nil
 }
+
+// Similar implementations for generateAnyOf and generateOneOf
 
 // Helper functions
 func formatStringSlice(strs []string) string {
@@ -864,6 +833,7 @@ func extractValidatorCreation(code string) string {
 4. **Performance**: Faster code generation with fewer allocations
 5. **Maintainability**: Clear, readable generation logic
 
+
 ### Critical Implementation Requirements
 
 1. **Complete Generator Implementation**: Add generation methods for ALL validator types found in the codebase:
@@ -874,7 +844,9 @@ func extractValidatorCreation(code string) string {
    - `generateNumberValidator()` (similar to integer)
    - `generateBooleanValidator()` (similar pattern)
    - `generateArrayValidator()` (complex - handles children)
-   - `generateMultiValidator()` ✅ (shown above)
+   - `generateAllOf()` ✅ (shown above)
+   - `generateAnyOf()` (similar to generateAllOf)
+   - `generateOneOf()` (similar to generateAllOf)
    - `generateEmptyValidator()` (trivial)
    - `generateNotValidator()` (wraps child)
    - `generateNullValidator()` (trivial)
@@ -891,7 +863,7 @@ func extractValidatorCreation(code string) string {
 
 3. **Complex Validator Handling**: Special attention needed for validators with children:
    - `arrayValidator`: prefixItems, items, contains, additionalItems, unevaluatedItems
-   - `MultiValidator`: validators slice with different modes
+   - `allOfValidator`, `anyOfValidator`, `oneOfValidator`: validators slice with different validation logic
    - `dependentSchemasValidator`: map of property name to validator
    - Reference validators: may need special handling for circular references
 
@@ -915,11 +887,11 @@ func extractValidatorCreation(code string) string {
 // Validate: Code compiles without errors
 ```
 
-**Step 2: Implement Introspection (validator/introspect.go)**
+**Step 2: Implement Direct Field Access (validator/generator.go)**
 ```go
-// Must implement IntrospectConfig() for ALL 15+ validator types
+// Must implement generateXXX methods for ALL 15+ validator types
 // Validate: Run `go test ./validator/` - all existing tests still pass
-// Validate: Every validator implements Introspectable interface
+// Validate: Can generate code for each validator type
 ```
 
 **Step 3: Code Generator (validator/generator.go)**
@@ -931,9 +903,8 @@ func extractValidatorCreation(code string) string {
 
 **Step 4: Update Code Generation Scripts**
 ```go
-// Modify validator/internal/cmd/gennumeric/main.go
-// Add IntrospectConfig() generation to template
-// Validate: Run ./validator/gen.sh - regenerated files include introspection
+// Ensure all validator generation methods are implemented
+// Validate: Run ./validator/gen.sh - all generated files compile
 ```
 
 **Step 5: Comprehensive Testing**
@@ -945,13 +916,12 @@ func extractValidatorCreation(code string) string {
 ```
 
 **Acceptance Criteria:**
-1. ✅ All validator structs implement `Introspectable`
-2. ✅ Code generation works for every validator type in the codebase
-3. ✅ Generated code compiles without errors
-4. ✅ Generated validators produce identical validation results
-5. ✅ Performance of generated validators is comparable or better
-6. ✅ Complex nested validators are handled correctly
-7. ✅ All existing tests continue to pass
+1. ✅ Code generation works for every validator type in the codebase
+2. ✅ Generated code compiles without errors
+3. ✅ Generated validators produce identical validation results
+4. ✅ Performance of generated validators is comparable or better
+5. ✅ Complex nested validators are handled correctly
+6. ✅ All existing tests continue to pass
 
 **Example End-to-End Test:**
 ```go
@@ -1008,7 +978,7 @@ if v.minLength != nil {
 ```
 
 **Key Advantages:**
-- ✅ **No intermediate data structures** - eliminates `ValidatorConfig` and `Introspectable` interface
+- ✅ **No intermediate data structures** - eliminates unnecessary abstractions
 - ✅ **Direct field access** - type-safe, compile-time checked
 - ✅ **Simpler implementation** - fewer abstractions, clearer code  
 - ✅ **Better performance** - no copying, fewer allocations
