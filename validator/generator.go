@@ -115,8 +115,12 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateArray(dst, validator)
 	case *objectValidator:
 		return g.generateObject(dst, validator)
-	case *multiValidator:
-		return g.generateMulti(dst, validator)
+	case *allOfValidator:
+		return g.generateAllOf(dst, validator)
+	case *anyOfValidator:
+		return g.generateAnyOf(dst, validator)
+	case *oneOfValidator:
+		return g.generateOneOf(dst, validator)
 	case *EmptyValidator:
 		return g.generateEmpty(dst)
 	case *NotValidator:
@@ -273,32 +277,52 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 	return err
 }
 
-// generateMulti creates the builder chain for multi validators
-func (g *codeGenerator) generateMulti(dst io.Writer, v *multiValidator) error {
+func (g *codeGenerator) generateAllOf(dst io.Writer, v *allOfValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
 
-	// If we have child validators, create a proper MultiValidator
-	if len(v.validators) > 0 {
-		if v.and {
-			o.L("validator.AllOf()")
-		} else if v.oneOf {
-			o.L("validator.OneOf()")
-		} else {
-			o.L("validator.AnyOf()")
+	o.L("validator.AllOf(")
+	for i, child := range v.validators {
+		if err := g.Generate(&buf, child); err != nil {
+			return fmt.Errorf("failed to generate child validator %d: %w", i, err)
 		}
-		o.R(".Validators(")
-		// Generate each child validator
-		for i, child := range v.validators {
-			if err := g.Generate(&buf, child); err != nil {
-				return fmt.Errorf("failed to generate child validator %d: %w", i, err)
-			}
-			o.R(",")
-		}
-		o.L(")")
-	} else {
-		o.R("&validator.EmptyValidator{}")
+		o.R(",")
 	}
+	o.L(")")
+
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateAnyOf(dst io.Writer, v *anyOfValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.AnyOf(")
+	for i, child := range v.validators {
+		if err := g.Generate(&buf, child); err != nil {
+			return fmt.Errorf("failed to generate child validator %d: %w", i, err)
+		}
+		o.R(",")
+	}
+	o.L(")")
+
+	_, err := buf.WriteTo(dst)
+	return err
+}
+
+func (g *codeGenerator) generateOneOf(dst io.Writer, v *oneOfValidator) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	o.L("validator.OneOf(")
+	for i, child := range v.validators {
+		if err := g.Generate(&buf, child); err != nil {
+			return fmt.Errorf("failed to generate child validator %d: %w", i, err)
+		}
+		o.R(",")
+	}
+	o.L(")")
 
 	_, err := buf.WriteTo(dst)
 	return err
@@ -354,8 +378,7 @@ func (g *codeGenerator) generateGeneral(dst io.Writer, v *GeneralValidator) erro
 			enumArgs = strings.Join(enumStrs, ", ")
 		}
 
-		o.L("validator.NewMultiValidator(validator.OrMode).")
-		o.L("Validators(")
+		o.L("validator.AnyOf(")
 		o.L("validator.String().Enum(%s).MustBuild(),", enumArgs)
 		o.L("validator.Array().MinItems(1).UniqueItems(true).MustBuild(),")
 		o.L(")")

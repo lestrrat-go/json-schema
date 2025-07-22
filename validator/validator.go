@@ -547,9 +547,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 
 			// Create a MultiValidator with allOf logic to combine both
-			compositeValidator := NewMultiValidator(AndMode)
-			compositeValidator.Append(refValidator)
-			compositeValidator.Append(otherValidator)
+			compositeValidator := AllOf(refValidator, otherValidator)
 			return compositeValidator, nil
 		}
 
@@ -610,10 +608,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				}
 				allOfValidators = append(allOfValidators, v)
 			}
-			allOfValidator := NewMultiValidator(AndMode)
-			for _, v := range allOfValidators {
-				allOfValidator.Append(v)
-			}
+			allOfValidator := AllOf(allOfValidators...)
 			allValidators = append(allValidators, allOfValidator)
 		}
 	}
@@ -636,10 +631,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, compositionValidator)
 		} else {
-			anyOfValidator := NewMultiValidator(OrMode)
-			for _, v := range anyOfValidators {
-				anyOfValidator.Append(v)
-			}
+			anyOfValidator := AnyOf(anyOfValidators...)
 			allValidators = append(allValidators, anyOfValidator)
 		}
 	}
@@ -662,10 +654,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 			allValidators = append(allValidators, compositionValidator)
 		} else {
-			oneOfValidator := NewMultiValidator(OneOfMode)
-			for _, v := range oneOfValidators {
-				oneOfValidator.Append(v)
-			}
+			oneOfValidator := OneOf(oneOfValidators...)
 			allValidators = append(allValidators, oneOfValidator)
 		}
 	}
@@ -839,10 +828,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Combine type validators if multiple types
 	if len(validatorsByType) > 1 {
-		typeValidator := NewMultiValidator(OrMode)
-		for _, v := range validatorsByType {
-			typeValidator.Append(v)
-		}
+		typeValidator := AnyOf(validatorsByType...)
 		allValidators = append(allValidators, typeValidator)
 	} else if len(validatorsByType) == 1 {
 		allValidators = append(allValidators, validatorsByType[0])
@@ -866,12 +852,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	// Multiple validators - combine with AND
-	mv := NewMultiValidator(AndMode)
-	for _, v := range allValidators {
-		mv.Append(v)
-	}
-
-	return mv, nil
+	return AllOf(allValidators...), nil
 }
 
 // inferredNumberValidator validates numeric constraints only when the value is a number,
@@ -1484,21 +1465,20 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 		}
 		return objValidator.Validate(ctx, in)
 	}
-	if multiValidator, ok := v.baseValidator.(*multiValidator); ok {
-		// If the base validator is a MultiValidator, we need to handle it specially
-		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
+
+	switch mv := v.baseValidator.(type) {
+	case *anyOfValidator, *oneOfValidator:
+		return mv.Validate(ctx, in)
+	case *allOfValidator:
+		return v.validateMultiValidatorWithContext(ctx, mv, in, previousResult)
+	default:
+		// For other validator types, just validate normally without annotation context
+		return v.baseValidator.Validate(ctx, in)
 	}
-	// For other validator types, just validate normally without annotation context
-	return v.baseValidator.Validate(ctx, in)
 }
 
 // validateMultiValidatorWithContext for AnyOf
-func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *multiValidator, in any, previousResult *ObjectResult) (Result, error) {
-	if !mv.and {
-		// For OR mode, just validate normally
-		return mv.Validate(ctx, in)
-	}
-
+func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *allOfValidator, in any, previousResult *ObjectResult) (Result, error) {
 	// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
 	var mergedResult *ObjectResult
 	if previousResult != nil {
@@ -1642,20 +1622,20 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 		return objValidator.Validate(ctx, in)
 	}
 
-	if mv, ok := v.baseValidator.(*multiValidator); ok {
-		// If the base validator is a MultiValidator, we need to handle it specially
+	switch mv := v.baseValidator.(type) {
+	case *anyOfValidator, *oneOfValidator:
+		return mv.Validate(ctx, in)
+	case *allOfValidator:
+		// If the base validator is a allOfValidator, we need to handle it specially
 		return v.validateMultiValidatorWithContext(ctx, mv, in, previousResult)
+	default:
+		// For other validator types, just validate normally without annotation context
+		return v.baseValidator.Validate(ctx, in)
 	}
-	// For other validator types, just validate normally without annotation context
-	return v.baseValidator.Validate(ctx, in)
 }
 
 // validateMultiValidatorWithContext for OneOf
-func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *multiValidator, in any, previousResult *ObjectResult) (Result, error) {
-	if !mv.and {
-		// For OR mode, just validate normally
-		return mv.Validate(ctx, in)
-	}
+func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *allOfValidator, in any, previousResult *ObjectResult) (Result, error) {
 	// For AND mode (allOf), validate each sub-validator independently (cousins cannot see each other)
 	var mergedResult *ObjectResult
 	if previousResult != nil {

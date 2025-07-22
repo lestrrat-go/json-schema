@@ -179,17 +179,15 @@ func TestCodeGeneration(t *testing.T) {
 		{
 			name: "MultiValidatorAnd",
 			createValidator: func(_ *testing.T) Interface {
-				v1 := String().MinLength(3).MustBuild()
-				v2 := String().MaxLength(10).MustBuild()
-				mv := NewMultiValidator(AndMode)
-				mv.Append(v1)
-				mv.Append(v2)
-				return mv
+				return AllOf(
+					String().MinLength(3).MustBuild(),
+					String().MaxLength(10).MustBuild(),
+				)
 			},
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "validator.AllOf()")
+				require.Contains(t, code, "validator.AllOf(")
 				require.Contains(t, code, "validator.String().")
 				require.Contains(t, code, "MinLength(3).")
 				require.Contains(t, code, "MaxLength(10).")
@@ -491,9 +489,10 @@ func TestComplexNestedValidator(t *testing.T) {
 	stringValidator := String().MinLength(3).MustBuild()
 	integerValidator := Integer().Minimum(0).MustBuild()
 
-	complexValidator := NewMultiValidator(AndMode)
-	complexValidator.Append(stringValidator)
-	complexValidator.Append(integerValidator)
+	complexValidator := AllOf(
+		stringValidator,
+		integerValidator,
+	)
 
 	generator := NewCodeGenerator()
 	var buf strings.Builder
@@ -503,7 +502,7 @@ func TestComplexNestedValidator(t *testing.T) {
 	require.NotEmpty(t, code)
 
 	// Should contain nested validator definitions
-	require.Contains(t, code, "validator.AllOf()")
+	require.Contains(t, code, "validator.AllOf(")
 	require.Contains(t, code, "validator.String().")
 	require.Contains(t, code, "validator.Integer().")
 
@@ -532,13 +531,8 @@ func BenchmarkComplexValidatorGeneration(b *testing.B) {
 	v2 := Integer().Minimum(0).MustBuild()
 	v3 := Array().MaxItems(10).MustBuild()
 
-	nestedMulti := NewMultiValidator(OrMode)
-	nestedMulti.Append(v2)
-	nestedMulti.Append(v3)
-
-	complex := NewMultiValidator(AndMode)
-	complex.Append(v1)
-	complex.Append(nestedMulti)
+	nestedMulti := AnyOf(v2, v3)
+	complex := AllOf(v1, nestedMulti)
 
 	generator := NewCodeGenerator()
 

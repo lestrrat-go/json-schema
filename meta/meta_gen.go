@@ -21,9 +21,9 @@ var metaValidator validator.Interface
 func init() {
 	// Generated validator using the code generator from the actual meta-schema
 	metaValidator =
-		validator.AllOf().Validators(
-			validator.AllOf().Validators(
-				validator.AnyOf().Validators(
+		validator.AllOf(
+			validator.AllOf(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -52,7 +52,7 @@ func init() {
 								validator.Object().
 									AdditionalPropertiesSchema(
 
-										validator.AnyOf().Validators(validator.Object().StrictObjectType(true).MustBuild(),
+										validator.AnyOf(validator.Object().StrictObjectType(true).MustBuild(),
 											validator.Array().
 												UniqueItems(true).
 												Items(
@@ -71,7 +71,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -108,7 +108,7 @@ func init() {
 							),
 							validator.PropPair(
 								keywords.ID,
-								validator.AllOf().Validators(
+								validator.AllOf(
 									validator.String().
 										Format("uri-reference").
 										MustBuild(),
@@ -151,7 +151,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -248,7 +248,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -263,7 +263,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -384,37 +384,35 @@ func init() {
 							),
 							validator.PropPair(
 								keywords.Type,
-								validator.AnyOf().Validators(
-									validator.NewMultiValidator(validator.OrMode).
-										Validators(
-											validator.String().Enum(
-												"array",
-												"boolean",
-												"integer",
-												"null",
-												"number",
-												"object",
-												"string",
-											).MustBuild(),
-											validator.Array().MinItems(1).UniqueItems(true).MustBuild(),
-										),
+								validator.AnyOf(
+									validator.AnyOf(
+										validator.String().Enum(
+											"array",
+											"boolean",
+											"integer",
+											"null",
+											"number",
+											"object",
+											"string",
+										).MustBuild(),
+										validator.Array().MinItems(1).UniqueItems(true).MustBuild(),
+									),
 									validator.Array().
 										MinItems(1).
 										UniqueItems(true).
 										Items(
-											validator.NewMultiValidator(validator.OrMode).
-												Validators(
-													validator.String().Enum(
-														"array",
-														"boolean",
-														"integer",
-														"null",
-														"number",
-														"object",
-														"string",
-													).MustBuild(),
-													validator.Array().MinItems(1).UniqueItems(true).MustBuild(),
-												)).
+											validator.AnyOf(
+												validator.String().Enum(
+													"array",
+													"boolean",
+													"integer",
+													"null",
+													"number",
+													"object",
+													"string",
+												).MustBuild(),
+												validator.Array().MinItems(1).UniqueItems(true).MustBuild(),
+											)).
 										StrictArrayType(true).
 										MustBuild(),
 								),
@@ -430,7 +428,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -474,7 +472,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -488,7 +486,7 @@ func init() {
 					validator.Boolean().
 						MustBuild(),
 				),
-				validator.AnyOf().Validators(
+				validator.AnyOf(
 					validator.Object().
 						Properties(
 							validator.PropPair(
@@ -511,7 +509,7 @@ func init() {
 						MustBuild(),
 				),
 			),
-			validator.AnyOf().Validators(
+			validator.AnyOf(
 				validator.Object().
 					Properties(
 						validator.PropPair(
@@ -540,7 +538,7 @@ func init() {
 							validator.Object().
 								AdditionalPropertiesSchema(
 
-									validator.AnyOf().Validators(validator.Object().StrictObjectType(true).MustBuild(),
+									validator.AnyOf(validator.Object().StrictObjectType(true).MustBuild(),
 										validator.Array().
 											UniqueItems(true).
 											Items(

@@ -7,62 +7,30 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-type multiValidator struct {
-	and        bool
-	oneOf      bool
+// AllOf is a convnience function to create a Validator that can handle allOf validation.
+func AllOf(validators ...Interface) Interface {
+	return &allOfValidator{
+		validators: validators,
+	}
+}
+
+func AnyOf(validators ...Interface) Interface {
+	return &anyOfValidator{
+		validators: validators,
+	}
+}
+
+func OneOf(validators ...Interface) Interface {
+	return &oneOfValidator{
+		validators: validators,
+	}
+}
+
+type allOfValidator struct {
 	validators []Interface
 }
 
-type MultiValidator interface {
-	Interface
-	Append(in Interface) MultiValidator
-	Validators(...Interface) MultiValidator
-}
-
-type MultiValidatorMode int
-
-const (
-	OrMode MultiValidatorMode = iota
-	AndMode
-	OneOfMode
-	InvalidMode
-)
-
-func NewMultiValidator(mode MultiValidatorMode) MultiValidator {
-	mv := &multiValidator{}
-	switch mode {
-	case AndMode:
-		mv.and = true
-	case OneOfMode:
-		mv.and = false
-		mv.oneOf = true
-	}
-	return mv
-}
-
-func AllOf() MultiValidator {
-	return NewMultiValidator(AndMode)
-}
-
-func AnyOf() MultiValidator {
-	return NewMultiValidator(OrMode)
-}
-
-func OneOf() MultiValidator {
-	return NewMultiValidator(OneOfMode)
-}
-
-func (v *multiValidator) Append(in Interface) MultiValidator {
-	v.validators = append(v.validators, in)
-	return v
-}
-
-func (v *multiValidator) Validators(validators ...Interface) MultiValidator {
-	v.validators = append(v.validators, validators...)
-	return v
-}
-
-func (v *multiValidator) doAndValidation(ctx context.Context, in any) (Result, error) {
+func (v *allOfValidator) Validate(ctx context.Context, in any) (Result, error) {
 	// For allOf, collect all results and merge them while passing context between validators
 	var mergedObjectResult *ObjectResult
 	var mergedArrayResult *ArrayResult
@@ -130,7 +98,25 @@ func (v *multiValidator) doAndValidation(ctx context.Context, in any) (Result, e
 	return nil, nil
 }
 
-func (v *multiValidator) doOneOfValidation(ctx context.Context, in any) (Result, error) {
+type anyOfValidator struct {
+	validators []Interface
+}
+
+func (v *anyOfValidator) Validate(ctx context.Context, in any) (Result, error) {
+	for _, subv := range v.validators {
+		result, err := subv.Validate(ctx, in)
+		if err == nil {
+			return result, nil
+		}
+	}
+	return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
+}
+
+type oneOfValidator struct {
+	validators []Interface
+}
+
+func (v *oneOfValidator) Validate(ctx context.Context, in any) (Result, error) {
 	passedCount := 0
 	var validResult Result
 	for _, subv := range v.validators {
@@ -147,28 +133,6 @@ func (v *multiValidator) doOneOfValidation(ctx context.Context, in any) (Result,
 		return nil, fmt.Errorf(`oneOf validation failed: more than one validator passed (%d), expected exactly one`, passedCount)
 	}
 	return validResult, nil
-}
-
-func (v *multiValidator) doAnyOfValidation(ctx context.Context, in any) (Result, error) {
-	// This is for anyOf (OrMode)
-	for _, subv := range v.validators {
-		result, err := subv.Validate(ctx, in)
-		if err == nil {
-			return result, nil
-		}
-	}
-	return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
-}
-
-func (v *multiValidator) Validate(ctx context.Context, in any) (Result, error) {
-	if v.and {
-		return v.doAndValidation(ctx, in)
-	}
-	if v.oneOf {
-		return v.doOneOfValidation(ctx, in)
-	}
-
-	return v.doAnyOfValidation(ctx, in)
 }
 
 // hasBaseConstraints checks if a schema has base-level constraints that need validation
