@@ -33,20 +33,6 @@ type ArrayIndexResolver interface {
 	ResolveArrayIndex(int) (any, error)
 }
 
-// PropertyPair represents a key-value pair for object properties
-type PropertyPair struct {
-	Name      string
-	Validator Interface
-}
-
-// PropPair creates a new PropertyPair with the given name and validator
-func PropPair(name string, validator Interface) PropertyPair {
-	return PropertyPair{
-		Name:      name,
-		Validator: validator,
-	}
-}
-
 // resolveObjectField resolves a field from an object, supporting multiple types:
 // - map[string]any: direct key lookup
 // - ObjectFieldResolver: custom resolution
@@ -55,12 +41,12 @@ func resolveObjectField(obj any, fieldName string) (any, error) {
 	if obj == nil {
 		return nil, fmt.Errorf("cannot resolve field %q from nil object", fieldName)
 	}
-	
+
 	// Try ObjectFieldResolver interface first
 	if resolver, ok := obj.(ObjectFieldResolver); ok {
 		return resolver.ResolveObjectField(fieldName)
 	}
-	
+
 	// Handle map[string]any directly
 	if m, ok := obj.(map[string]any); ok {
 		if value, exists := m[fieldName]; exists {
@@ -68,7 +54,7 @@ func resolveObjectField(obj any, fieldName string) (any, error) {
 		}
 		return nil, fmt.Errorf("field %q not found in object", fieldName)
 	}
-	
+
 	// Handle struct types using reflection
 	return resolveStructField(obj, fieldName)
 }
@@ -80,26 +66,26 @@ func resolveArrayIndex(arr any, index int) (any, error) {
 	if arr == nil {
 		return nil, fmt.Errorf("cannot resolve index %d from nil array", index)
 	}
-	
+
 	// Try ArrayIndexResolver interface first
 	if resolver, ok := arr.(ArrayIndexResolver); ok {
 		return resolver.ResolveArrayIndex(index)
 	}
-	
+
 	// Handle slice types using reflection
 	rv := reflect.ValueOf(arr)
 	if rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
 	}
-	
+
 	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
 		return nil, fmt.Errorf("value is not an array or slice, got %T", arr)
 	}
-	
+
 	if index < 0 || index >= rv.Len() {
 		return nil, fmt.Errorf("index %d out of bounds for array of length %d", index, rv.Len())
 	}
-	
+
 	return rv.Index(index).Interface(), nil
 }
 
@@ -109,22 +95,22 @@ func resolveStructField(obj any, fieldName string) (any, error) {
 	if rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
 	}
-	
+
 	if rv.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("value is not a struct, got %T", obj)
 	}
-	
+
 	rt := rv.Type()
-	
+
 	// First, try to find field by JSON tag
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
-		
+
 		// Skip unexported fields
 		if !field.IsExported() {
 			continue
 		}
-		
+
 		// Check JSON tag
 		jsonTag := field.Tag.Get("json")
 		if jsonTag != "" {
@@ -138,13 +124,13 @@ func resolveStructField(obj any, fieldName string) (any, error) {
 				continue
 			}
 		}
-		
+
 		// Check if field name matches (case-insensitive for JSON compatibility)
 		if strings.EqualFold(field.Name, fieldName) {
 			return rv.Field(i).Interface(), nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("field %q not found in struct %T", fieldName, obj)
 }
 
@@ -753,10 +739,11 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// infer the type from the constraints
 	// Skip this if allOf is present and has base constraints (they'll be handled in allOf)
 	// Also skip if we have anyOf/oneOf composition validators that will handle these constraints
-	hasCompositionValidator := (s.HasAllOf() && hasBaseConstraints(s)) ||
-		(s.HasAnyOf() && hasBaseConstraints(s) && s.HasUnevaluatedProperties()) ||
-		(s.HasOneOf() && hasBaseConstraints(s) && s.HasUnevaluatedProperties()) ||
-		(s.HasIfSchema() && hasBaseConstraints(s) && s.HasUnevaluatedProperties())
+	hasBC := hasBaseConstraints(s)
+	hasCompositionValidator := (s.HasAllOf() && hasBC) ||
+		(s.HasAnyOf() && hasBC && s.HasUnevaluatedProperties()) ||
+		(s.HasOneOf() && hasBC && s.HasUnevaluatedProperties()) ||
+		(s.HasIfSchema() && hasBC && s.HasUnevaluatedProperties())
 
 	if len(types) == 0 && !hasCompositionValidator {
 		if s.HasAny(schema.StringConstraintFields) {
@@ -1259,37 +1246,6 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 	return &targetSchema, nil
 }
 
-type MultiValidator struct {
-	and        bool
-	oneOf      bool
-	validators []Interface
-}
-
-type MultiValidatorMode int
-
-const (
-	OrMode MultiValidatorMode = iota
-	AndMode
-	OneOfMode
-	InvalidMode
-)
-
-func NewMultiValidator(mode MultiValidatorMode) *MultiValidator {
-	mv := &MultiValidator{}
-	if mode == AndMode {
-		mv.and = true
-	} else if mode == OneOfMode {
-		mv.and = false
-		mv.oneOf = true
-	}
-	return mv
-}
-
-func (v *MultiValidator) Append(in Interface) *MultiValidator {
-	v.validators = append(v.validators, in)
-	return v
-}
-
 // UnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with allOf
 type UnevaluatedPropertiesCompositionValidator struct {
 	allOfValidators []Interface
@@ -1409,24 +1365,21 @@ func (v *UnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context
 
 // validateBaseWithContext validates the base schema with annotation context
 func (v *UnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousObjectResult *ObjectResult, previousArrayResult *ArrayResult) (Result, error) {
-	// Create context with evaluated properties and items if we have previous evaluation results
-	var currentCtx context.Context = ctx
-
 	if previousObjectResult != nil {
 		evalProps := previousObjectResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
-			currentCtx = schema.WithEvaluatedProperties(currentCtx, boolMapToStructMap(evalProps))
+			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
 		}
 	}
 
 	if previousArrayResult != nil {
 		evalItems := previousArrayResult.EvaluatedItems()
 		if len(evalItems) > 0 {
-			currentCtx = schema.WithEvaluatedItems(currentCtx, evalItems)
+			ctx = schema.WithEvaluatedItems(ctx, evalItems)
 		}
 	}
 
-	return v.baseValidator.Validate(currentCtx, in)
+	return v.baseValidator.Validate(ctx, in)
 }
 
 // AnyOfUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with anyOf
@@ -1526,15 +1479,12 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 		if previousResult != nil {
 			previouslyEvaluated = previousResult.EvaluatedProperties()
 		}
-		var currentCtx context.Context
-		if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-			currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
-		} else {
-			currentCtx = ctx
+		if len(previouslyEvaluated) > 0 {
+			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
 		}
-		return objValidator.Validate(currentCtx, in)
+		return objValidator.Validate(ctx, in)
 	}
-	if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
+	if multiValidator, ok := v.baseValidator.(*multiValidator); ok {
 		// If the base validator is a MultiValidator, we need to handle it specially
 		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
 	}
@@ -1543,7 +1493,7 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 }
 
 // validateMultiValidatorWithContext for AnyOf
-func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *MultiValidator, in any, previousResult *ObjectResult) (Result, error) {
+func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *multiValidator, in any, previousResult *ObjectResult) (Result, error) {
 	if !mv.and {
 		// For OR mode, just validate normally
 		return mv.Validate(ctx, in)
@@ -1559,28 +1509,19 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 	}
 
 	for i, subValidator := range mv.validators {
-		var result Result
-		var err error
-
 		// Each cousin validator should be validated independently
 		// without seeing evaluated properties from other cousins
 		// Only pass the original previousResult context, not accumulated cousin results
-		if objValidator, ok := subValidator.(*objectValidator); ok {
+		if _, ok := subValidator.(*objectValidator); ok {
 			var previouslyEvaluated map[string]bool
 			if previousResult != nil {
 				previouslyEvaluated = previousResult.EvaluatedProperties()
 			}
-			var currentCtx context.Context
-			if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-				currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
-			} else {
-				currentCtx = ctx
+			if len(previouslyEvaluated) > 0 {
+				ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
 			}
-			result, err = objValidator.Validate(currentCtx, in)
-		} else {
-			result, err = subValidator.Validate(ctx, in)
 		}
-
+		result, err := subValidator.Validate(ctx, in)
 		if err != nil {
 			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 		}
@@ -1695,25 +1636,22 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 		if previousResult != nil {
 			previouslyEvaluated = previousResult.EvaluatedProperties()
 		}
-		var currentCtx context.Context
-		if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-			currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
-		} else {
-			currentCtx = ctx
+		if len(previouslyEvaluated) > 0 {
+			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
 		}
-		return objValidator.Validate(currentCtx, in)
+		return objValidator.Validate(ctx, in)
 	}
 
-	if multiValidator, ok := v.baseValidator.(*MultiValidator); ok {
+	if mv, ok := v.baseValidator.(*multiValidator); ok {
 		// If the base validator is a MultiValidator, we need to handle it specially
-		return v.validateMultiValidatorWithContext(ctx, multiValidator, in, previousResult)
+		return v.validateMultiValidatorWithContext(ctx, mv, in, previousResult)
 	}
 	// For other validator types, just validate normally without annotation context
 	return v.baseValidator.Validate(ctx, in)
 }
 
 // validateMultiValidatorWithContext for OneOf
-func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *MultiValidator, in any, previousResult *ObjectResult) (Result, error) {
+func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorWithContext(ctx context.Context, mv *multiValidator, in any, previousResult *ObjectResult) (Result, error) {
 	if !mv.and {
 		// For OR mode, just validate normally
 		return mv.Validate(ctx, in)
@@ -1739,13 +1677,10 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			if previousResult != nil {
 				previouslyEvaluated = previousResult.EvaluatedProperties()
 			}
-			var currentCtx context.Context
-			if previouslyEvaluated != nil && len(previouslyEvaluated) > 0 {
-				currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
-			} else {
-				currentCtx = ctx
+			if len(previouslyEvaluated) > 0 {
+				ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(previouslyEvaluated))
 			}
-			result, err = objValidator.Validate(currentCtx, in)
+			result, err = objValidator.Validate(ctx, in)
 		} else {
 			result, err = subValidator.Validate(ctx, in)
 		}
@@ -1824,132 +1759,14 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Cont
 // validateBaseWithContext validates the base schema with annotation context from $ref
 func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, refResult Result) (Result, error) {
 	// Create context with evaluated properties if we have evaluation results from $ref
-	var currentCtx context.Context
 	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil {
 		evalProps := objResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
-			currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
-		} else {
-			currentCtx = ctx
-		}
-	} else {
-		currentCtx = ctx
-	}
-
-	return v.baseValidator.Validate(currentCtx, in)
-}
-
-func (v *MultiValidator) Validate(ctx context.Context, in any) (Result, error) {
-	if v.and {
-		// For allOf, collect all results and merge them while passing context between validators
-		var mergedObjectResult *ObjectResult
-		var mergedArrayResult *ArrayResult
-
-		for i, subv := range v.validators {
-			// Create context with accumulated annotations for this validator
-			var currentCtx context.Context = ctx
-
-			// Add evaluated items if we have them (items annotations flow between allOf subschemas)
-			if mergedArrayResult != nil {
-				evalItems := mergedArrayResult.EvaluatedItems()
-				if len(evalItems) > 0 {
-					currentCtx = schema.WithEvaluatedItems(ctx, evalItems)
-				}
-			}
-
-			// NOTE: We do NOT pass evaluated properties between allOf subschemas
-			// This implements the "cousin" semantics where properties evaluated by one
-			// subschema are not visible to other subschemas in the same allOf
-
-			result, err := subv.Validate(currentCtx, in)
-			if err != nil {
-				return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
-			}
-			// Merge object results for property evaluation tracking
-			if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-				if mergedObjectResult == nil {
-					mergedObjectResult = NewObjectResult()
-				}
-				for prop := range objResult.EvaluatedProperties() {
-					mergedObjectResult.SetEvaluatedProperty(prop)
-				}
-			}
-
-			// Merge array results for item evaluation tracking
-			if arrResult, ok := result.(*ArrayResult); ok && arrResult != nil {
-				if mergedArrayResult == nil {
-					mergedArrayResult = NewArrayResult()
-				}
-				arrItems := arrResult.EvaluatedItems()
-				for i, evaluated := range arrItems {
-					if evaluated {
-						mergedArrayResult.SetEvaluatedItem(i)
-					}
-				}
-			}
-		}
-
-		// Return appropriate result type based on what we merged
-		if mergedObjectResult != nil && mergedArrayResult != nil {
-			// Both object and array results - this shouldn't happen in normal validation
-			// but prioritize object result for now
-			return mergedObjectResult, nil
-		} else if mergedObjectResult != nil {
-			return mergedObjectResult, nil
-		} else if mergedArrayResult != nil {
-			return mergedArrayResult, nil
-		}
-
-		//nolint:nilnil
-		return nil, nil
-	}
-
-	if v.oneOf {
-		passedCount := 0
-		var validResult Result
-		for _, subv := range v.validators {
-			result, err := subv.Validate(ctx, in)
-			if err == nil {
-				passedCount++
-				validResult = result
-			}
-		}
-		if passedCount == 0 {
-			return nil, fmt.Errorf(`oneOf validation failed: none of the validators passed`)
-		}
-		if passedCount > 1 {
-			return nil, fmt.Errorf(`oneOf validation failed: more than one validator passed (%d), expected exactly one`, passedCount)
-		}
-		return validResult, nil
-	}
-
-	// This is for anyOf (OrMode)
-	for _, subv := range v.validators {
-		result, err := subv.Validate(ctx, in)
-		if err == nil {
-			return result, nil
+			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
 		}
 	}
-	return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
-}
 
-// hasBaseConstraints checks if a schema has base-level constraints that need validation
-// when used with allOf/anyOf/oneOf
-func hasBaseConstraints(s *schema.Schema) bool {
-	// Check for types separately since it's not a bit field check
-	if len(s.Types()) > 0 {
-		return true
-	}
-
-	// Use bit field approach for efficient checking of multiple constraints
-	baseConstraintFields := schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
-		schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
-		schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField | schema.UnevaluatedItemsField |
-		schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
-		schema.EnumField | schema.ConstField
-
-	// Returns true if ANY of the base constraint fields are set
-	return s.HasAny(baseConstraintFields)
+	return v.baseValidator.Validate(ctx, in)
 }
 
 // createBaseSchema creates a new schema with only the base constraints (no composition keywords).
@@ -2299,17 +2116,12 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 // validateBaseWithContext for if/then/else
 func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousResult *ObjectResult) (Result, error) {
 	// Create context with evaluated properties if we have previous evaluation results
-	var currentCtx context.Context
 	if previousResult != nil {
 		evalProps := previousResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
-			currentCtx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
-		} else {
-			currentCtx = ctx
+			ctx = schema.WithEvaluatedProperties(ctx, boolMapToStructMap(evalProps))
 		}
-	} else {
-		currentCtx = ctx
 	}
 
-	return v.baseValidator.Validate(currentCtx, in)
+	return v.baseValidator.Validate(ctx, in)
 }

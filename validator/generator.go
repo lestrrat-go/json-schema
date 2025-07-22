@@ -115,7 +115,7 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateArray(dst, validator)
 	case *objectValidator:
 		return g.generateObject(dst, validator)
-	case *MultiValidator:
+	case *multiValidator:
 		return g.generateMulti(dst, validator)
 	case *EmptyValidator:
 		return g.generateEmpty(dst)
@@ -229,31 +229,31 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 		o.L("PatternProperties(")
 		o.L("func() map[*regexp.Regexp]validator.Interface {")
 		o.L("patternProps := make(map[*regexp.Regexp]validator.Interface)")
-		
+
 		patternIndex := 0
 		for pattern, patternValidator := range v.patternProperties {
 			// Generate unique variable names for each pattern
 			validatorVar := fmt.Sprintf("patternValidator%d", patternIndex)
 			regexVar := fmt.Sprintf("patternRegex%d", patternIndex)
-			
+
 			// Generate the validator for this pattern
 			o.L("%s := ", validatorVar)
 			if err := g.Generate(&buf, patternValidator); err != nil {
 				return fmt.Errorf("failed to generate pattern property validator for %s: %w", pattern.String(), err)
 			}
 			o.R("")
-			
+
 			// Generate the regex compilation
 			patternStr := pattern.String()
 			o.L("%s, _ := regexp.Compile(%q)", regexVar, patternStr)
 			o.L("patternProps[%s] = %s", regexVar, validatorVar)
-			
+
 			patternIndex++
 		}
-		
+
 		o.L("return patternProps")
 		o.L("}(),")
-		o.L(").") 
+		o.L(").")
 	}
 
 	// Handle property names validator
@@ -274,36 +274,28 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 }
 
 // generateMulti creates the builder chain for multi validators
-func (g *codeGenerator) generateMulti(dst io.Writer, v *MultiValidator) error {
+func (g *codeGenerator) generateMulti(dst io.Writer, v *multiValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
 
-	// Determine the mode
-	var mode string
-	if v.and {
-		mode = "AndMode"
-	} else if v.oneOf {
-		mode = "OneOfMode"
-	} else {
-		mode = "OrMode"
-	}
-
 	// If we have child validators, create a proper MultiValidator
 	if len(v.validators) > 0 {
-		o.L("func() validator.Interface {")
-		o.L("mv := validator.NewMultiValidator(validator.%s)", mode)
-		
+		if v.and {
+			o.L("validator.AllOf()")
+		} else if v.oneOf {
+			o.L("validator.OneOf()")
+		} else {
+			o.L("validator.AnyOf()")
+		}
+		o.R(".Validators(")
 		// Generate each child validator
 		for i, child := range v.validators {
-			o.L("mv.Append(")
 			if err := g.Generate(&buf, child); err != nil {
 				return fmt.Errorf("failed to generate child validator %d: %w", i, err)
 			}
-			o.R(")")
+			o.R(",")
 		}
-		
-		o.L("return mv")
-		o.L("}()")
+		o.L(")")
 	} else {
 		o.R("&validator.EmptyValidator{}")
 	}
@@ -312,14 +304,13 @@ func (g *codeGenerator) generateMulti(dst io.Writer, v *MultiValidator) error {
 	return err
 }
 
-
 // generateEmpty creates the builder chain for empty validators
 func (g *codeGenerator) generateEmpty(dst io.Writer) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	
+
 	o.R("&validator.EmptyValidator{}")
-	
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
@@ -328,17 +319,16 @@ func (g *codeGenerator) generateEmpty(dst io.Writer) error {
 func (g *codeGenerator) generateNot(dst io.Writer, v *NotValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	
+
 	o.L("func() validator.Interface { child := ")
 	if err := g.Generate(&buf, v.validator); err != nil {
 		return fmt.Errorf("failed to generate child validator for not: %w", err)
 	}
 	o.R("; return &validator.NotValidator{validator: child} }()")
-	
+
 	_, err := buf.WriteTo(dst)
 	return err
 }
-
 
 // generateGeneralBuilderChain creates just the builder chain for general validators
 func (g *codeGenerator) generateGeneral(dst io.Writer, v *GeneralValidator) error {
@@ -364,12 +354,11 @@ func (g *codeGenerator) generateGeneral(dst io.Writer, v *GeneralValidator) erro
 			enumArgs = strings.Join(enumStrs, ", ")
 		}
 
-		o.L("func() validator.Interface {")
-		o.L("mv := validator.NewMultiValidator(validator.OrMode)")
-		o.L("mv.Append(validator.String().Enum(%s).MustBuild())", enumArgs)
-		o.L("mv.Append(validator.Array().MinItems(1).UniqueItems(true).MustBuild())")
-		o.L("return mv")
-		o.L("}()")
+		o.L("validator.NewMultiValidator(validator.OrMode).")
+		o.L("Validators(")
+		o.L("validator.String().Enum(%s).MustBuild(),", enumArgs)
+		o.L("validator.Array().MinItems(1).UniqueItems(true).MustBuild(),")
+		o.L(")")
 	} else if v.hasConst {
 		// For const validation, accept any matching value
 		// Since we can't access the const value, return EmptyValidator
@@ -381,8 +370,6 @@ func (g *codeGenerator) generateGeneral(dst io.Writer, v *GeneralValidator) erro
 	_, err := buf.WriteTo(dst)
 	return err
 }
-
-
 
 // generateString creates the builder chain for string validators
 func (g *codeGenerator) generateString(dst io.Writer, v *stringValidator) error {
@@ -424,7 +411,6 @@ func (g *codeGenerator) generateString(dst io.Writer, v *stringValidator) error 
 	_, err := buf.WriteTo(dst)
 	return err
 }
-
 
 // generateInteger creates the builder chain for integer validators
 func (g *codeGenerator) generateInteger(dst io.Writer, v *integerValidator) error {
@@ -481,7 +467,6 @@ func sanitizeVarName(name string) string {
 	}
 	return result
 }
-
 
 // generateReferenceBuilderChain creates just the builder chain for reference validators
 func (g *codeGenerator) generateReference(dst io.Writer, v *ReferenceValidator) error {
@@ -636,7 +621,6 @@ func (g *codeGenerator) generateInferredNumber(dst io.Writer, v *inferredNumberV
 	// Generate the underlying number validator - it's just a wrapper
 	return g.Generate(dst, v.numberValidator)
 }
-
 
 // generateNumber creates the builder chain for number validators
 func (g *codeGenerator) generateNumber(dst io.Writer, v *numberValidator) error {
@@ -801,15 +785,13 @@ func (g *codeGenerator) generateArray(dst io.Writer, v *arrayValidator) error {
 	return err
 }
 
-
-
 // generateNull creates the builder chain for null validators
 func (g *codeGenerator) generateNull(dst io.Writer) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
-	
+
 	o.R("&validator.NullValidator{}")
-	
+
 	_, err := buf.WriteTo(dst)
 	return err
 }

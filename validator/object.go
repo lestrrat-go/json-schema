@@ -175,6 +175,23 @@ func (b *ObjectValidatorBuilder) DependentRequired(v map[string][]string) *Objec
 	return b
 }
 
+// PropertyPair represents a key-value pair for object properties.
+type PropertyPair struct {
+	name      string
+	validator Interface
+}
+
+// PropPair creates a new PropertyPair with the given name and validator
+func PropPair(name string, validator Interface) PropertyPair {
+	return PropertyPair{
+		name:      name,
+		validator: validator,
+	}
+}
+
+// Properties adds properties to the object validator.
+// It accepts a variadic list of PropertyPair, which is a utility type
+// that contains a property name and its corresponding validator.
 func (b *ObjectValidatorBuilder) Properties(props ...PropertyPair) *ObjectValidatorBuilder {
 	if b.err != nil {
 		return b
@@ -183,11 +200,10 @@ func (b *ObjectValidatorBuilder) Properties(props ...PropertyPair) *ObjectValida
 		b.c.properties = make(map[string]Interface)
 	}
 	for _, prop := range props {
-		b.c.properties[prop.Name] = prop.Validator
+		b.c.properties[prop.name] = prop.validator
 	}
 	return b
 }
-
 
 func (b *ObjectValidatorBuilder) PatternProperties(v map[*regexp.Regexp]Interface) *ObjectValidatorBuilder {
 	if b.err != nil {

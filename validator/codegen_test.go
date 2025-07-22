@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func TestCodeGeneration(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -116,11 +115,11 @@ func TestCodeGeneration(t *testing.T) {
 				// Create pattern validators
 				stringValidator := String().MinLength(1).MustBuild()
 				numValidator := Integer().Minimum(0).MustBuild()
-				
+
 				// Create regexps manually
 				strPattern, _ := regexp.Compile("^str_")
 				numPattern, _ := regexp.Compile("^num_")
-				
+
 				return &objectValidator{
 					patternProperties: map[*regexp.Regexp]Interface{
 						strPattern: stringValidator,
@@ -147,17 +146,17 @@ func TestCodeGeneration(t *testing.T) {
 				containsValidator := String().Pattern("test").MustBuild()
 				prefixItem1 := Integer().Minimum(0).MustBuild()
 				prefixItem2 := String().MaxLength(10).MustBuild()
-				
+
 				return &arrayValidator{
-					minItems:     uintPtr(1),
-					maxItems:     uintPtr(10),
-					uniqueItems:  true,
-					minContains:  uintPtr(1),
-					maxContains:  uintPtr(3),
-					prefixItems:  []Interface{prefixItem1, prefixItem2},
-					items:        itemsValidator,
-					contains:     containsValidator,
-					strictArrayType: true,
+					minItems:         uintPtr(1),
+					maxItems:         uintPtr(10),
+					uniqueItems:      true,
+					minContains:      uintPtr(1),
+					maxContains:      uintPtr(3),
+					prefixItems:      []Interface{prefixItem1, prefixItem2},
+					items:            itemsValidator,
+					contains:         containsValidator,
+					strictArrayType:  true,
 					unevaluatedItems: false, // Test boolean unevaluated items
 				}
 			},
@@ -190,7 +189,7 @@ func TestCodeGeneration(t *testing.T) {
 			testValue:  "hello",
 			shouldPass: true,
 			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
+				require.Contains(t, code, "validator.AllOf()")
 				require.Contains(t, code, "validator.String().")
 				require.Contains(t, code, "MinLength(3).")
 				require.Contains(t, code, "MaxLength(10).")
@@ -316,7 +315,6 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 		})
 	}
 }
-
 
 // unsupportedValidator is a mock validator type for testing
 type unsupportedValidator struct{}
@@ -505,7 +503,7 @@ func TestComplexNestedValidator(t *testing.T) {
 	require.NotEmpty(t, code)
 
 	// Should contain nested validator definitions
-	require.Contains(t, code, "validator.NewMultiValidator(validator.AndMode)")
+	require.Contains(t, code, "validator.AllOf()")
 	require.Contains(t, code, "validator.String().")
 	require.Contains(t, code, "validator.Integer().")
 
