@@ -273,4 +273,3 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(c
 
 	return v.baseValidator.Validate(ctx, in)
 }
-

@@ -895,8 +895,6 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	return AllOf(allValidators...), nil
 }
 
-
-
 // createBaseSchema creates a new schema with only the base constraints (no composition keywords).
 // This function excludes ALL composition and control flow keywords:
 //   - allOf, anyOf, oneOf (composition keywords)

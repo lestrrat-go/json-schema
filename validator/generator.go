@@ -10,8 +10,6 @@ import (
 	"github.com/lestrrat-go/codegen"
 )
 
-
-
 // generateObjectBuilderChain creates just the builder chain for object validators
 func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error {
 	var buf bytes.Buffer
