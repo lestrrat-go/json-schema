@@ -3,9 +3,7 @@ package schema_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -352,53 +350,6 @@ func TestSchemaBasicReferences(t *testing.T) {
 		require.Contains(t, defs, "person")
 		require.Equal(t, personSchema, defs["person"])
 	})
-}
-
-// TestMain initializes the JSON Schema Test Suite
-func TestMain(m *testing.M) {
-	// Check if we're in short mode by looking at command line args
-	skipInit := false
-	for _, arg := range os.Args {
-		if arg == "-test.short" || arg == "--test.short" {
-			skipInit = true
-			break
-		}
-	}
-
-	if !skipInit {
-		// Initialize the test suite
-		if err := initializeTestSuite(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to initialize test suite: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	// Run the tests
-	code := m.Run()
-	os.Exit(code)
-}
-
-// initializeTestSuite clones or updates the JSON Schema Test Suite repository
-func initializeTestSuite() error {
-	testDir := "tests"
-
-	// Check if the directory already exists
-	if _, err := os.Stat(testDir); err == nil {
-		// Directory exists, pull latest changes
-		cmd := exec.Command("git", "pull")
-		cmd.Dir = testDir
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to update test suite: %w", err)
-		}
-	} else {
-		// Directory doesn't exist, clone it
-		cmd := exec.Command("git", "clone", "https://github.com/json-schema-org/JSON-Schema-Test-Suite.git", testDir)
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to clone test suite: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // TestSpecificationCompliance runs the official JSON Schema Test Suite tests
