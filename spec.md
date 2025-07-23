@@ -1026,3 +1026,32 @@ The logger is accessed by using `validator.TraceSlogFromContext(ctx)`. These met
 logging handler if a handler is not associated with the context.
 
 Tests should pass a slog with JSONHandler when testing.Verbose() is true
+
+# Command Line Tool `json-schema`
+
+A command line tool should be created in cmd/json-schema/main.go
+
+The command line tool should implement the following interface:
+
+```
+json-schema lint [filename] # report formatting errors found in schema file [filename]
+json-schema gen-validator [filename] # create a pre-compiled validator code from schema file [filename]
+```
+
+`gen-validator` subcommand should take the following parameters
+
+```
+json-schema gen-validator -name [GoVariableName] # assign the resulting validator to this variable. By default, it should use `val`
+```
+
+The validator should output formatted code, something like the following. Note that this is a bare variable assignment statement, not a complete Go program or a function.
+
+```
+val := validator.String().
+   MinLength(10).
+   // other methods follow...
+   MustBuild()
+```
+
+
+The command line tool should use github.com/urfave/cli/v3 for its command line framework.

@@ -16,6 +16,7 @@ require (
 	github.com/lestrrat-go/option v1.0.0 // indirect
 	github.com/lestrrat-go/xstrings v0.0.0-20210804220435-4dd8b234342b // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/urfave/cli/v3 v3.3.8 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	golang.org/x/mod v0.3.0 // indirect
 	golang.org/x/tools v0.0.0-20200918232735-d647fc253266 // indirect
