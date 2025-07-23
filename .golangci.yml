@@ -85,6 +85,9 @@ linters:
           - forbidigo
         path: /*_example_test.go
       - linters:
+          - forbidigo
+        path: cmd/json-schema/main.go
+      - linters:
           - revive
         path: /*_test.go
         text: 'var-naming: '

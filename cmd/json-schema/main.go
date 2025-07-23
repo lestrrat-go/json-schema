@@ -47,7 +47,7 @@ func main() {
 	}
 }
 
-func lintCommand(ctx context.Context, c *cli.Command) error {
+func lintCommand(_ context.Context, c *cli.Command) error {
 	filename := c.Args().First()
 	if filename == "" {
 		return fmt.Errorf("filename is required")
@@ -75,7 +75,7 @@ func lintCommand(ctx context.Context, c *cli.Command) error {
 	return nil
 }
 
-func genValidatorCommand(ctx context.Context, c *cli.Command) error {
+func genValidatorCommand(_ context.Context, c *cli.Command) error {
 	filename := c.Args().First()
 	if filename == "" {
 		return fmt.Errorf("filename is required")
@@ -106,7 +106,7 @@ func genValidatorCommand(ctx context.Context, c *cli.Command) error {
 
 	// Generate the validator code
 	generator := validator.NewCodeGenerator()
-	
+
 	var buf bytes.Buffer
 	if err := generator.Generate(&buf, v); err != nil {
 		return fmt.Errorf("failed to generate validator code: %w", err)
@@ -117,7 +117,7 @@ func genValidatorCommand(ctx context.Context, c *cli.Command) error {
 	// Remove any leading/trailing whitespace and put it on same line as :=
 	generatedCode = strings.TrimSpace(generatedCode)
 	code := fmt.Sprintf("%s := %s", validatorName, generatedCode)
-	
+
 	// Format the code properly using go/format
 	formatted, err := format.Source([]byte(code))
 	if err != nil {
