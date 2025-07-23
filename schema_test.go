@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func ExampleSchemaBuilder() {
+func Example_schema_builder() {
 	s, err := schema.NewBuilder().
 		ID(`https://example.com/polygon`).
-		Type(schema.ObjectType).
+		Types(schema.ObjectType).
 		Property("validProp", schema.New()).
-		AdditionalProperties(true).
+		AdditionalProperties(schema.TrueSchema()).
 		Build()
 	if err != nil {
 		fmt.Println(err)
@@ -28,9 +28,12 @@ func ExampleSchemaBuilder() {
 	}
 	fmt.Printf("%s\n", buf)
 	// OUTPUT:
+	// https://example.com/polygon
+	// {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"validProp":{"$schema":"https://json-schema.org/draft/2020-12/schema"}},"type":"object"}
 }
 
 func TestPrimitiveType(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		Input    string
 		Expected schema.PrimitiveType
@@ -71,8 +74,8 @@ func TestPrimitiveType(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.Input, func(t *testing.T) {
+			t.Parallel()
 			pt, err := schema.NewPrimitiveType(tc.Input)
 			if tc.Error {
 				if !assert.Error(t, err, `schema.NewPrimitiveType should fail`) {

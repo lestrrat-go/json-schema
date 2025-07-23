@@ -5,50 +5,72 @@ objects:
         json: '$id'
       - name: definitions
         json: '$defs'
+        type: 'map[string]*Schema'
       - name: schema
         json: '$schema'
       - name: dynamicReference
         json: '$dynamicRef'
       - name: reference
-        json: '$reference'
+        json: '$ref'
       - name: comment
         json: '$comment'
       - name: anchor
         json: '$anchor'
+      - name: dynamicAnchor
+        json: '$dynamicAnchor'
       - name: allOf
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: anyOf
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: oneOf
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: not
         type: '*Schema'
-      # if/then/else WTF are these
+      - name: format
+        type: string
+      # if/then/else conditional validation
+      - name: ifSchema
+        json: 'if'
+        type: 'SchemaOrBool'
+      - name: thenSchema
+        json: 'then'
+        type: 'SchemaOrBool'
+      - name: elseSchema
+        json: 'else'
+        type: 'SchemaOrBool'
+      - name: prefixItems
+        type: '[]*Schema'
       - name: items
-        type: '*Schema'
+        type: 'SchemaOrBool'
+      - name: additionalItems
+        type: 'SchemaOrBool'
       - name: contains
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: properties
         type: 'map[string]*Schema'
       - name: patternProperties
         type: 'map[string]*Schema'
       - name: additionalProperties
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: propertyNames
-        type: 'map[string]*Schema'
+        type: '*Schema'
       - name: unevaluatedItems
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: unevaluatedProperties
-        type: '*Schema'
+        type: 'SchemaOrBool'
       - name: types
         json: 'type'
-        type: '[]PrimitiveType'
+        type: 'PrimitiveTypes'
       - name: enum
-        type: '[]interface{}'
+        type: '[]any'
       - name: constantValue
         json: const
         exported_name: Const
-        type: 'interface{}'
+        type: 'any'
+      - name: defaultValue
+        json: default
+        exported_name: Default
+        type: 'any'
       - name: multipleOf
         type: float64
       - name: maximum
@@ -79,6 +101,18 @@ objects:
       - name: minProperties
         type: uint
       - name: required
-        type: bool
-        #      - name: dependentRequired
+        type: '[]string'
+      - name: dependentSchemas
+        type: 'map[string]SchemaOrBool'
+      - name: dependentRequired
+        type: 'map[string][]string'
+      - name: vocabulary
+        json: '$vocabulary'
+        type: 'map[string]bool'
+      - name: contentEncoding
+        type: string
+      - name: contentMediaType  
+        type: string
+      - name: contentSchema
+        type: '*Schema'
 

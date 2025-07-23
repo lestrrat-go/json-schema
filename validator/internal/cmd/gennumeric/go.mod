@@ -1,6 +1,6 @@
 module github.com/lestrrat-go/json-schema/validator/internal/cmd/gennumeric
 
-go 1.17
+go 1.24
 
 require (
 	github.com/lestrrat-go/codegen v1.0.3

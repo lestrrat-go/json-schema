@@ -1,63 +1,205 @@
 package validator
 
 import (
+	"context"
 	"fmt"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"regexp"
+	"time"
+	"unicode/utf8"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/keywords"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
-func compileStringValidator(s *schema.Schema) (Validator, error) {
-	v := String()
-	if s.HasConst() {
-		c, ok := s.Const().(string)
-		if !ok {
-			return nil, fmt.Errorf(`invalid element in const: expected string element, got %T`, s.Const())
+// Format constants for string validation
+const (
+	FormatEmail    = "email"
+	FormatDate     = "date"
+	FormatDateTime = "date-time"
+	FormatURI      = "uri"
+	FormatUUID     = "uuid"
+)
+
+var _ Builder = (*StringValidatorBuilder)(nil)
+var _ Interface = (*stringValidator)(nil)
+
+// String creates a new StringValidatorBuilder instance that can be used to build a
+// Validator for string values according to the JSON Schema specification.
+func String() *StringValidatorBuilder {
+	return (&StringValidatorBuilder{}).Reset()
+}
+
+type stringValidator struct {
+	maxLength        *uint
+	minLength        *uint
+	pattern          *regexp.Regexp
+	format           *string
+	enum             []any
+	constantValue    any
+	strictStringType bool // true when schema explicitly declares type: string
+}
+
+func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) {
+	logger := TraceSlogFromContext(ctx)
+	logger.InfoContext(ctx, "string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
+	rv := reflect.ValueOf(in)
+
+	switch rv.Kind() {
+	case reflect.String:
+		logger.InfoContext(ctx, "string validator processing string value")
+		// Continue with string validation
+	default:
+		// Handle non-string values based on whether this is strict string type validation
+		if v.strictStringType {
+			// When schema explicitly declares type: string, non-string values should fail
+			logger.InfoContext(ctx, "string validator rejecting non-string for strict type", "strict", true)
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, in)
 		}
-		v.Const(c)
+		// For non-string values with inferred string type, string constraints don't apply
+		// According to JSON Schema spec, string constraints should be ignored for non-strings
+		logger.InfoContext(ctx, "string validator skipping non-string for inferred type", "strict", false)
+		//nolint: nilnil
+		return nil, nil
 	}
-	if s.HasMaxLength() {
+
+	str := rv.String()
+	// Count Unicode rune length instead of byte length to better handle Unicode text
+	// This is closer to the JSON Schema spec's requirement for grapheme clusters
+	l := uint(utf8.RuneCountInString(str))
+	logger.InfoContext(ctx, "string validator checking constraints", "length", l, "value_preview", truncateString(str, 50))
+
+	if v.constantValue != nil {
+		if err := validateConst(ctx, str, v.constantValue); err != nil {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
+		}
+	}
+
+	if ml := v.minLength; ml != nil {
+		logger.InfoContext(ctx, "string validator checking minLength", "minLength", *ml, "actual", l)
+		if l < *ml {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
+		}
+	}
+
+	if ml := v.maxLength; ml != nil {
+		logger.InfoContext(ctx, "string validator checking maxLength", "maxLength", *ml, "actual", l)
+		if l > *ml {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
+		}
+	}
+
+	if pat := v.pattern; pat != nil {
+		logger.InfoContext(ctx, "string validator checking pattern", "pattern", pat.String())
+		if !pat.MatchString(str) {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
+		}
+	}
+
+	if len(v.enum) > 0 {
+		if err := validateEnum(ctx, str, v.enum); err != nil {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
+		}
+	}
+
+	if format := v.format; format != nil {
+		logger.InfoContext(ctx, "string validator checking format", "format", *format, "value", str)
+		if err := validateFormat(str, *format); err != nil {
+			return nil, fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
+		}
+	}
+
+	//nolint: nilnil
+	return nil, nil
+}
+
+// validateFormat validates a string against the specified format
+func validateFormat(value, format string) error {
+	switch format {
+	case FormatEmail:
+		_, err := mail.ParseAddress(value)
+		if err != nil {
+			return fmt.Errorf("invalid email format")
+		}
+	case FormatDate:
+		_, err := time.Parse("2006-01-02", value)
+		if err != nil {
+			return fmt.Errorf("invalid date format")
+		}
+	case FormatDateTime:
+		// Try RFC3339 format first (with timezone)
+		_, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			// Try ISO 8601 format without timezone
+			_, err = time.Parse("2006-01-02T15:04:05", value)
+			if err != nil {
+				return fmt.Errorf("invalid date-time format")
+			}
+		}
+	case FormatURI:
+		_, err := url.ParseRequestURI(value)
+		if err != nil {
+			return fmt.Errorf("invalid URI format")
+		}
+	case FormatUUID:
+		// UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+		uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+		if !uuidRegex.MatchString(value) {
+			return fmt.Errorf("invalid UUID format")
+		}
+	default:
+		// Unknown format - just allow it (format validation is optional in JSON Schema)
+		return nil
+	}
+	return nil
+}
+
+// truncateString truncates a string to maxLength runes for logging purposes
+func truncateString(s string, maxLength int) string {
+	if utf8.RuneCountInString(s) <= maxLength {
+		return s
+	}
+	runes := []rune(s)
+	return string(runes[:maxLength]) + "..."
+}
+
+func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+	v := String()
+	v.StrictStringType(strictType)
+	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Const) {
+		v.Const(s.Const())
+	}
+	if s.HasMaxLength() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.MaxLength) {
 		v.MaxLength(s.MaxLength())
 	}
-	if s.HasMinLength() {
+	if s.HasMinLength() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.MinLength) {
 		v.MinLength(s.MinLength())
 	}
-	if s.HasPattern() {
+	if s.HasPattern() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Pattern) {
 		v.Pattern(s.Pattern())
 	}
-	if s.HasEnum() {
-		enums := s.Enum()
-		l := make([]string, 0, len(enums))
-		for i, e := range s.Enum() {
-			s, ok := e.(string)
-			if !ok {
-				return nil, fmt.Errorf(`invalid element in enum: expected string element, got %T for element %d`, e, i)
-			}
-			l = append(l, s)
+	// Format validation should only be enforced when format-assertion vocabulary is enabled
+	// When only format-annotation is enabled, format should be treated as annotation-only
+	if s.HasFormat() {
+		vocabSet := vocabulary.SetFromContext(ctx)
+		if vocabSet.IsEnabled("https://json-schema.org/draft/2020-12/vocab/format-assertion") {
+			v.Format(s.Format())
 		}
-
-		v.Enum(l)
+		// If only format-annotation is enabled, we skip format validation (annotation-only behavior)
+	}
+	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Enum) {
+		v.Enum(s.Enum()...)
 	}
 
 	return v.Build()
 }
 
-type StringValidator struct {
-	maxLength     *uint
-	minLength     *uint
-	pattern       *regexp.Regexp
-	enum          []string
-	constantValue *string
-}
-
 type StringValidatorBuilder struct {
 	err error
-	c   *StringValidator
-}
-
-func String() *StringValidatorBuilder {
-	return &StringValidatorBuilder{c: &StringValidator{}}
+	c   *stringValidator
 }
 
 func (b *StringValidatorBuilder) MaxLength(v int) *StringValidatorBuilder {
@@ -70,7 +212,7 @@ func (b *StringValidatorBuilder) MaxLength(v int) *StringValidatorBuilder {
 		return b
 	}
 
-	var uv uint = uint(v)
+	uv := uint(v)
 	b.c.maxLength = &uv
 	return b
 }
@@ -85,7 +227,7 @@ func (b *StringValidatorBuilder) MinLength(v int) *StringValidatorBuilder {
 		return b
 	}
 
-	var uv uint = uint(v)
+	uv := uint(v)
 	b.c.minLength = &uv
 	return b
 }
@@ -107,26 +249,43 @@ func (b *StringValidatorBuilder) Pattern(s string) *StringValidatorBuilder {
 	return b
 }
 
-func (b *StringValidatorBuilder) Enum(enums []string) *StringValidatorBuilder {
+func (b *StringValidatorBuilder) Format(format string) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
 
-	b.c.enum = make([]string, len(enums))
+	b.c.format = &format
+	return b
+}
+
+func (b *StringValidatorBuilder) Enum(enums ...any) *StringValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	b.c.enum = make([]any, len(enums))
 	copy(b.c.enum, enums)
 	return b
 }
 
-func (b *StringValidatorBuilder) Const(c string) *StringValidatorBuilder {
+func (b *StringValidatorBuilder) Const(c any) *StringValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
 
-	b.c.constantValue = &c
+	b.c.constantValue = c
 	return b
 }
 
-func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
+func (b *StringValidatorBuilder) StrictStringType(v bool) *StringValidatorBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.c.strictStringType = v
+	return b
+}
+
+func (b *StringValidatorBuilder) Build() (Interface, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -134,55 +293,17 @@ func (b *StringValidatorBuilder) Build() (*StringValidator, error) {
 	return b.c, nil
 }
 
-func (v *StringValidator) Validate(in interface{}) error {
-	rv := reflect.ValueOf(in)
-
-	switch rv.Kind() {
-	case reflect.String:
-	default:
-		return fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, in)
+func (b *StringValidatorBuilder) MustBuild() Interface {
+	if b.err != nil {
+		panic(b.err)
 	}
+	return b.c
+}
 
-	str := rv.String()
-	l := uint(len(str))
-
-	if v := v.constantValue; v != nil {
-		if *v != str {
-			return fmt.Errorf(`invalid value passed to StringValidator: string must of value %q`, *v)
-		}
+func (b *StringValidatorBuilder) Reset() *StringValidatorBuilder {
+	b.err = nil
+	b.c = &stringValidator{
+		strictStringType: true, // Default to strict for direct usage
 	}
-
-	if ml := v.minLength; ml != nil {
-		if l < *ml {
-			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
-		}
-	}
-
-	if ml := v.maxLength; ml != nil {
-		if l > *ml {
-			return fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
-		}
-	}
-
-	if pat := v.pattern; pat != nil {
-		if !pat.MatchString(str) {
-			return fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
-		}
-	}
-
-	if enums := v.enum; len(enums) > 0 {
-		var found bool
-		for _, e := range enums {
-			if e == str {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf(`invalid value passed to StringValidator: string not found in enum`)
-		}
-	}
-
-	return nil
+	return b
 }

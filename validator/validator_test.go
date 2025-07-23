@@ -1,6 +1,9 @@
 package validator_test
 
 import (
+	"context"
+	"log/slog"
+	"os"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -8,14 +11,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func makeSanityTestFunc(tc *sanityTestCase, c validator.Validator) func(*testing.T) {
+// contextWithLogging creates a context with trace slog when verbose testing is enabled
+func contextWithLogging(_ *testing.T) context.Context {
+	ctx := context.Background()
+	if testing.Verbose() {
+		logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+		ctx = validator.WithTraceSlog(ctx, logger)
+	}
+	return ctx
+}
+
+func makeSanityTestFunc(tc *sanityTestCase, c validator.Interface) func(*testing.T) {
 	return func(t *testing.T) {
+		ctx := contextWithLogging(t)
 		if tc.Error {
-			if !assert.Error(t, c.Validate(tc.Object), `c.check should fail`) {
+			_, err := c.Validate(ctx, tc.Object)
+			if !assert.Error(t, err, `c.check should fail`) {
 				return
 			}
 		} else {
-			if !assert.NoError(t, c.Validate(tc.Object), `c.Validate should succeed`) {
+			_, err := c.Validate(ctx, tc.Object)
+			if !assert.NoError(t, err, `c.Validate should succeed`) {
 				return
 			}
 		}
@@ -24,7 +42,7 @@ func makeSanityTestFunc(tc *sanityTestCase, c validator.Validator) func(*testing
 
 // Some default set of objects used for sanity checking
 type sanityTestCase struct {
-	Object interface{}
+	Object any
 	Name   string
 	Error  bool
 }
@@ -33,7 +51,7 @@ func makeSanityTestCases() []*sanityTestCase {
 	return []*sanityTestCase{
 		{
 			Name:   "Empty Map",
-			Object: make(map[string]interface{}),
+			Object: make(map[string]any),
 		},
 		{
 			Name:   "Empty Object",
@@ -48,14 +66,14 @@ func makeSanityTestCases() []*sanityTestCase {
 
 func TestValidator(t *testing.T) {
 	s, err := schema.NewBuilder().
-		Type(schema.ObjectType).
+		Types(schema.ObjectType).
 		Build()
 	if !assert.NoError(t, err, `schema.NewBuilder should succeed`) {
 		return
 	}
 	_ = s
 	/*
-		v, err := validator.Compile(s)
+		v, err := validator.Compile(context.Background(), s)
 		if !assert.NoError(t, err, `validator.Build should succeed`) {
 			return
 		}

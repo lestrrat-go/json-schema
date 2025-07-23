@@ -1,6 +1,6 @@
 module github.com/lestrrat-go/json-schema/internal/cmd/genobjects
 
-go 1.17
+go 1.24
 
 require (
 	github.com/goccy/go-yaml v1.9.4
