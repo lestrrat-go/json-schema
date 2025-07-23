@@ -61,7 +61,7 @@ func (ei *EvaluatedItems) Set(index int, value bool) {
 		ei.items = allocated
 	}
 
-	ei.items[index] = true
+	ei.items[index] = value
 }
 
 func (ei *EvaluatedItems) Copy(other *EvaluatedItems) {

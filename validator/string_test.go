@@ -6,6 +6,7 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/validator"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -858,7 +859,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 
 				// For direct format validation tests, enable format-assertion
 				ctx := context.Background()
-				ctx = validator.WithVocabularySet(ctx, validator.AllEnabled())
+				ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
 				v, err := validator.Compile(ctx, s)
 				require.NoError(t, err)
 

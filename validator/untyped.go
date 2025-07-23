@@ -4,6 +4,7 @@ import (
 	"context"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Interface = (*untypedValidator)(nil)
@@ -65,11 +66,11 @@ func (b *UntypedValidatorBuilder) Reset() *UntypedValidatorBuilder {
 func compileUntypedValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Untyped()
 
-	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
+	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
 		v.Enum(s.Enum()...)
 	}
 
-	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
+	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
 		v.Const(s.Const())
 	}
 

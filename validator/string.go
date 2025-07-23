@@ -11,6 +11,8 @@ import (
 	"unicode/utf8"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/keywords"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 // Format constants for string validation
@@ -167,28 +169,28 @@ func truncateString(s string, maxLength int) string {
 func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := String()
 	v.StrictStringType(strictType)
-	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
+	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Const) {
 		v.Const(s.Const())
 	}
-	if s.HasMaxLength() && IsKeywordEnabledInContext(ctx, "maxLength") {
+	if s.HasMaxLength() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.MaxLength) {
 		v.MaxLength(s.MaxLength())
 	}
-	if s.HasMinLength() && IsKeywordEnabledInContext(ctx, "minLength") {
+	if s.HasMinLength() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.MinLength) {
 		v.MinLength(s.MinLength())
 	}
-	if s.HasPattern() && IsKeywordEnabledInContext(ctx, "pattern") {
+	if s.HasPattern() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Pattern) {
 		v.Pattern(s.Pattern())
 	}
 	// Format validation should only be enforced when format-assertion vocabulary is enabled
 	// When only format-annotation is enabled, format should be treated as annotation-only
 	if s.HasFormat() {
-		vocabSet := VocabularySetFromContext(ctx)
+		vocabSet := vocabulary.SetFromContext(ctx)
 		if vocabSet.IsEnabled("https://json-schema.org/draft/2020-12/vocab/format-assertion") {
 			v.Format(s.Format())
 		}
 		// If only format-annotation is enabled, we skip format validation (annotation-only behavior)
 	}
-	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
+	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Enum) {
 		v.Enum(s.Enum()...)
 	}
 

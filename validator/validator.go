@@ -11,6 +11,7 @@ import (
 	"github.com/lestrrat-go/blackmagic"
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 // Interface is the interface that all validators must implement.
@@ -286,7 +287,6 @@ func MergeResults(dst any, results ...any) error {
 	}
 }
 
-
 // dependentSchemasKey is now handled by the public schema package
 
 // WithDependentSchemas adds compiled dependent schema validators to the context
@@ -398,19 +398,6 @@ func getValueType(value any) schema.PrimitiveType {
 	}
 }
 
-// isPrimitiveType returns true if the given type is a simple primitive type
-// (not a complex type like object or array) that's safe for enum type inference
-func isPrimitiveType(typ schema.PrimitiveType) bool {
-	switch typ {
-	case schema.StringType, schema.IntegerType, schema.NumberType, schema.BooleanType, schema.NullType:
-		return true
-	case schema.ObjectType, schema.ArrayType:
-		return false
-	default:
-		return false
-	}
-}
-
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Set up context with default resolver if none provided
 	if schema.ResolverFromContext(ctx) == nil {
@@ -429,10 +416,10 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Set up vocabulary context if none provided
 	// Default to JSON Schema 2020-12 default vocabulary (format-assertion disabled)
-	var vocabSet VocabularySet
+	var vocabSet vocabulary.Set
 	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
 		// No vocabulary set in context, use default vocabulary per JSON Schema spec
-		ctx = WithVocabularySet(ctx, DefaultVocabularySet())
+		ctx = vocabulary.WithSet(ctx, vocabulary.DefaultSet())
 	}
 
 	// Add current schema to dynamic scope chain for $dynamicRef resolution
@@ -459,7 +446,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		if schemaURI != "" {
 			if schemaURI == "http://localhost:1234/draft2020-12/metaschema-no-validation.json" {
 				// This specific metaschema disables validation vocabulary
-				vocabSet := VocabularySet{
+				vocabSet := vocabulary.Set{
 					"https://json-schema.org/draft/2020-12/vocab/core":              true,
 					"https://json-schema.org/draft/2020-12/vocab/applicator":        true,
 					"https://json-schema.org/draft/2020-12/vocab/unevaluated":       true,
@@ -469,14 +456,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 					"https://json-schema.org/draft/2020-12/vocab/content":           true,
 					"https://json-schema.org/draft/2020-12/vocab/meta-data":         true,
 				}
-				ctx = WithVocabularySet(ctx, vocabSet)
+				ctx = vocabulary.WithSet(ctx, vocabSet)
 			}
 		}
 	}
 
 	// Ensure vocabulary context is set (fallback to all enabled if not set)
-	if VocabularySetFromContext(ctx) == nil {
-		ctx = WithVocabularySet(ctx, AllEnabled())
+	if vocabulary.SetFromContext(ctx) == nil {
+		ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
 	}
 
 	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
@@ -604,11 +591,19 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Special handling for allOf with unevaluatedProperties or unevaluatedItems in base schema
 		if hasBaseConstraints(s) && s.HasAny(schema.UnevaluatedFields) {
 			// Create a special validator that evaluates allOf first, then base constraints with annotation context
-			compositionValidator, err := compileUnevaluatedPropertiesValidator(ctx, s)
-			if err != nil {
-				return nil, fmt.Errorf(`failed to compile allOf composition validator: %w`, err)
+			if s.HasUnevaluatedItems() {
+				compositionValidator, err := compileUnevaluatedItemsValidator(ctx, s)
+				if err != nil {
+					return nil, fmt.Errorf(`failed to compile allOf unevaluatedItems composition validator: %w`, err)
+				}
+				allValidators = append(allValidators, compositionValidator)
+			} else {
+				compositionValidator, err := compileUnevaluatedPropertiesValidator(ctx, s)
+				if err != nil {
+					return nil, fmt.Errorf(`failed to compile allOf unevaluatedProperties composition validator: %w`, err)
+				}
+				allValidators = append(allValidators, compositionValidator)
 			}
-			allValidators = append(allValidators, compositionValidator)
 		} else {
 			allOfValidators := make([]Interface, 0, len(s.AllOf())+1)
 
@@ -737,7 +732,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	types := make([]schema.PrimitiveType, 0, len(explicitTypes))
 
 	// Only include types if type constraint is enabled
-	if IsKeywordEnabledInContext(ctx, "type") {
+	if vocabulary.IsKeywordEnabledInContext(ctx, "type") {
 		types = make([]schema.PrimitiveType, len(explicitTypes))
 		copy(types, explicitTypes)
 	}
@@ -792,7 +787,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if len(types) == 0 && s.HasAny(schema.ValueConstraintFields) && !hasCompositionValidator {
 		// Try to infer type from enum values if they're homogeneous
 		var inferredType *schema.PrimitiveType
-		if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
+		if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
 			enumValues := s.Enum()
 			if len(enumValues) > 0 {
 				// Check if all enum values are of the same type
@@ -806,7 +801,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				}
 				// Only infer primitive types (string, number, integer, boolean, null)
 				// For complex types (object, array), keep as untyped to avoid validation conflicts
-				if allSameType && isPrimitiveType(firstType) {
+				if allSameType && schema.IsScalarPrimitiveType(firstType) {
 					inferredType = &firstType
 				}
 			}
@@ -987,6 +982,13 @@ type unevaluatedPropertiesValidator struct {
 	schema          *schema.Schema
 }
 
+// unevaluatedItemsValidator handles complex unevaluatedItems with allOf
+type unevaluatedItemsValidator struct {
+	allOfValidators []Interface
+	baseValidator   Interface
+	schema          *schema.Schema
+}
+
 func compileUnevaluatedPropertiesValidator(ctx context.Context, s *schema.Schema) (*unevaluatedPropertiesValidator, error) {
 	v := &unevaluatedPropertiesValidator{
 		schema: s,
@@ -1012,6 +1014,31 @@ func compileUnevaluatedPropertiesValidator(ctx context.Context, s *schema.Schema
 	return v, nil
 }
 
+func compileUnevaluatedItemsValidator(ctx context.Context, s *schema.Schema) (*unevaluatedItemsValidator, error) {
+	v := &unevaluatedItemsValidator{
+		schema: s,
+	}
+
+	// Compile allOf validators
+	for _, subSchema := range s.AllOf() {
+		subValidator, err := Compile(ctx, convertSchemaOrBool(subSchema))
+		if err != nil {
+			return nil, fmt.Errorf(`failed to compile allOf subschema: %w`, err)
+		}
+		v.allOfValidators = append(v.allOfValidators, subValidator)
+	}
+
+	// Create a copy of the schema without allOf for base validation
+	baseSchema := createBaseSchema(s)
+	baseValidator, err := Compile(ctx, baseSchema)
+	if err != nil {
+		return nil, fmt.Errorf(`failed to compile base schema: %w`, err)
+	}
+	v.baseValidator = baseValidator
+
+	return v, nil
+}
+
 // User: This looks suspiciously like an allOf() validator with the base validator being
 // evaluated at the end. Instead of createing yet another validator, can't we just
 // use the existing allOf() validator and pass the base validator as the last one? The only
@@ -1021,80 +1048,42 @@ func compileUnevaluatedPropertiesValidator(ctx context.Context, s *schema.Schema
 // Perhaps, what's happening here is more of a collecting data from an allOf() validator
 // and then passing the collected data to a child validator, which is the base validator.
 func (v *unevaluatedPropertiesValidator) Validate(ctx context.Context, in any) (Result, error) {
-	// First, validate all allOf subschemas and collect their annotations
-	var mergedObjectResult *ObjectResult
-	var mergedArrayResult *ArrayResult
-
-	for i, subValidator := range v.allOfValidators {
-		result, err := subValidator.Validate(ctx, in)
-		if err != nil {
-			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
-		}
-
-		// Merge object results for property evaluation tracking
-		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-			if mergedObjectResult == nil {
-				mergedObjectResult = NewObjectResult()
-			}
-			for prop := range objResult.EvaluatedProperties() {
-				mergedObjectResult.SetEvaluatedProperty(prop)
-			}
-		}
-
-		// Merge array results for item evaluation tracking
-		if arrResult, ok := result.(*ArrayResult); ok && arrResult != nil {
-			if mergedArrayResult == nil {
-				mergedArrayResult = NewArrayResult()
-			}
-			arrItems := arrResult.EvaluatedItems()
-			for i, evaluated := range arrItems {
-				if evaluated {
-					mergedArrayResult.SetEvaluatedItem(i)
-				}
-			}
-		}
-	}
-
-	// Now validate base constraints, passing the evaluated annotations from allOf
-	baseResult, err := v.validateBaseWithContext(ctx, in, mergedObjectResult, mergedArrayResult)
+	// Execute allOf validators and collect their annotations
+	merger, err := executeValidatorsAndMergeResults(ctx, v.allOfValidators, in, "allOf")
 	if err != nil {
 		return nil, err
 	}
 
-	// Merge the base result with allOf result
-	if baseObjResult, ok := baseResult.(*ObjectResult); ok && baseObjResult != nil {
-		if mergedObjectResult == nil {
-			mergedObjectResult = NewObjectResult()
-		}
-		for prop := range baseObjResult.EvaluatedProperties() {
-			mergedObjectResult.SetEvaluatedProperty(prop)
-		}
+	// Validate base constraints with annotations from allOf subschemas
+	baseResult, err := v.validateBaseWithContext(ctx, in, merger.ObjectResult(), merger.ArrayResult())
+	if err != nil {
+		return nil, err
 	}
 
-	if baseArrResult, ok := baseResult.(*ArrayResult); ok && baseArrResult != nil {
-		if mergedArrayResult == nil {
-			mergedArrayResult = NewArrayResult()
-		}
-		arrItems := baseArrResult.EvaluatedItems()
-		for i, evaluated := range arrItems {
-			if evaluated {
-				mergedArrayResult.SetEvaluatedItem(i)
-			}
-		}
+	// Merge base result with allOf results
+	merger.mergeResult(baseResult)
+	return merger.FinalResult(), nil
+}
+
+func (v *unevaluatedItemsValidator) Validate(ctx context.Context, in any) (Result, error) {
+	// Execute allOf validators with context flow for array items
+	merger, err := executeValidatorsWithContextFlow(ctx, v.allOfValidators, in)
+	if err != nil {
+		return nil, err
 	}
 
-	// Return appropriate result type
-	if mergedObjectResult != nil && mergedArrayResult != nil {
-		// Both object and array results - prioritize object result for now
-		return mergedObjectResult, nil
-	} else if mergedObjectResult != nil {
-		return mergedObjectResult, nil
-	} else if mergedArrayResult != nil {
-		return mergedArrayResult, nil
+	// Create context with accumulated evaluations for base validation
+	newCtx := withEvaluatedResults(ctx, merger.ObjectResult(), merger.ArrayResult())
+	
+	// Validate base constraints (including unevaluatedItems) with context from allOf
+	baseResult, err := v.baseValidator.Validate(newCtx, in)
+	if err != nil {
+		return nil, err
 	}
 
-	//nolint: nilnil
-	return nil, nil
+	// Merge base result with allOf results
+	merger.mergeResult(baseResult)
+	return merger.FinalResult(), nil
 }
 
 // RefUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with $ref
@@ -1163,14 +1152,14 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(c
 			if ec == nil {
 				ec = &schemactx.EvaluationContext{}
 			}
-			
+
 			// Mark properties as evaluated
 			for prop := range evalProps {
 				if evalProps[prop] {
 					ec.Properties.MarkEvaluated(prop)
 				}
 			}
-			
+
 			ctx = schemactx.WithEvaluationContext(ctx, ec)
 		}
 	}

@@ -12,7 +12,7 @@ import (
 )
 
 // contextWithLogging creates a context with trace slog when verbose testing is enabled
-func contextWithLogging(t *testing.T) context.Context {
+func contextWithLogging(_ *testing.T) context.Context {
 	ctx := context.Background()
 	if testing.Verbose() {
 		logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{

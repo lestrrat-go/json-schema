@@ -32,86 +32,15 @@ type allOfValidator struct {
 }
 
 func (v *allOfValidator) Validate(ctx context.Context, in any) (Result, error) {
-	// For allOf, collect all results and merge them while passing context between validators
-	var mergedObjectResult *ObjectResult
-	var mergedArrayResult *ArrayResult
-
-	for i, subv := range v.validators {
-		// Create context with accumulated annotations for this validator
-		var currentCtx context.Context = ctx
-
-		// Add evaluated items if we have them (items annotations flow between allOf subschemas)
-		if mergedArrayResult != nil {
-			evalItems := mergedArrayResult.EvaluatedItems()
-			if len(evalItems) > 0 {
-				// Get existing evaluation context or create a new one
-				var ec *schemactx.EvaluationContext
-				_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-				if ec == nil {
-					ec = &schemactx.EvaluationContext{}
-				}
-				
-				// Copy evaluated items
-				for i, evaluated := range evalItems {
-					if evaluated {
-						ec.Items.Set(i, true)
-					}
-				}
-				
-				currentCtx = schemactx.WithEvaluationContext(ctx, ec)
-			}
-		}
-
-		// NOTE: We do NOT pass evaluated properties between allOf subschemas
-		// This implements the "cousin" semantics where properties evaluated by one
-		// subschema are not visible to other subschemas in the same allOf
-
-		result, err := subv.Validate(currentCtx, in)
-		if err != nil {
-			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
-		}
-		// Merge object results for property evaluation tracking
-		if objResult, ok := result.(*ObjectResult); ok && objResult != nil {
-			if mergedObjectResult == nil {
-				mergedObjectResult = NewObjectResult()
-			}
-			for prop := range objResult.EvaluatedProperties() {
-				mergedObjectResult.SetEvaluatedProperty(prop)
-			}
-		}
-
-		// Merge array results for item evaluation tracking
-		if arrResult, ok := result.(*ArrayResult); ok && arrResult != nil {
-			if mergedArrayResult == nil {
-				mergedArrayResult = NewArrayResult()
-			}
-			arrItems := arrResult.EvaluatedItems()
-			for i, evaluated := range arrItems {
-				if evaluated {
-					mergedArrayResult.SetEvaluatedItem(i)
-				}
-			}
-		}
+	// Use executeValidatorsWithContextFlow with context flow for array items
+	// NOTE: We do NOT pass evaluated properties between allOf subschemas
+	// This implements the "cousin" semantics where properties evaluated by one
+	// subschema are not visible to other subschemas in the same allOf
+	merger, err := executeValidatorsWithContextFlow(ctx, v.validators, in)
+	if err != nil {
+		return nil, fmt.Errorf(`allOf validation failed: %w`, err)
 	}
-
-	// Return appropriate result type based on what we merged
-	if mergedObjectResult != nil && mergedArrayResult != nil {
-		// Both object and array results - this shouldn't happen in normal validation
-		// but prioritize object result for now
-		// User: No, this should be an error (in fact, if you can detect this earlier, you should).
-		return mergedObjectResult, nil
-	}
-
-	if mergedObjectResult != nil {
-		return mergedObjectResult, nil
-	}
-
-	if mergedArrayResult != nil {
-		return mergedArrayResult, nil
-	}
-
-	//nolint:nilnil
-	return nil, nil
+	return merger.FinalResult(), nil
 }
 
 type anyOfValidator struct {
@@ -178,7 +107,7 @@ func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Con
 	if ec == nil {
 		ec = &schemactx.EvaluationContext{}
 	}
-	
+
 	if previousObjectResult != nil {
 		evalProps := previousObjectResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
@@ -202,7 +131,7 @@ func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Con
 			}
 		}
 	}
-	
+
 	ctx = schemactx.WithEvaluationContext(ctx, ec)
 
 	return v.baseValidator.Validate(ctx, in)
@@ -312,14 +241,14 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			if ec == nil {
 				ec = &schemactx.EvaluationContext{}
 			}
-			
+
 			// Mark properties as evaluated
 			for prop := range previouslyEvaluated {
 				if previouslyEvaluated[prop] {
 					ec.Properties.MarkEvaluated(prop)
 				}
 			}
-			
+
 			ctx = schemactx.WithEvaluationContext(ctx, ec)
 		}
 		return objValidator.Validate(ctx, in)
@@ -363,14 +292,14 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 				if ec == nil {
 					ec = &schemactx.EvaluationContext{}
 				}
-				
+
 				// Mark properties as evaluated
 				for prop := range previouslyEvaluated {
 					if previouslyEvaluated[prop] {
 						ec.Properties.MarkEvaluated(prop)
 					}
 				}
-				
+
 				ctx = schemactx.WithEvaluationContext(ctx, ec)
 			}
 		}
@@ -496,14 +425,14 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateBaseWithContext
 			if ec == nil {
 				ec = &schemactx.EvaluationContext{}
 			}
-			
+
 			// Mark properties as evaluated
 			for prop := range previouslyEvaluated {
 				if previouslyEvaluated[prop] {
 					ec.Properties.MarkEvaluated(prop)
 				}
 			}
-			
+
 			ctx = schemactx.WithEvaluationContext(ctx, ec)
 		}
 		return objValidator.Validate(ctx, in)
@@ -551,14 +480,14 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 				if ec == nil {
 					ec = &schemactx.EvaluationContext{}
 				}
-				
+
 				// Mark properties as evaluated
 				for prop := range previouslyEvaluated {
 					if previouslyEvaluated[prop] {
 						ec.Properties.MarkEvaluated(prop)
 					}
 				}
-				
+
 				ctx = schemactx.WithEvaluationContext(ctx, ec)
 			}
 			result, err = objValidator.Validate(ctx, in)

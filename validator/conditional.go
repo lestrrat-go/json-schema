@@ -217,21 +217,7 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithCo
 	if previousResult != nil {
 		evalProps := previousResult.EvaluatedProperties()
 		if len(evalProps) > 0 {
-			// Get existing evaluation context or create a new one
-			var ec *schemactx.EvaluationContext
-			_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-			if ec == nil {
-				ec = &schemactx.EvaluationContext{}
-			}
-			
-			// Mark properties as evaluated
-			for prop := range evalProps {
-				if evalProps[prop] {
-					ec.Properties.MarkEvaluated(prop)
-				}
-			}
-			
-			ctx = schemactx.WithEvaluationContext(ctx, ec)
+			ctx = withEvaluatedProperties(ctx, evalProps)
 		}
 	}
 

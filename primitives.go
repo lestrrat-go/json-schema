@@ -66,6 +66,15 @@ func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func IsScalarPrimitiveType(typ PrimitiveType) bool {
+	switch typ {
+	case StringType, IntegerType, NumberType, BooleanType, NullType:
+		return true
+	default:
+		return false
+	}
+}
+
 // NewPrimitiveType creates a PrimitiveType from its string representation.
 // It accepts standard JSON Schema type names such as "null", "integer", "string", "object", "array", "boolean", and "number".
 func NewPrimitiveType(s string) (PrimitiveType, error) {

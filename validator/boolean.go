@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Builder = (*BooleanValidatorBuilder)(nil)
@@ -13,10 +14,10 @@ var _ Interface = (*booleanValidator)(nil)
 
 func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Boolean()
-	if s.HasConst() && IsKeywordEnabledInContext(ctx, "const") {
+	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
 		v.Const(s.Const())
 	}
-	if s.HasEnum() && IsKeywordEnabledInContext(ctx, "enum") {
+	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
 		v.Enum(s.Enum()...)
 	}
 	return v.Build()

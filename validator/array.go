@@ -7,6 +7,7 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Builder = (*ArrayValidatorBuilder)(nil)
@@ -15,13 +16,13 @@ var _ Interface = (*arrayValidator)(nil)
 func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := Array()
 
-	if s.HasMinItems() && IsKeywordEnabledInContext(ctx, "minItems") {
+	if s.HasMinItems() && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
 		v.MinItems(s.MinItems())
 	}
-	if s.HasMaxItems() && IsKeywordEnabledInContext(ctx, "maxItems") {
+	if s.HasMaxItems() && vocabulary.IsKeywordEnabledInContext(ctx, "maxItems") {
 		v.MaxItems(s.MaxItems())
 	}
-	if s.HasUniqueItems() && IsKeywordEnabledInContext(ctx, "uniqueItems") {
+	if s.HasUniqueItems() && vocabulary.IsKeywordEnabledInContext(ctx, "uniqueItems") {
 		v.UniqueItems(s.UniqueItems())
 	}
 	if s.HasPrefixItems() {
@@ -381,11 +382,32 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 		// Handle unevaluatedItems validation
 		if c.unevaluatedItems != nil {
+			// Get evaluated items from context (from previous validators) AND current result
+			contextEvaluated := evaluatedItems.Values() // From previous validators
+			currentEvaluated := result.EvaluatedItems()  // From current validator
+			
+			// Merge context and current evaluations
+			maxLen := len(contextEvaluated)
+			if len(currentEvaluated) > maxLen {
+				maxLen = len(currentEvaluated)
+			}
+			
+			mergedEvaluated := make([]bool, maxLen)
+			for i := 0; i < maxLen; i++ {
+				var contextVal, currentVal bool
+				if i < len(contextEvaluated) {
+					contextVal = contextEvaluated[i]
+				}
+				if i < len(currentEvaluated) {
+					currentVal = currentEvaluated[i]
+				}
+				mergedEvaluated[i] = contextVal || currentVal
+			}
+
 			// Validate unevaluated items
 			for i := range rv.Len() {
-				// Skip items that were already evaluated
-				evaluatedItems := result.EvaluatedItems()
-				if i < len(evaluatedItems) && evaluatedItems[i] {
+				// Skip items that were already evaluated (by context or current validator)
+				if i < len(mergedEvaluated) && mergedEvaluated[i] {
 					continue
 				}
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 func TestCommonPatterns(t *testing.T) {
@@ -64,7 +65,7 @@ func TestCommonPatterns(t *testing.T) {
 			// For pattern helpers, we want format validation to be enforced
 			// Set up context with format-assertion enabled
 			ctx := context.Background()
-			ctx = WithVocabularySet(ctx, AllEnabled())
+			ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
 			v, err := Compile(ctx, schemaObj)
 			if err != nil {
 				t.Fatalf("Failed to compile validator: %v", err)
