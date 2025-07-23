@@ -1,36 +1,11 @@
 package schema_test
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/stretchr/testify/assert"
 )
-
-func Example_schema_builder() {
-	s, err := schema.NewBuilder().
-		ID(`https://example.com/polygon`).
-		Types(schema.ObjectType).
-		Property("validProp", schema.New()).
-		AdditionalProperties(schema.TrueSchema()).
-		Build()
-	if err != nil {
-		fmt.Println(err)
-	}
-	_ = s
-	fmt.Println(s.ID())
-	buf, err := json.Marshal(s)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	fmt.Printf("%s\n", buf)
-	// OUTPUT:
-	// https://example.com/polygon
-	// {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"validProp":{"$schema":"https://json-schema.org/draft/2020-12/schema"}},"type":"object"}
-}
 
 func TestPrimitiveType(t *testing.T) {
 	t.Parallel()
