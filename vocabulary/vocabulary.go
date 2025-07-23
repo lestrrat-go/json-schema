@@ -164,20 +164,57 @@ func (vr *Registry) GetVocabularyForKeyword(keyword string) string {
 	return ""
 }
 
-// Set represents a set of enabled vocabularies
-type Set map[string]bool
+// VocabularySet represents a set of enabled vocabularies using Set2 objects
+// This replaces the old Set map[string]bool approach with a structured approach
+type VocabularySet struct {
+	mu           sync.RWMutex
+	enabled      map[string]bool  // vocabulary URI -> enabled status
+	vocabularies map[string]*Set2 // vocabulary URI -> Set2 object (for keyword lookup)
+}
+
+// NewVocabularySet creates a new VocabularySet
+func NewVocabularySet() *VocabularySet {
+	return &VocabularySet{
+		enabled:      make(map[string]bool),
+		vocabularies: make(map[string]*Set2),
+	}
+}
+
+// Enable enables a vocabulary by URI
+func (vs *VocabularySet) Enable(vocabularyURI string) {
+	vs.mu.Lock()
+	defer vs.mu.Unlock()
+	vs.enabled[vocabularyURI] = true
+	// Also store the Set2 object if available from registry
+	if set2 := DefaultRegistry().Get(vocabularyURI); set2 != nil {
+		vs.vocabularies[vocabularyURI] = set2
+	}
+}
+
+// Disable disables a vocabulary by URI
+func (vs *VocabularySet) Disable(vocabularyURI string) {
+	vs.mu.Lock()
+	defer vs.mu.Unlock()
+	vs.enabled[vocabularyURI] = false
+	// Keep the Set2 object for potential re-enabling
+	if set2 := DefaultRegistry().Get(vocabularyURI); set2 != nil {
+		vs.vocabularies[vocabularyURI] = set2
+	}
+}
 
 // IsEnabled checks if a vocabulary is enabled
-func (vs Set) IsEnabled(vocabularyURI string) bool {
+func (vs *VocabularySet) IsEnabled(vocabularyURI string) bool {
 	if vs == nil {
 		return true // Default to enabled if no vocabulary set
 	}
-	enabled, exists := vs[vocabularyURI]
-	return exists && enabled
+	vs.mu.RLock()
+	defer vs.mu.RUnlock()
+	enabled, exists := vs.enabled[vocabularyURI]
+	return !exists || enabled // Default to enabled if not explicitly set
 }
 
 // IsKeywordEnabled checks if a keyword is enabled based on vocabulary enablement
-func (vs Set) IsKeywordEnabled(keyword string) bool {
+func (vs *VocabularySet) IsKeywordEnabled(keyword string) bool {
 	if vs == nil {
 		return true // Default to enabled if no vocabulary set
 	}
@@ -192,37 +229,37 @@ func (vs Set) IsKeywordEnabled(keyword string) bool {
 }
 
 // AllEnabled returns a vocabulary set where all standard vocabularies are enabled
-func AllEnabled() Set {
-	return Set{
-		CoreURL:             true,
-		ApplicatorURL:       true,
-		UnevaluatedURL:      true,
-		ValidationURL:       true,
-		FormatAnnotationURL: true,
-		FormatAssertionURL:  true,
-		ContentURL:          true,
-		MetaDataURL:         true,
-	}
+func AllEnabled() *VocabularySet {
+	vs := NewVocabularySet()
+	vs.Enable(CoreURL)
+	vs.Enable(ApplicatorURL)
+	vs.Enable(UnevaluatedURL)
+	vs.Enable(ValidationURL)
+	vs.Enable(FormatAnnotationURL)
+	vs.Enable(FormatAssertionURL)
+	vs.Enable(ContentURL)
+	vs.Enable(MetaDataURL)
+	return vs
 }
 
 // DefaultSet returns the default vocabulary set for JSON Schema 2020-12
 // This is the vocabulary set that should be used when no explicit vocabulary is specified
 // It includes annotation vocabularies but excludes assertion vocabularies like format-assertion
-func DefaultSet() Set {
-	return Set{
-		CoreURL:             true,
-		ApplicatorURL:       true,
-		UnevaluatedURL:      true,
-		ValidationURL:       true,
-		FormatAnnotationURL: true,
-		FormatAssertionURL:  false, // Disabled by default - format is annotation-only unless explicitly enabled
-		ContentURL:          true,
-		MetaDataURL:         true,
-	}
+func DefaultSet() *VocabularySet {
+	vs := NewVocabularySet()
+	vs.Enable(CoreURL)
+	vs.Enable(ApplicatorURL)
+	vs.Enable(UnevaluatedURL)
+	vs.Enable(ValidationURL)
+	vs.Enable(FormatAnnotationURL)
+	vs.Disable(FormatAssertionURL) // Disabled by default - format is annotation-only unless explicitly enabled
+	vs.Enable(ContentURL)
+	vs.Enable(MetaDataURL)
+	return vs
 }
 
-// ExtractSet extracts the vocabulary set from a schema's $vocabulary declaration
-func ExtractSet(s *schema.Schema) Set {
+// ExtractVocabularySet extracts the vocabulary set from a schema's $vocabulary declaration
+func ExtractVocabularySet(s *schema.Schema) *VocabularySet {
 	if s == nil || !s.HasVocabulary() {
 		return AllEnabled() // Default to all enabled if no vocabulary declaration
 	}
@@ -232,16 +269,20 @@ func ExtractSet(s *schema.Schema) Set {
 		return AllEnabled()
 	}
 
-	result := make(Set)
+	vs := NewVocabularySet()
 	for uri, enabled := range vocabMap {
-		result[uri] = enabled
+		if enabled {
+			vs.Enable(uri)
+		} else {
+			vs.Disable(uri)
+		}
 	}
 
-	return result
+	return vs
 }
 
 // ResolveVocabularyFromMetaschema resolves the vocabulary set from a metaschema
-func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) (Set, error) {
+func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) (*VocabularySet, error) {
 	if metaschemaURI == "" {
 		return AllEnabled(), nil
 	}
@@ -265,18 +306,18 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) 
 		return AllEnabled(), nil //nolint:nilerr // Intentional: fallback to default behavior on resolve error
 	}
 
-	return ExtractSet(&metaschema), nil
+	return ExtractVocabularySet(&metaschema), nil
 }
 
 // Context keys for vocabulary support
 // WithSet adds a vocabulary set to the context
-func WithSet(ctx context.Context, vocabSet Set) context.Context {
+func WithSet(ctx context.Context, vocabSet *VocabularySet) context.Context {
 	return schemactx.WithVocabularySet(ctx, vocabSet)
 }
 
 // SetFromContext extracts the vocabulary set from the context
-func SetFromContext(ctx context.Context) Set {
-	var vocabSet Set
+func SetFromContext(ctx context.Context) *VocabularySet {
+	var vocabSet *VocabularySet
 	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
 		return DefaultSet() // Use default vocabulary set with format-assertion disabled
 	}

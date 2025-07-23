@@ -14,6 +14,7 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/validator"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 func main() {
@@ -60,9 +61,9 @@ func _main() error {
 		// Debug: Test type compilation in isolation
 		fmt.Printf("Testing if 'type' keyword is enabled in context...\n")
 		testCtx := context.Background()
-		testVocabSet := validator.AllEnabled()
-		testCtx = validator.WithVocabularySet(testCtx, testVocabSet)
-		isTypeEnabled := validator.IsKeywordEnabledInContext(testCtx, "type")
+		testVocabSet := vocabulary.AllEnabled()
+		testCtx = vocabulary.WithSet(testCtx, testVocabSet)
+		isTypeEnabled := vocabulary.IsKeywordEnabledInContext(testCtx, "type")
 		fmt.Printf("Type keyword enabled: %v\n", isTypeEnabled)
 
 		// Debug: Test what base schema would be created
@@ -108,8 +109,8 @@ func _main() error {
 
 	// Set up vocabulary context for JSON Schema 2020-12
 	// Use AllEnabled to ensure all vocabularies are enabled for meta-schema compilation
-	vocabSet := validator.AllEnabled()
-	ctx = validator.WithVocabularySet(ctx, vocabSet)
+	vocabSet := vocabulary.AllEnabled()
+	ctx = vocabulary.WithSet(ctx, vocabSet)
 
 	// Compile the meta-schema to a validator
 	compiledValidator, err := validator.Compile(ctx, &metaSchema)

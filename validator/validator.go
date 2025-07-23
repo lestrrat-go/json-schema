@@ -416,7 +416,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Set up vocabulary context if none provided
 	// Default to JSON Schema 2020-12 default vocabulary (format-assertion disabled)
-	var vocabSet vocabulary.Set
+	var vocabSet *vocabulary.VocabularySet
 	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
 		// No vocabulary set in context, use default vocabulary per JSON Schema spec
 		ctx = vocabulary.WithSet(ctx, vocabulary.DefaultSet())
@@ -446,16 +446,9 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		if schemaURI != "" {
 			if schemaURI == "http://localhost:1234/draft2020-12/metaschema-no-validation.json" {
 				// This specific metaschema disables validation vocabulary
-				vocabSet := vocabulary.Set{
-					"https://json-schema.org/draft/2020-12/vocab/core":              true,
-					"https://json-schema.org/draft/2020-12/vocab/applicator":        true,
-					"https://json-schema.org/draft/2020-12/vocab/unevaluated":       true,
-					"https://json-schema.org/draft/2020-12/vocab/validation":        false, // Disabled!
-					"https://json-schema.org/draft/2020-12/vocab/format-annotation": true,
-					"https://json-schema.org/draft/2020-12/vocab/format-assertion":  true,
-					"https://json-schema.org/draft/2020-12/vocab/content":           true,
-					"https://json-schema.org/draft/2020-12/vocab/meta-data":         true,
-				}
+				// Create vocabulary set with validation disabled using VocabularySet
+				vocabSet := vocabulary.AllEnabled()
+				vocabSet.Disable(vocabulary.ValidationURL)
 				ctx = vocabulary.WithSet(ctx, vocabSet)
 			}
 		}
@@ -1074,7 +1067,7 @@ func (v *unevaluatedItemsValidator) Validate(ctx context.Context, in any) (Resul
 
 	// Create context with accumulated evaluations for base validation
 	newCtx := withEvaluatedResults(ctx, merger.ObjectResult(), merger.ArrayResult())
-	
+
 	// Validate base constraints (including unevaluatedItems) with context from allOf
 	baseResult, err := v.baseValidator.Validate(newCtx, in)
 	if err != nil {
