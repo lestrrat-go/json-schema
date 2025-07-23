@@ -5,9 +5,9 @@ use File::Temp;
 # Accept a list of filenames, and process them
 # if any of them has a diff, commit it
 
-# Use GITHUB_REF, but if the ref is develop/v\d, then use v\d
-my $link_ref = $ENV{GITHUB_REF};
-if ($link_ref =~ /^(?:refs\/heads\/)?develop\/(v\d+)$/) {
+# Use GITHUB_REF, default to main branch
+my $link_ref = $ENV{GITHUB_REF} || 'main';
+if ($link_ref =~ /^(?:refs\/heads\/)?(.+)$/) {
     $link_ref = $1;
 }
 
@@ -73,6 +73,6 @@ if (!$ENV{AUTODOC_DRYRUN}) {
         system("git", "switch", "-c", "autodoc-pr-$ENV{GITHUB_HEAD_REF}") == 0 or die $!;
         system("git", "commit", "-F", $commit_message_file->filename, @files) == 0 or die $!;
         system("git", "push", "origin", "HEAD:autodoc-pr-$ENV{GITHUB_HEAD_REF}") == 0 or die $!;
-        system("gh", "pr", "create", "--base", "develop/$link_ref", "--fill") == 0 or die $!;
+        system("gh", "pr", "create", "--base", "main", "--fill") == 0 or die $!;
     }
 }
