@@ -53,7 +53,7 @@ func lintCommand(_ context.Context, c *cli.Command) error {
 	if filename == "" {
 		return fmt.Errorf("filename is required (use '-' for stdin)")
 	}
-	
+
 	var data []byte
 	var err error
 	var source string
