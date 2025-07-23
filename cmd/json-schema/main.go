@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"go/format"
+	"io"
 	"os"
 	"strings"
 
@@ -50,13 +51,27 @@ func main() {
 func lintCommand(_ context.Context, c *cli.Command) error {
 	filename := c.Args().First()
 	if filename == "" {
-		return fmt.Errorf("filename is required")
+		return fmt.Errorf("filename is required (use '-' for stdin)")
 	}
+	
+	var data []byte
+	var err error
+	var source string
 
-	// Read the schema file
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", filename, err)
+	if filename == "-" {
+		// Read from STDIN
+		data, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
+		source = "stdin"
+	} else {
+		// Read from file
+		data, err = os.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", filename, err)
+		}
+		source = filename
 	}
 
 	// Parse the JSON schema
@@ -71,14 +86,14 @@ func lintCommand(_ context.Context, c *cli.Command) error {
 		return fmt.Errorf("schema validation failed: %w", err)
 	}
 
-	fmt.Printf("Schema %s is valid\n", filename)
+	fmt.Printf("Schema %s is valid\n", source)
 	return nil
 }
 
 func genValidatorCommand(_ context.Context, c *cli.Command) error {
 	filename := c.Args().First()
 	if filename == "" {
-		return fmt.Errorf("filename is required")
+		return fmt.Errorf("filename is required (use '-' for stdin)")
 	}
 
 	validatorName := c.String("name")
@@ -86,10 +101,21 @@ func genValidatorCommand(_ context.Context, c *cli.Command) error {
 		validatorName = "val"
 	}
 
-	// Read the schema file
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", filename, err)
+	var data []byte
+	var err error
+
+	if filename == "-" {
+		// Read from STDIN
+		data, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
+	} else {
+		// Read from file
+		data, err = os.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", filename, err)
+		}
 	}
 
 	// Parse the JSON schema

@@ -1038,7 +1038,7 @@ json-schema lint [filename] # report formatting errors found in schema file [fil
 json-schema gen-validator [filename] # create a pre-compiled validator code from schema file [filename]
 ```
 
-If no filename is given, the schema should be accepted through STDIN
+If filename is the string "-", the schema should be accepted through STDIN
 
 `gen-validator` subcommand should take the following parameters
 
