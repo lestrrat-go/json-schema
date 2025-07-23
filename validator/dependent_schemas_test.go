@@ -222,4 +222,167 @@ func TestDependentSchemas(t *testing.T) {
 		_, err = v.Validate(context.Background(), noDependencyData)
 		require.NoError(t, err)
 	})
+
+	t.Run("debug: incompatible root and dependent schema", func(t *testing.T) {
+		// Test case from JSON Schema compliance test suite
+		jsonSchema := `{
+			"properties": {
+				"foo": {}
+			},
+			"dependentSchemas": {
+				"foo": {
+					"properties": {
+						"bar": {}
+					},
+					"additionalProperties": false
+				}
+			}
+		}`
+
+		var s schema.Schema
+		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+
+		v, err := validator.Compile(context.Background(), &s)
+		require.NoError(t, err)
+
+		// This should FAIL because:
+		// 1. Root allows "foo" property
+		// 2. But dependent schema (triggered by "foo") only allows "bar" property with additionalProperties: false
+		// 3. So "foo" violates the dependent schema's additionalProperties constraint
+		data := map[string]any{"foo": 1}
+		_, err = v.Validate(context.Background(), data)
+		t.Logf("Validation result for {\"foo\": 1}: %v", err)
+		require.Error(t, err, "Should fail because foo violates dependent schema's additionalProperties: false")
+
+		// This should FAIL for the same reason
+		dataBoth := map[string]any{"foo": 1, "bar": 2}
+		_, err = v.Validate(context.Background(), dataBoth)
+		t.Logf("Validation result for {\"foo\": 1, \"bar\": 2}: %v", err)
+		require.Error(t, err, "Should fail because foo violates dependent schema's additionalProperties: false")
+
+		// This should PASS because no "foo" property, so no dependent schema triggered
+		dataBar := map[string]any{"bar": 1}
+		_, err = v.Validate(context.Background(), dataBar)
+		t.Logf("Validation result for {\"bar\": 1}: %v", err)
+		require.NoError(t, err)
+
+		// This should PASS because no dependency triggered
+		dataBaz := map[string]any{"baz": 1}
+		_, err = v.Validate(context.Background(), dataBaz)
+		t.Logf("Validation result for {\"baz\": 1}: %v", err)
+		require.NoError(t, err)
+	})
+
+	t.Run("debug: schema type inference", func(t *testing.T) {
+		// Test case from JSON Schema compliance test suite
+		jsonSchema := `{
+			"properties": {
+				"foo": {}
+			},
+			"dependentSchemas": {
+				"foo": {
+					"properties": {
+						"bar": {}
+					},
+					"additionalProperties": false
+				}
+			}
+		}`
+
+		var s schema.Schema
+		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+
+		// Check what types are defined
+		t.Logf("Schema types: %v", s.Types())
+		t.Logf("Has explicit types: %v", len(s.Types()) > 0)
+		t.Logf("Has properties: %v", s.HasProperties())
+		t.Logf("Has dependent schemas: %v", s.HasDependentSchemas())
+
+		_, err := validator.Compile(context.Background(), &s)
+		require.NoError(t, err)
+
+		// Try to test without the root properties constraint
+		jsonSchemaNoProps := `{
+			"type": "object",
+			"dependentSchemas": {
+				"foo": {
+					"properties": {
+						"bar": {}
+					},
+					"additionalProperties": false
+				}
+			}
+		}`
+
+		var s2 schema.Schema
+		require.NoError(t, s2.UnmarshalJSON([]byte(jsonSchemaNoProps)))
+
+		v2, err := validator.Compile(context.Background(), &s2)
+		require.NoError(t, err)
+
+		// This should FAIL because dependent schema rejects "foo"
+		data := map[string]any{"foo": 1}
+		_, err = v2.Validate(context.Background(), data)
+		t.Logf("Without root properties - validation result for {\"foo\": 1}: %v", err)
+		require.Error(t, err, "Should fail because dependent schema rejects foo")
+	})
+
+	t.Run("isolation: dependent schema alone", func(t *testing.T) {
+		// Test just the dependent schema part
+		dependentSchemaJSON := `{
+			"properties": {
+				"bar": {}
+			},
+			"additionalProperties": false
+		}`
+
+		var depSchema schema.Schema
+		require.NoError(t, depSchema.UnmarshalJSON([]byte(dependentSchemaJSON)))
+
+		v, err := validator.Compile(context.Background(), &depSchema)
+		require.NoError(t, err)
+
+		// This should FAIL - "foo" is not allowed because additionalProperties: false
+		data := map[string]any{"foo": 1}
+		_, err = v.Validate(context.Background(), data)
+		t.Logf("Dependent schema validation result for {\"foo\": 1}: %v", err)
+		require.Error(t, err, "Dependent schema should reject foo")
+
+		// This should PASS - "bar" is allowed
+		dataBar := map[string]any{"bar": 1}
+		_, err = v.Validate(context.Background(), dataBar)
+		t.Logf("Dependent schema validation result for {\"bar\": 1}: %v", err)
+		require.NoError(t, err)
+	})
+
+	t.Run("isolation: direct dependent schemas validator", func(t *testing.T) {
+		// Test the DependentSchemasValidator directly
+		dependentSchemaJSON := `{
+			"properties": {
+				"bar": {}
+			},
+			"additionalProperties": false
+		}`
+
+		var depSchema schema.Schema
+		require.NoError(t, depSchema.UnmarshalJSON([]byte(dependentSchemaJSON)))
+
+		ctx := context.Background()
+		depSchemas := map[string]*schema.Schema{"foo": &depSchema}
+
+		depValidator, err := validator.DependentSchemasValidator(ctx, depSchemas)
+		require.NoError(t, err)
+
+		// This should FAIL - when "foo" is present, dependent schema rejects it
+		data := map[string]any{"foo": 1}
+		_, err = depValidator.Validate(context.Background(), data)
+		t.Logf("DependentSchemasValidator result for {\"foo\": 1}: %v", err)
+		require.Error(t, err, "Should fail because dependent schema is triggered and rejects foo")
+
+		// This should PASS - no "foo" property, so no dependent schema triggered
+		dataBar := map[string]any{"bar": 1}
+		_, err = depValidator.Validate(context.Background(), dataBar)
+		t.Logf("DependentSchemasValidator result for {\"bar\": 1}: %v", err)
+		require.NoError(t, err)
+	})
 }
