@@ -68,6 +68,6 @@ const (
 
 	// Legacy keywords for backward compatibility
 	// These keywords were deprecated in JSON Schema 2020-12 but may still appear in older schemas
-	RecursiveAnchor       = "$recursiveAnchor" // Deprecated: use $dynamicAnchor instead
-	RecursiveRef          = "$recursiveRef"    // Deprecated: use $dynamicRef instead
+	RecursiveAnchor = "$recursiveAnchor" // Deprecated: use $dynamicAnchor instead
+	RecursiveRef    = "$recursiveRef"    // Deprecated: use $dynamicRef instead
 )

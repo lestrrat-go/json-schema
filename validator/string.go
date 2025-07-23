@@ -45,23 +45,23 @@ type stringValidator struct {
 
 func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) {
 	logger := TraceSlogFromContext(ctx)
-	logger.Info("string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
+	logger.InfoContext(ctx, "string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
 	rv := reflect.ValueOf(in)
 
 	switch rv.Kind() {
 	case reflect.String:
-		logger.Info("string validator processing string value")
+		logger.InfoContext(ctx, "string validator processing string value")
 		// Continue with string validation
 	default:
 		// Handle non-string values based on whether this is strict string type validation
 		if v.strictStringType {
 			// When schema explicitly declares type: string, non-string values should fail
-			logger.Info("string validator rejecting non-string for strict type", "strict", true)
+			logger.InfoContext(ctx, "string validator rejecting non-string for strict type", "strict", true)
 			return nil, fmt.Errorf(`invalid value passed to StringValidator: expected string, got %T`, in)
 		}
 		// For non-string values with inferred string type, string constraints don't apply
 		// According to JSON Schema spec, string constraints should be ignored for non-strings
-		logger.Info("string validator skipping non-string for inferred type", "strict", false)
+		logger.InfoContext(ctx, "string validator skipping non-string for inferred type", "strict", false)
 		//nolint: nilnil
 		return nil, nil
 	}
@@ -70,7 +70,7 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 	// Count Unicode rune length instead of byte length to better handle Unicode text
 	// This is closer to the JSON Schema spec's requirement for grapheme clusters
 	l := uint(utf8.RuneCountInString(str))
-	logger.Info("string validator checking constraints", "length", l, "value_preview", truncateString(str, 50))
+	logger.InfoContext(ctx, "string validator checking constraints", "length", l, "value_preview", truncateString(str, 50))
 
 	if v.constantValue != nil {
 		if err := validateConst(ctx, str, v.constantValue); err != nil {
@@ -79,21 +79,21 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 	}
 
 	if ml := v.minLength; ml != nil {
-		logger.Info("string validator checking minLength", "minLength", *ml, "actual", l)
+		logger.InfoContext(ctx, "string validator checking minLength", "minLength", *ml, "actual", l)
 		if l < *ml {
 			return nil, fmt.Errorf(`invalid value passed to StringValidator: string length (%d) shorter then minLength (%d)`, l, *ml)
 		}
 	}
 
 	if ml := v.maxLength; ml != nil {
-		logger.Info("string validator checking maxLength", "maxLength", *ml, "actual", l)
+		logger.InfoContext(ctx, "string validator checking maxLength", "maxLength", *ml, "actual", l)
 		if l > *ml {
 			return nil, fmt.Errorf(`invalid value passed to StringValidator: string length (%d) longer then maxLength (%d)`, l, *ml)
 		}
 	}
 
 	if pat := v.pattern; pat != nil {
-		logger.Info("string validator checking pattern", "pattern", pat.String())
+		logger.InfoContext(ctx, "string validator checking pattern", "pattern", pat.String())
 		if !pat.MatchString(str) {
 			return nil, fmt.Errorf(`invalid value passed to StringValidator: string did not match pattern %s`, pat.String())
 		}
@@ -106,7 +106,7 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 	}
 
 	if format := v.format; format != nil {
-		logger.Info("string validator checking format", "format", *format, "value", str)
+		logger.InfoContext(ctx, "string validator checking format", "format", *format, "value", str)
 		if err := validateFormat(str, *format); err != nil {
 			return nil, fmt.Errorf(`invalid value passed to StringValidator: %w`, err)
 		}

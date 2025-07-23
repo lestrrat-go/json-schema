@@ -76,8 +76,8 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 
 func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
 	logger := TraceSlogFromContext(ctx)
-	logger.Info("boolean validator starting", "value", v, "type", fmt.Sprintf("%T", v))
-	
+	logger.InfoContext(ctx, "boolean validator starting", "value", v, "type", fmt.Sprintf("%T", v))
+
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr, reflect.Interface:
@@ -87,7 +87,7 @@ func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) 
 	switch rv.Kind() {
 	case reflect.Bool:
 		boolVal := rv.Bool()
-		logger.Info("boolean validator processing boolean value", "value", boolVal)
+		logger.InfoContext(ctx, "boolean validator processing boolean value", "value", boolVal)
 
 		// Check const constraint
 		if c.constantValue != nil {
@@ -106,7 +106,7 @@ func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) 
 		//nolint: nilnil
 		return nil, nil
 	default:
-		logger.Info("boolean validator rejecting non-boolean", "type", fmt.Sprintf("%T", v))
+		logger.InfoContext(ctx, "boolean validator rejecting non-boolean", "type", fmt.Sprintf("%T", v))
 		return nil, fmt.Errorf(`invalid value passed to BooleanValidator: expected boolean, got %T`, v)
 	}
 }

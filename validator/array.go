@@ -332,6 +332,8 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Note: Items beyond prefixItems that are not validated by items remain unevaluated
 
 		// Validate contains constraint and track evaluation
+		// According to JSON Schema spec, minContains and maxContains are ignored when contains is not present
+		// No validation needed when contains schema is absent
 		if c.contains != nil {
 			containsCount := uint(0)
 			for i := range rv.Len() {
@@ -358,9 +360,6 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			if c.maxContains != nil && containsCount > *c.maxContains {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: maximum contains constraint failed: found %d, expected at most %d`, containsCount, *c.maxContains)
 			}
-		} else {
-			// According to JSON Schema spec, minContains and maxContains are ignored when contains is not present
-			// No validation needed when contains schema is absent
 		}
 
 		// Validate additionalItems for items beyond the defined items schema
@@ -384,14 +383,14 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		if c.unevaluatedItems != nil {
 			// Get evaluated items from context (from previous validators) AND current result
 			contextEvaluated := evaluatedItems.Values() // From previous validators
-			currentEvaluated := result.EvaluatedItems()  // From current validator
-			
+			currentEvaluated := result.EvaluatedItems() // From current validator
+
 			// Merge context and current evaluations
 			maxLen := len(contextEvaluated)
 			if len(currentEvaluated) > maxLen {
 				maxLen = len(currentEvaluated)
 			}
-			
+
 			mergedEvaluated := make([]bool, maxLen)
 			for i := 0; i < maxLen; i++ {
 				var contextVal, currentVal bool

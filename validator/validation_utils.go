@@ -195,7 +195,7 @@ func executeValidatorsWithContextFlow(ctx context.Context, validators []Interfac
 		if err != nil {
 			return nil, fmt.Errorf(`validator #%d failed: %w`, i, err)
 		}
-		
+
 		merger.mergeResult(result)
 	}
 

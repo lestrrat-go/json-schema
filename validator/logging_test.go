@@ -51,8 +51,8 @@ func TestLoggingIntegration(t *testing.T) {
 		require.NotNil(t, retrievedLogger, "should return no-op logger when no trace logger in context")
 
 		// The no-op logger should be usable (won't panic)
-		retrievedLogger.Debug("test message - this should be discarded")
-		retrievedLogger.Info("test info - this should be discarded")
+		retrievedLogger.DebugContext(ctx, "test message - this should be discarded")
+		retrievedLogger.InfoContext(ctx, "test info - this should be discarded")
 
 		// Validation should still work
 		_, err := v.Validate(ctx, "hello")
@@ -63,14 +63,14 @@ func TestLoggingIntegration(t *testing.T) {
 		// Test that the no-op logger can be used safely without panics
 		ctx := context.Background()
 		noopLogger := validator.TraceSlogFromContext(ctx)
-		
+
 		// These should not panic or cause issues
-		noopLogger.Debug("debug message")
-		noopLogger.Info("info message")
-		noopLogger.Warn("warn message")
-		noopLogger.Error("error message")
-		
+		noopLogger.DebugContext(ctx, "debug message")
+		noopLogger.InfoContext(ctx, "info message")
+		noopLogger.WarnContext(ctx, "warn message")
+		noopLogger.ErrorContext(ctx, "error message")
+
 		// Test with context values
-		noopLogger.With("key", "value").Info("message with context")
+		noopLogger.With("key", "value").InfoContext(ctx, "message with context")
 	})
 }

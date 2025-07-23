@@ -9,7 +9,7 @@ import (
 // validateConst checks if a value exactly matches the expected constant value
 func validateConst(ctx context.Context, value any, constValue any) error {
 	logger := TraceSlogFromContext(ctx)
-	logger.Info("validating const constraint", "expected", constValue, "actual", value)
+	logger.InfoContext(ctx, "validating const constraint", "expected", constValue, "actual", value)
 
 	if !reflect.DeepEqual(value, constValue) {
 		return fmt.Errorf(`must be const value %v`, constValue)
@@ -20,7 +20,7 @@ func validateConst(ctx context.Context, value any, constValue any) error {
 // validateEnum checks if a value is found in the allowed enum values
 func validateEnum(ctx context.Context, value any, enumValues []any) error {
 	logger := TraceSlogFromContext(ctx)
-	logger.Info("validating enum constraint", "allowed_values", enumValues, "actual", value)
+	logger.InfoContext(ctx, "validating enum constraint", "allowed_values", enumValues, "actual", value)
 
 	for _, enumVal := range enumValues {
 		if reflect.DeepEqual(value, enumVal) {
