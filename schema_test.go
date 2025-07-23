@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestPrimitiveType(t *testing.T) {
 	t.Parallel()
 	testcases := []struct {

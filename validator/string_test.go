@@ -960,4 +960,3 @@ func TestCommonPatterns(t *testing.T) {
 		})
 	}
 }
-
