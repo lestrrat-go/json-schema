@@ -392,7 +392,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			}
 
 			mergedEvaluated := make([]bool, maxLen)
-			for i := 0; i < maxLen; i++ {
+			for i := range maxLen {
 				var contextVal, currentVal bool
 				if i < len(contextEvaluated) {
 					contextVal = contextEvaluated[i]

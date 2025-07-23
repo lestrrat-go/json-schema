@@ -110,7 +110,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "ObjectWithPatternPropertiesValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				// Create pattern validators
 				stringValidator := String().MinLength(1).MustBuild()
 				numValidator := Integer().Minimum(0).MustBuild()
@@ -139,7 +139,7 @@ func TestCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "ComplexArrayValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				// Create an array validator with all complex features
 				itemsValidator := String().MinLength(1).MustBuild()
 				containsValidator := String().Pattern("test").MustBuild()
@@ -317,7 +317,7 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 type unsupportedValidator struct{}
 
 func (v *unsupportedValidator) Validate(_ context.Context, _ any) (Result, error) {
-	return nil, nil
+	return NewArrayResult(), nil
 }
 
 func TestUnsupportedValidatorType(t *testing.T) {
@@ -342,7 +342,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 	}{
 		{
 			name: "IfThenElseValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				ifValidator := String().MinLength(1).MustBuild()
 				thenValidator := String().MaxLength(10).MustBuild()
 				elseValidator := String().MaxLength(5).MustBuild()
@@ -363,7 +363,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "UnevaluatedPropertiesCompositionValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				allOfValidator := String().MinLength(1).MustBuild()
 				baseValidator := String().MaxLength(10).MustBuild()
 				return &unevaluatedPropertiesValidator{
@@ -381,7 +381,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "AnyOfUnevaluatedPropertiesCompositionValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				anyOfValidator := String().MinLength(1).MustBuild()
 				baseValidator := String().MaxLength(10).MustBuild()
 				return &AnyOfUnevaluatedPropertiesCompositionValidator{
@@ -399,7 +399,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "OneOfUnevaluatedPropertiesCompositionValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				oneOfValidator := String().MinLength(1).MustBuild()
 				baseValidator := String().MaxLength(10).MustBuild()
 				return &OneOfUnevaluatedPropertiesCompositionValidator{
@@ -417,7 +417,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "RefUnevaluatedPropertiesCompositionValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				refValidator := String().MinLength(1).MustBuild()
 				baseValidator := String().MaxLength(10).MustBuild()
 				return &RefUnevaluatedPropertiesCompositionValidator{
@@ -435,7 +435,7 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 		},
 		{
 			name: "IfThenElseUnevaluatedPropertiesCompositionValidator",
-			createValidator: func(t *testing.T) Interface {
+			createValidator: func(_ *testing.T) Interface {
 				ifValidator := String().MinLength(1).MustBuild()
 				thenValidator := String().MaxLength(10).MustBuild()
 				elseValidator := String().MaxLength(5).MustBuild()
@@ -514,7 +514,7 @@ func BenchmarkCodeGeneration(b *testing.B) {
 	generator := NewCodeGenerator()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var buf strings.Builder
 		err := generator.Generate(&buf, validator)
 		if err != nil {
@@ -531,14 +531,14 @@ func BenchmarkComplexValidatorGeneration(b *testing.B) {
 	v3 := Array().MaxItems(10).MustBuild()
 
 	nestedMulti := AnyOf(v2, v3)
-	complex := AllOf(v1, nestedMulti)
+	complexValidator := AllOf(v1, nestedMulti)
 
 	generator := NewCodeGenerator()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var buf strings.Builder
-		err := generator.Generate(&buf, complex)
+		err := generator.Generate(&buf, complexValidator)
 		if err != nil {
 			b.Fatal(err)
 		}

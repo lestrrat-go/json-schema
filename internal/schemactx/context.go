@@ -3,7 +3,6 @@ package schemactx
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 
 	"github.com/lestrrat-go/blackmagic"
@@ -285,5 +284,5 @@ func TraceSlogFromContext(ctx context.Context) *slog.Logger {
 		}
 	}
 	// Return no-op logger that discards all output
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }

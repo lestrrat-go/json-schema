@@ -59,7 +59,7 @@ func TestLoggingIntegration(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("no-op logger behavior", func(t *testing.T) {
+	t.Run("no-op logger behavior", func(_ *testing.T) {
 		// Test that the no-op logger can be used safely without panics
 		ctx := context.Background()
 		noopLogger := validator.TraceSlogFromContext(ctx)

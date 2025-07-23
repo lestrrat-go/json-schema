@@ -3,6 +3,7 @@ package examples_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/lestrrat-go/json-schema/meta"
@@ -41,14 +42,14 @@ func TestMetaSchemaValidation(t *testing.T) {
 			description: "A complex valid JSON Schema with object properties",
 		},
 		{
-			name: "ValidBooleanSchema",
-			schema: `true`,
+			name:        "ValidBooleanSchema",
+			schema:      `true`,
 			shouldPass:  true,
 			description: "A boolean schema (true means accept everything)",
 		},
 		{
-			name: "ValidFalseBooleanSchema",
-			schema: `false`,
+			name:        "ValidFalseBooleanSchema",
+			schema:      `false`,
 			shouldPass:  true,
 			description: "A boolean schema (false means reject everything)",
 		},
@@ -64,14 +65,14 @@ func TestMetaSchemaValidation(t *testing.T) {
 			description: "A valid array schema",
 		},
 		{
-			name: "InvalidNonObjectNonBoolean",
-			schema: `"not a schema"`,
+			name:        "InvalidNonObjectNonBoolean",
+			schema:      `"not a schema"`,
 			shouldPass:  false,
 			description: "A string is not a valid JSON Schema",
 		},
 		{
-			name: "InvalidNumber",
-			schema: `123`,
+			name:        "InvalidNumber",
+			schema:      `123`,
 			shouldPass:  false,
 			description: "A number is not a valid JSON Schema",
 		},
@@ -163,7 +164,9 @@ func ExampleValidator() {
 	}
 
 	// Schema is valid!
+	fmt.Println("Schema is valid")
 	// Output:
+	// Schema is valid
 }
 
 func ExampleValidate() {
@@ -186,5 +189,7 @@ func ExampleValidate() {
 	}
 
 	// Schema is valid!
+	fmt.Println("Object schema is valid")
 	// Output:
+	// Object schema is valid
 }

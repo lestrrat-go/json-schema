@@ -68,7 +68,6 @@ func (rm *resultMerger) FinalResult() Result {
 		return rm.arrayResult
 	}
 
-	//nolint:nilnil
 	return nil
 }
 
@@ -184,14 +183,15 @@ func executeValidatorsWithContextFlow(ctx context.Context, validators []Interfac
 
 	for i, validator := range validators {
 		// Update context with accumulated array results for context flow
+		validationCtx := currentCtx
 		if merger.ArrayResult() != nil {
 			evalItems := merger.ArrayResult().EvaluatedItems()
 			if len(evalItems) > 0 {
-				currentCtx = withEvaluatedItems(currentCtx, evalItems)
+				validationCtx = withEvaluatedItems(currentCtx, evalItems)
 			}
 		}
 
-		result, err := validator.Validate(currentCtx, input)
+		result, err := validator.Validate(validationCtx, input)
 		if err != nil {
 			return nil, fmt.Errorf(`validator #%d failed: %w`, i, err)
 		}

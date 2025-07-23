@@ -156,8 +156,7 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 	case *IfThenElseUnevaluatedPropertiesCompositionValidator:
 		return g.generateIfThenElseUnevaluatedPropertiesComposition(dst, validator)
 	default:
-		// Debug: Print what unsupported validator type we encountered
-		fmt.Printf("GENERATOR DEBUG: Unsupported validator type: %T, falling back to EmptyValidator\n", v)
+		// Unsupported validator type, falling back to EmptyValidator
 		o.R("&validator.EmptyValidator{}")
 		return nil
 	}

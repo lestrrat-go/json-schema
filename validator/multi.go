@@ -280,6 +280,7 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 		// Each cousin validator should be validated independently
 		// without seeing evaluated properties from other cousins
 		// Only pass the original previousResult context, not accumulated cousin results
+		validationCtx := ctx
 		if _, ok := subValidator.(*objectValidator); ok {
 			var previouslyEvaluated map[string]bool
 			if previousResult != nil {
@@ -300,10 +301,10 @@ func (v *AnyOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 					}
 				}
 
-				ctx = schemactx.WithEvaluationContext(ctx, ec)
+				validationCtx = schemactx.WithEvaluationContext(ctx, ec)
 			}
 		}
-		result, err := subValidator.Validate(ctx, in)
+		result, err := subValidator.Validate(validationCtx, in)
 		if err != nil {
 			return nil, fmt.Errorf(`allOf validation failed: validator #%d failed: %w`, i, err)
 		}
@@ -473,6 +474,7 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 			if previousResult != nil {
 				previouslyEvaluated = previousResult.EvaluatedProperties()
 			}
+			validationCtx := ctx
 			if len(previouslyEvaluated) > 0 {
 				// Get existing evaluation context or create a new one
 				var ec *schemactx.EvaluationContext
@@ -488,9 +490,9 @@ func (v *OneOfUnevaluatedPropertiesCompositionValidator) validateMultiValidatorW
 					}
 				}
 
-				ctx = schemactx.WithEvaluationContext(ctx, ec)
+				validationCtx = schemactx.WithEvaluationContext(ctx, ec)
 			}
-			result, err = objValidator.Validate(ctx, in)
+			result, err = objValidator.Validate(validationCtx, in)
 		} else {
 			result, err = subValidator.Validate(ctx, in)
 		}

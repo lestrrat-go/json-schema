@@ -142,21 +142,21 @@ func init() {
 }
 
 // GetKeywords returns the keywords for a vocabulary URI
-func (vr *Registry) GetKeywords(vocabularyURI string) []string {
-	if vr == nil || vr.vocabularies == nil {
+func (r *Registry) GetKeywords(vocabularyURI string) []string {
+	if r == nil || r.vocabularies == nil {
 		return nil
 	}
-	return vr.vocabularies[vocabularyURI].Keywords()
+	return r.vocabularies[vocabularyURI].Keywords()
 }
 
 // IsKeywordInVocabulary checks if a keyword belongs to a vocabulary
-func (vr *Registry) IsKeywordInVocabulary(vocabularyURI string, keyword string) bool {
-	return vr.Get(vocabularyURI).KeywordExists(keyword)
+func (r *Registry) IsKeywordInVocabulary(vocabularyURI string, keyword string) bool {
+	return r.Get(vocabularyURI).KeywordExists(keyword)
 }
 
 // GetVocabularyForKeyword returns the vocabulary URI that contains the given keyword
-func (vr *Registry) GetVocabularyForKeyword(keyword string) string {
-	for vocabURI, set := range vr.vocabularies {
+func (r *Registry) GetVocabularyForKeyword(keyword string) string {
+	for vocabURI, set := range r.vocabularies {
 		if set.KeywordExists(keyword) {
 			return vocabURI
 		}
@@ -166,7 +166,7 @@ func (vr *Registry) GetVocabularyForKeyword(keyword string) string {
 
 // VocabularySet represents a set of enabled vocabularies using Set2 objects
 // This replaces the old Set map[string]bool approach with a structured approach
-type VocabularySet struct {
+type VocabularySet struct { //nolint:revive // VocabularySet name is used to maintain API compatibility
 	mu           sync.RWMutex
 	enabled      map[string]bool  // vocabulary URI -> enabled status
 	vocabularies map[string]*Set2 // vocabulary URI -> Set2 object (for keyword lookup)

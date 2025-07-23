@@ -103,7 +103,7 @@ func resolveStructField(obj any, fieldName string) (any, error) {
 	rt := rv.Type()
 
 	// First, try to find field by JSON tag
-	for i := 0; i < rt.NumField(); i++ {
+	for i := range rt.NumField() {
 		field := rt.Field(i)
 
 		// Skip unexported fields

@@ -35,7 +35,6 @@ func Enum(values ...any) *Builder {
 	return NewBuilder().Enum(values...)
 }
 
-
 // OneOf creates a Builder for oneOf validation with the given schemas
 func OneOf(schemas ...*Schema) *Builder {
 	schemaOrBools := make([]SchemaOrBool, len(schemas))
