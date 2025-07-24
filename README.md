@@ -85,12 +85,27 @@ source: [examples/json_schema_readme_example_test.go](https://github.com/lestrra
 
 # Command Line Tool
 
-The `json-schema` command line tool provides schema validation and code generation:
+The `json-schema` command line tool provides schema validation and code generation.
+
+## Install the Command Line Tool
 
 ```bash
-# Install the tool
 go install github.com/lestrrat-go/json-schema/cmd/json-schema@latest
+```
 
+## Install as a Go Module
+
+```bash
+go get github.com/lestrrat-go/json-schema
+```
+
+# Command Line Tool
+
+The `json-schema` command line tool provides schema validation and code generation:
+
+## Basic Usage
+
+```bash
 # Validate a schema file
 json-schema lint schema.json
 
@@ -100,6 +115,57 @@ json-schema gen-validator --name UserValidator schema.json
 # Read from stdin
 echo '{"type": "string"}' | json-schema lint -
 ```
+
+## Complete Example
+
+Given a JSON schema file `user-schema.json`:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "User",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 150
+    }
+  },
+  "required": ["name", "email"],
+  "additionalProperties": false
+}
+```
+
+Generate a Go validator:
+
+```bash
+json-schema gen-validator --name UserValidator user-schema.json
+```
+
+Output:
+```go
+UserValidator := validator.Object().
+	Required("name", "email").
+	Properties(
+		validator.PropPair("age", validator.Integer().Minimum(0).Maximum(150).MustBuild()),
+		validator.PropPair("email", validator.String().MustBuild()),
+		validator.PropPair("name", validator.String().MinLength(1).MustBuild()),
+	).
+	AdditionalProperties(false).
+	StrictObjectType(true).
+	MustBuild()
+```
+
+This generated validator can be directly used in your Go code for high-performance validation.
 
 # How-to Documentation
 
