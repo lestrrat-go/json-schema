@@ -72,7 +72,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				} else {
 					// contains: false - no items should match, so any non-empty array is invalid
 					// We'll create a validator that always fails
-					v.Contains(&alwaysFailValidator{})
+					v.Contains(&NotValidator{validator: &EmptyValidator{}})
 				}
 			case *schema.Schema:
 				// Regular schema object
@@ -448,9 +448,3 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 	}
 }
 
-// alwaysFailValidator is a validator that always fails (used for contains: false)
-type alwaysFailValidator struct{}
-
-func (v *alwaysFailValidator) Validate(_ context.Context, _ any) (Result, error) {
-	return nil, fmt.Errorf("contains: false schema always fails")
-}

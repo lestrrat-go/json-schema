@@ -652,13 +652,6 @@ func (g *codeGenerator) generateNull(dst io.Writer) error {
 }
 
 
-func (g *codeGenerator) generateAlwaysFail(dst io.Writer) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-	o.R("&validator.NotValidator{validator: &validator.EmptyValidator{}}")
-	_, err := buf.WriteTo(dst)
-	return err
-}
 
 func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer, v *unevaluatedPropertiesValidator) error {
 	var buf bytes.Buffer

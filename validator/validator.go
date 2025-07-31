@@ -708,7 +708,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 				if bool(val) {
 					compiledDependentSchemas[propertyName] = &EmptyValidator{}
 				} else {
-					compiledDependentSchemas[propertyName] = &alwaysFailValidator{}
+					compiledDependentSchemas[propertyName] = &NotValidator{validator: &EmptyValidator{}}
 				}
 			case *schema.Schema:
 				// Regular schema object
