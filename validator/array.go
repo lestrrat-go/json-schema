@@ -68,7 +68,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				if bool(val) {
 					// contains: true - any item matches, so any non-empty array is valid
 					// We'll create a validator that always passes
-					v.Contains(&alwaysPassValidator{})
+					v.Contains(&EmptyValidator{})
 				} else {
 					// contains: false - no items should match, so any non-empty array is invalid
 					// We'll create a validator that always fails
@@ -446,14 +446,6 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		//nolint: nilnil
 		return nil, nil
 	}
-}
-
-// alwaysPassValidator is a validator that always passes (used for contains: true)
-type alwaysPassValidator struct{}
-
-func (v *alwaysPassValidator) Validate(_ context.Context, _ any) (Result, error) {
-	//nolint: nilnil
-	return nil, nil
 }
 
 // alwaysFailValidator is a validator that always fails (used for contains: false)

@@ -706,7 +706,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			case schema.BoolSchema:
 				// Boolean schema: true means always valid, false means always invalid
 				if bool(val) {
-					compiledDependentSchemas[propertyName] = &alwaysPassValidator{}
+					compiledDependentSchemas[propertyName] = &EmptyValidator{}
 				} else {
 					compiledDependentSchemas[propertyName] = &alwaysFailValidator{}
 				}

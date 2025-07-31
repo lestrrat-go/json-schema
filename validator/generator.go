@@ -651,13 +651,6 @@ func (g *codeGenerator) generateNull(dst io.Writer) error {
 	return err
 }
 
-func (g *codeGenerator) generateAlwaysPass(dst io.Writer) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
-	_, err := buf.WriteTo(dst)
-	return err
-}
 
 func (g *codeGenerator) generateAlwaysFail(dst io.Writer) error {
 	var buf bytes.Buffer
