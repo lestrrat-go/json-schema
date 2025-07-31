@@ -357,15 +357,12 @@ func TestSpecificationCompliance(t *testing.T) {
 
 	// Resolve the symlink to get the actual directory
 	resolvedDir, err := filepath.EvalSymlinks(testDir)
-	if err != nil {
-		t.Fatalf("Failed to resolve symlink %s: %v", testDir, err)
-	}
+	require.NoError(t, err, "Failed to resolve symlink %s", testDir)
 	testDir = resolvedDir
 
 	// Check if test directory exists
-	if _, err := os.Stat(testDir); os.IsNotExist(err) {
-		t.Fatalf("Test directory %s does not exist. Make sure TestMain ran successfully.", testDir)
-	}
+	_, err = os.Stat(testDir)
+	require.False(t, os.IsNotExist(err), "Test directory %s does not exist. Make sure TestMain ran successfully.", testDir)
 
 	// Read all test files
 	err = filepath.Walk(testDir, func(path string, info os.FileInfo, err error) error {

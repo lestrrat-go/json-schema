@@ -488,7 +488,7 @@ func TestObjectValidatorComprehensive(t *testing.T) {
 					addProps = v
 				default:
 					// This shouldn't happen with our test data
-					t.Fatalf("unexpected additionalProperties type: %T", tc.additionalProperties)
+					require.Failf(t, "unexpected additionalProperties type", "type: %T", tc.additionalProperties)
 				}
 				builder = builder.AdditionalProperties(addProps)
 

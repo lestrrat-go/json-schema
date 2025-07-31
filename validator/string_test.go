@@ -939,24 +939,18 @@ func TestCommonPatterns(t *testing.T) {
 			ctx := context.Background()
 			ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
 			v, err := validator.Compile(ctx, schemaObj)
-			if err != nil {
-				t.Fatalf("Failed to compile validator: %v", err)
-			}
+			require.NoError(t, err, "Failed to compile validator")
 
 			// Test valid cases
 			for _, validValue := range tc.valid {
 				_, err := v.Validate(context.Background(), validValue)
-				if err != nil {
-					t.Errorf("Expected %v to be valid, got error: %v", validValue, err)
-				}
+				require.NoError(t, err, "Expected %v to be valid", validValue)
 			}
 
 			// Test invalid cases
 			for _, invalidValue := range tc.invalid {
 				_, err := v.Validate(context.Background(), invalidValue)
-				if err == nil {
-					t.Errorf("Expected %v to be invalid, but validation passed", invalidValue)
-				}
+				require.Error(t, err, "Expected %v to be invalid", invalidValue)
 			}
 		})
 	}
