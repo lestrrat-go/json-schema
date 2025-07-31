@@ -361,13 +361,12 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			}
 		}
 
-		// Validate additionalItems for items beyond the defined items schema
+		// Validate additionalItems for items beyond prefixItems
 		if c.additionalItems != nil {
-			for i := range rv.Len() {
-				// For now, assuming items is a single schema that applies to all items
-				// If items is nil or the item hasn't been evaluated yet, additionalItems applies
+			// additionalItems only applies to indices beyond prefixItems
+			for i := prefixItemsCount; i < arrayLength; i++ {
+				// Only apply additionalItems if this item wasn't handled by items schema
 				if c.items == nil {
-					// If no items schema, additionalItems applies to all items
 					item := rv.Index(i).Interface()
 					_, err := c.additionalItems.Validate(ctx, item)
 					if err != nil {
