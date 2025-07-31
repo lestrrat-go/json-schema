@@ -16,12 +16,6 @@ import (
 // Test JSON Schema 2020-12 Core Specification Compliance
 func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 	t.Parallel()
-	t.Run("Schema Version Declaration", func(t *testing.T) {
-		t.Parallel()
-		// Test that schemas declare the correct version
-		s := schema.New()
-		require.Equal(t, schema.Version, s.Schema(), "Schema should declare 2020-12 version")
-	})
 
 	t.Run("Schema ID and Identification", func(t *testing.T) {
 		t.Parallel()

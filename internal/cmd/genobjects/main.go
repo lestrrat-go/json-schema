@@ -33,8 +33,7 @@ func isNilZeroType(field codegen.Field) bool {
 		strings.HasPrefix(typ, "[]") ||
 		strings.HasPrefix(typ, "map[") ||
 		typ == "PrimitiveTypes" ||
-		typ == "SchemaOrBool" ||
-		field.Name(false) == "schema"
+		typ == "SchemaOrBool"
 }
 
 func isVariadicSliceType(field codegen.Field) bool {
@@ -129,14 +128,11 @@ func genObject(obj *codegen.Object) error {
 	o.L("type FieldFlag = field.Flag")
 	o.LL("const (")
 	for _, field := range obj.Fields() {
-		if field.Name(false) != "schema" { // Skip schema field as it's always set
-			o.L("%sField = field.%s", field.Name(true), field.Name(true))
-		}
+		o.L("%sField = field.%s", field.Name(true), field.Name(true))
 	}
 	o.L(")")
 
 	o.LL("type Schema struct {")
-	o.L(`isRoot bool`)
 	o.L(`populatedFields field.Flag`)
 	for _, field := range obj.Fields() {
 		typ := field.Type()
@@ -149,7 +145,6 @@ func genObject(obj *codegen.Object) error {
 
 	o.LL(`func New() *Schema {`)
 	o.L(`return &Schema{`)
-	o.L(`schema: Version,`)
 	o.L(`}`)
 	o.L(`}`)
 
@@ -168,11 +163,9 @@ func genObject(obj *codegen.Object) error {
 	o.L("}")
 
 	for _, field := range obj.Fields() {
-		if field.Name(false) != `schema` {
-			o.LL("func (s *Schema) Has%s() bool {", field.Name(true))
-			o.L("return s.populatedFields&%sField != 0", field.Name(true))
-			o.L("}")
-		}
+		o.LL("func (s *Schema) Has%s() bool {", field.Name(true))
+		o.L("return s.populatedFields&%sField != 0", field.Name(true))
+		o.L("}")
 		o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
 		o.L("return ")
 		if !isNilZeroType(field) && !isInterfaceField(field) {
@@ -200,30 +193,22 @@ func genObject(obj *codegen.Object) error {
 	o.L(`Value any`)
 	o.L(`}`)
 	o.LL(`func (s *Schema) MarshalJSON() ([]byte, error) {`)
-	o.L(`s.isRoot = true`)
-	o.L(`defer func() { s.isRoot = false }()`)
 	o.L(`fields := make([]pair, 0, %d)`, len(obj.Fields()))
 	for _, field := range obj.Fields() {
-		if field.Name(false) == `schema` {
-			o.L(`if v := s.%s; s.isRoot && v != "" {`, field.Name(false))
-			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: v})`, field.Name(true))
-			o.L(`}`)
-		} else {
-			o.L(`if s.Has%s() {`, field.Name(true))
-			constName := field.Name(true)
-			switch constName {
-			case "Types":
-				constName = "Type"
-			case "IfSchema", "ThenSchema", "ElseSchema":
-				constName = strings.TrimSuffix(constName, "Schema")
-			}
-			if !isNilZeroType(field) && !isInterfaceField(field) {
-				o.L(`fields = append(fields, pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
-			} else {
-				o.L(`fields = append(fields, pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
-			}
-			o.L(`}`)
+		o.L(`if s.Has%s() {`, field.Name(true))
+		constName := field.Name(true)
+		switch constName {
+		case "Types":
+			constName = "Type"
+		case "IfSchema", "ThenSchema", "ElseSchema":
+			constName = strings.TrimSuffix(constName, "Schema")
 		}
+		if !isNilZeroType(field) && !isInterfaceField(field) {
+			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
+		} else {
+			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
+		}
+		o.L(`}`)
 	}
 	o.L(`sort.Slice(fields, func(i, j int) bool {`)
 	o.L(`return compareFieldNames(fields[i].Name, fields[j].Name)`)
@@ -296,9 +281,7 @@ func genObject(obj *codegen.Object) error {
 				o.L("return fmt.Errorf(`json-schema: failed to decode value for field %q (attempting to unmarshal as Schema after bool failed): %%w`, err)", field.JSON())
 				o.L("}")
 				o.L("}")
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			} else if field.Type() == "[]SchemaOrBool" {
 				// Special handling for []SchemaOrBool fields - use token-based parsing
 				o.L("v, err := unmarshalSchemaOrBoolSlice(dec)")
@@ -306,9 +289,7 @@ func genObject(obj *codegen.Object) error {
 				o.L("return fmt.Errorf(`json-schema: failed to decode value for field %q (attempting to unmarshal as []SchemaOrBool slice): %%w`, err)", field.JSON())
 				o.L("}")
 				o.L("s.%s = v", field.Name(false))
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			} else if field.Type() == "map[string]SchemaOrBool" {
 				// Special handling for map[string]SchemaOrBool fields - use token-based parsing
 				o.L("v, err := unmarshalSchemaOrBoolMap(dec)")
@@ -316,9 +297,7 @@ func genObject(obj *codegen.Object) error {
 				o.L("return fmt.Errorf(`json-schema: failed to decode value for field %q (attempting to unmarshal as map[string]SchemaOrBool): %%w`, err)", field.JSON())
 				o.L("}")
 				o.L("s.%s = v", field.Name(false))
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			} else if field.Type() == "SchemaOrBool" {
 				// Special handling for SchemaOrBool fields - decode as raw JSON values
 				o.L("var v %s", field.Type())
@@ -326,9 +305,7 @@ func genObject(obj *codegen.Object) error {
 				o.L("return fmt.Errorf(`json-schema: failed to decode value for field %q (attempting to unmarshal as %s): %%w`, err)", field.JSON(), field.Type())
 				o.L("}")
 				o.L("s.%s = v", field.Name(false))
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			} else if field.Type() == "*Schema" {
 				// Special handling for *Schema fields - they can be objects or booleans
 				o.L("var rawData json.RawMessage")
@@ -356,9 +333,7 @@ func genObject(obj *codegen.Object) error {
 				o.L("return fmt.Errorf(`json-schema: failed to decode value for field %q (attempting to unmarshal as Schema after bool failed): %%w`, err)", field.JSON())
 				o.L("}")
 				o.L("}")
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			} else if field.Type() == "map[string]*Schema" {
 				// Special handling for map[string]*Schema fields - values can be objects or booleans
 				o.L("var rawData json.RawMessage")
@@ -396,9 +371,7 @@ func genObject(obj *codegen.Object) error {
 				o.L("}")
 				o.L("}")
 				o.L("s.%s = v", field.Name(false))
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			} else {
 				o.L("var v %s", field.Type())
 				o.L("if err := dec.Decode(&v); err != nil {")
@@ -409,9 +382,7 @@ func genObject(obj *codegen.Object) error {
 				} else {
 					o.L("s.%s = v", field.Name(false))
 				}
-				if field.Name(false) != "schema" {
-					o.L("s.populatedFields |= %sField", field.Name(true))
-				}
+				o.L("s.populatedFields |= %sField", field.Name(true))
 			}
 		}
 	}
@@ -482,7 +453,6 @@ func genBuilder(obj *codegen.Object) error {
 
 	o.LL("func NewBuilder() *Builder {")
 	o.L(`return &Builder{`)
-	o.L(`schema: Version,`)
 	o.L(`}`)
 	o.L("}")
 
@@ -570,30 +540,21 @@ func genBuilder(obj *codegen.Object) error {
 		switch field.Type() {
 		case `map[string]*Schema`:
 			// For map fields, we need to copy the map to propPair slices
-			if field.Name(false) != "schema" {
-				o.LL("if original.Has%s() {", field.Name(true))
-			} else {
-				o.LL("if original.%s != nil {", field.Name(false))
-			}
+			o.LL("if original.Has%s() {", field.Name(true))
 			o.L("for name, schema := range original.%s {", field.Name(false))
 			o.L("b.%s = append(b.%s, &propPair{Name: name, Schema: schema})", field.Name(false), field.Name(false))
 			o.L("}")
 			o.L("}")
 		default:
-			if field.Name(false) == "schema" {
-				// Special handling for schema field (it's a string, not a pointer)
-				o.LL("b.%s = original.schema", field.Name(false))
+			o.LL("if original.Has%s() {", field.Name(true))
+			if !isNilZeroType(field) && !isInterfaceField(field) {
+				// For pointer fields, can assign the pointer directly
+				o.L("b.%s = original.%s", field.Name(false), field.Name(false))
 			} else {
-				o.LL("if original.Has%s() {", field.Name(true))
-				if !isNilZeroType(field) && !isInterfaceField(field) {
-					// For pointer fields, can assign the pointer directly
-					o.L("b.%s = original.%s", field.Name(false), field.Name(false))
-				} else {
-					// For slice/map/interface fields, can assign directly
-					o.L("b.%s = original.%s", field.Name(false), field.Name(false))
-				}
-				o.L("}")
+				// For slice/map/interface fields, can assign directly
+				o.L("b.%s = original.%s", field.Name(false), field.Name(false))
 			}
+			o.L("}")
 		}
 	}
 
@@ -608,19 +569,7 @@ func genBuilder(obj *codegen.Object) error {
 		o.L("return b")
 		o.L("}")
 
-		switch field.Type() {
-		case `map[string]*Schema`:
-			// For map fields, clear the propPair slice
-			o.L("b.%s = nil", field.Name(false))
-		default:
-			if field.Name(false) == "schema" {
-				// Special handling for schema field (it's a string, reset to default)
-				o.L("b.%s = Version", field.Name(false))
-			} else {
-				// For all other fields, set to nil/zero value
-				o.L("b.%s = nil", field.Name(false))
-			}
-		}
+		o.L("b.%s = nil", field.Name(false))
 
 		o.L("return b")
 		o.L("}")
@@ -639,19 +588,13 @@ func genBuilder(obj *codegen.Object) error {
 			o.L("}")
 			o.L("s.%s[pair.Name] = pair.Schema", field.Name(false))
 			o.L("}")
-			if field.Name(false) != "schema" {
-				o.L("s.populatedFields |= %sField", field.Name(true))
-			}
+			o.L("s.populatedFields |= %sField", field.Name(true))
 			o.L("}")
 		default:
-			if field.Name(false) == `schema` {
-				o.L("s.%[1]s = b.%[1]s", field.Name(false))
-			} else {
-				o.L(`if b.%s != nil {`, field.Name(false))
-				o.L("s.%[1]s = b.%[1]s", field.Name(false))
-				o.L("s.populatedFields |= %sField", field.Name(true))
-				o.L(`}`)
-			}
+			o.L(`if b.%s != nil {`, field.Name(false))
+			o.L("s.%[1]s = b.%[1]s", field.Name(false))
+			o.L("s.populatedFields |= %sField", field.Name(true))
+			o.L(`}`)
 		}
 	}
 	o.L("return s, nil")

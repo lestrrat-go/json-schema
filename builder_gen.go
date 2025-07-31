@@ -62,7 +62,7 @@ type Builder struct {
 	propertyNames         *Schema
 	reference             *string
 	required              []string
-	schema                string
+	schema                *string
 	thenSchema            SchemaOrBool
 	types                 PrimitiveTypes
 	unevaluatedItems      SchemaOrBool
@@ -72,9 +72,7 @@ type Builder struct {
 }
 
 func NewBuilder() *Builder {
-	return &Builder{
-		schema: Version,
-	}
+	return &Builder{}
 }
 
 func (b *Builder) AdditionalItems(v SchemaOrBool) *Builder {
@@ -502,7 +500,7 @@ func (b *Builder) Schema(v string) *Builder {
 		return b
 	}
 
-	b.schema = v
+	b.schema = &v
 	return b
 }
 
@@ -751,7 +749,9 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		b.required = original.required
 	}
 
-	b.schema = original.schema
+	if original.HasSchema() {
+		b.schema = original.schema
+	}
 
 	if original.HasThenSchema() {
 		b.thenSchema = original.thenSchema
@@ -1143,7 +1143,7 @@ func (b *Builder) ResetSchema() *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.schema = Version
+	b.schema = nil
 	return b
 }
 
@@ -1398,7 +1398,10 @@ func (b *Builder) Build() (*Schema, error) {
 		s.required = b.required
 		s.populatedFields |= RequiredField
 	}
-	s.schema = b.schema
+	if b.schema != nil {
+		s.schema = b.schema
+		s.populatedFields |= SchemaField
+	}
 	if b.thenSchema != nil {
 		s.thenSchema = b.thenSchema
 		s.populatedFields |= ThenSchemaField

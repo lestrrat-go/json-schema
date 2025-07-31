@@ -49,6 +49,7 @@ const (
 	PropertyNames
 	Reference
 	Required
+	Schema
 	ThenSchema
 	Types
 	UnevaluatedItems

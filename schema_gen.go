@@ -59,6 +59,7 @@ const (
 	PropertyNamesField         = field.PropertyNames
 	ReferenceField             = field.Reference
 	RequiredField              = field.Required
+	SchemaField                = field.Schema
 	ThenSchemaField            = field.ThenSchema
 	TypesField                 = field.Types
 	UnevaluatedItemsField      = field.UnevaluatedItems
@@ -68,7 +69,6 @@ const (
 )
 
 type Schema struct {
-	isRoot                bool
 	populatedFields       field.Flag
 	additionalItems       SchemaOrBool
 	additionalProperties  SchemaOrBool
@@ -115,7 +115,7 @@ type Schema struct {
 	propertyNames         *Schema
 	reference             *string
 	required              []string
-	schema                string
+	schema                *string
 	thenSchema            SchemaOrBool
 	types                 PrimitiveTypes
 	unevaluatedItems      SchemaOrBool
@@ -125,9 +125,7 @@ type Schema struct {
 }
 
 func New() *Schema {
-	return &Schema{
-		schema: Version,
-	}
+	return &Schema{}
 }
 
 // Has checks if the specified field flags are set
@@ -502,8 +500,12 @@ func (s *Schema) Required() []string {
 	return s.required
 }
 
+func (s *Schema) HasSchema() bool {
+	return s.populatedFields&SchemaField != 0
+}
+
 func (s *Schema) Schema() string {
-	return s.schema
+	return *(s.schema)
 }
 
 func (s *Schema) HasThenSchema() bool {
@@ -572,8 +574,6 @@ type pair struct {
 }
 
 func (s *Schema) MarshalJSON() ([]byte, error) {
-	s.isRoot = true
-	defer func() { s.isRoot = false }()
 	fields := make([]pair, 0, 52)
 	if s.HasAdditionalItems() {
 		fields = append(fields, pair{Name: keywords.AdditionalItems, Value: s.additionalItems})
@@ -710,8 +710,8 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.HasRequired() {
 		fields = append(fields, pair{Name: keywords.Required, Value: s.required})
 	}
-	if v := s.schema; s.isRoot && v != "" {
-		fields = append(fields, pair{Name: keywords.Schema, Value: v})
+	if s.HasSchema() {
+		fields = append(fields, pair{Name: keywords.Schema, Value: *(s.schema)})
 	}
 	if s.HasThenSchema() {
 		fields = append(fields, pair{Name: keywords.Then, Value: s.thenSchema})
@@ -1314,7 +1314,8 @@ LOOP:
 				if err := dec.Decode(&v); err != nil {
 					return fmt.Errorf(`json-schema: failed to decode value for field "$schema" (attempting to unmarshal as string): %w`, err)
 				}
-				s.schema = v
+				s.schema = &v
+				s.populatedFields |= SchemaField
 			case keywords.Then:
 				var rawData json.RawMessage
 				if err := dec.Decode(&rawData); err != nil {

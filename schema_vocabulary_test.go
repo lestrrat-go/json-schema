@@ -150,6 +150,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		// Check core fields are present
 		require.Equal(t, "https://example.com/person", s.ID())
+		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.True(t, s.ContainsType(schema.ObjectType))
 		require.NotNil(t, s.Properties())

@@ -442,7 +442,11 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// For root schema compilation, resolve vocabulary from metaschema
 	if rootSchema == s {
 		// For testing, hardcode known metaschema URIs that disable validation vocabulary
-		schemaURI := s.Schema()
+		schemaURI := ""
+		if s.HasSchema() {
+			schemaURI = s.Schema()
+		}
+
 		if schemaURI != "" {
 			if schemaURI == "http://localhost:1234/draft2020-12/metaschema-no-validation.json" {
 				// This specific metaschema disables validation vocabulary
