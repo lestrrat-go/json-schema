@@ -8,6 +8,14 @@ import (
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
+// baseConstraintFields defines the bit field mask for all base constraint fields
+// that should be checked when determining if a schema has base-level constraints
+const baseConstraintFields = schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
+	schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
+	schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField | schema.UnevaluatedItemsField |
+	schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
+	schema.EnumField | schema.ConstField
+
 // AllOf is a convnience function to create a Validator that can handle allOf validation.
 func AllOf(validators ...Interface) Interface {
 	return &allOfValidator{
@@ -87,13 +95,6 @@ func hasBaseConstraints(s *schema.Schema) bool {
 	if len(s.Types()) > 0 {
 		return true
 	}
-
-	// Use bit field approach for efficient checking of multiple constraints
-	baseConstraintFields := schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
-		schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
-		schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField | schema.UnevaluatedItemsField |
-		schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
-		schema.EnumField | schema.ConstField
 
 	// Returns true if ANY of the base constraint fields are set
 	return s.HasAny(baseConstraintFields)
