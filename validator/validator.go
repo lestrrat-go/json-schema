@@ -639,7 +639,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 		if hasBaseConstraints(s) && s.HasUnevaluatedProperties() {
 			// Special anyOf composition validator for unevaluatedProperties
-			compositionValidator, err := NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, anyOfValidators, schema.ResolverFromContext(ctx))
+			compositionValidator, err := NewAnyOfUnevaluatedPropertiesCompositionValidator(ctx, s, anyOfValidators...)
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile anyOf composition validator: %w`, err)
 			}
@@ -662,7 +662,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 		if hasBaseConstraints(s) && s.HasUnevaluatedProperties() {
 			// Special oneOf composition validator for unevaluatedProperties
-			compositionValidator, err := NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx, s, oneOfValidators, schema.ResolverFromContext(ctx))
+			compositionValidator, err := NewOneOfUnevaluatedPropertiesCompositionValidator(ctx, s, oneOfValidators...)
 			if err != nil {
 				return nil, fmt.Errorf(`failed to compile oneOf composition validator: %w`, err)
 			}
@@ -785,8 +785,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Try to infer type from enum values if they're homogeneous
 		var inferredType *schema.PrimitiveType
 		if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
-			enumValues := s.Enum()
-			if len(enumValues) > 0 {
+			if enumValues := s.Enum(); len(enumValues) > 0 {
 				// Check if all enum values are of the same type
 				firstType := getValueType(enumValues[0])
 				allSameType := true

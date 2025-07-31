@@ -251,8 +251,7 @@ func (v *RefUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Cont
 func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, refResult Result) (Result, error) {
 	// Create context with evaluated properties if we have evaluation results from $ref
 	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil {
-		evalProps := objResult.EvaluatedProperties()
-		if len(evalProps) > 0 {
+		if evalProps := objResult.EvaluatedProperties(); len(evalProps) > 0 {
 			// Get existing evaluation context or create a new one
 			var ec *schemactx.EvaluationContext
 			_ = schemactx.EvaluationContextFromContext(ctx, &ec)

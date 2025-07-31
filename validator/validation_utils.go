@@ -185,8 +185,7 @@ func executeValidatorsWithContextFlow(ctx context.Context, validators []Interfac
 		// Update context with accumulated array results for context flow
 		validationCtx := currentCtx
 		if merger.ArrayResult() != nil {
-			evalItems := merger.ArrayResult().EvaluatedItems()
-			if len(evalItems) > 0 {
+			if evalItems := merger.ArrayResult().EvaluatedItems(); len(evalItems) > 0 {
 				validationCtx = withEvaluatedItems(currentCtx, evalItems)
 			}
 		}

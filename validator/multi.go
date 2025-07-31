@@ -110,8 +110,7 @@ func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Con
 	}
 
 	if previousObjectResult != nil {
-		evalProps := previousObjectResult.EvaluatedProperties()
-		if len(evalProps) > 0 {
+		if evalProps := previousObjectResult.EvaluatedProperties(); len(evalProps) > 0 {
 			// Mark properties as evaluated
 			for prop := range evalProps {
 				if evalProps[prop] {
@@ -122,8 +121,7 @@ func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Con
 	}
 
 	if previousArrayResult != nil {
-		evalItems := previousArrayResult.EvaluatedItems()
-		if len(evalItems) > 0 {
+		if evalItems := previousArrayResult.EvaluatedItems(); len(evalItems) > 0 {
 			// Copy evaluated items
 			for i, evaluated := range evalItems {
 				if evaluated {
@@ -145,15 +143,7 @@ type AnyOfUnevaluatedPropertiesCompositionValidator struct {
 	schema          *schema.Schema
 }
 
-func NewAnyOfUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *AnyOfUnevaluatedPropertiesCompositionValidator {
-	v, err := NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(context.Background(), s, nil, nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create anyOf composition validator: %v", err))
-	}
-	return v
-}
-
-func NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, anyOfValidators []Interface, _ *schema.Resolver) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
+func NewAnyOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, anyOfValidators ...Interface) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &AnyOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
@@ -330,15 +320,7 @@ type OneOfUnevaluatedPropertiesCompositionValidator struct {
 	schema          *schema.Schema
 }
 
-func NewOneOfUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *OneOfUnevaluatedPropertiesCompositionValidator {
-	v, err := NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(context.Background(), s, nil, nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create oneOf composition validator: %v", err))
-	}
-	return v
-}
-
-func NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, oneOfValidators []Interface, _ *schema.Resolver) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
+func NewOneOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, oneOfValidators ...Interface) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &OneOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}

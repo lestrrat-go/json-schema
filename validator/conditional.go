@@ -215,8 +215,7 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) Validate(ctx conte
 func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, previousResult *ObjectResult) (Result, error) {
 	// Create context with evaluated properties if we have previous evaluation results
 	if previousResult != nil {
-		evalProps := previousResult.EvaluatedProperties()
-		if len(evalProps) > 0 {
+		if evalProps := previousResult.EvaluatedProperties(); len(evalProps) > 0 {
 			ctx = withEvaluatedProperties(ctx, evalProps)
 		}
 	}

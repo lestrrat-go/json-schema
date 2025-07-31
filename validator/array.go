@@ -26,8 +26,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 		v.UniqueItems(s.UniqueItems())
 	}
 	if s.HasPrefixItems() {
-		prefixItems := s.PrefixItems()
-		if len(prefixItems) > 0 {
+		if prefixItems := s.PrefixItems(); len(prefixItems) > 0 {
 			prefixValidators := make([]Interface, len(prefixItems))
 			for i, prefixSchema := range prefixItems {
 				prefixValidator, err := Compile(ctx, prefixSchema)
