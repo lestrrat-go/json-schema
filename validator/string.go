@@ -15,15 +15,6 @@ import (
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
-// Format constants for string validation
-const (
-	FormatEmail    = "email"
-	FormatDate     = "date"
-	FormatDateTime = "date-time"
-	FormatURI      = "uri"
-	FormatUUID     = "uuid"
-)
-
 var _ Builder = (*StringValidatorBuilder)(nil)
 var _ Interface = (*stringValidator)(nil)
 
@@ -119,17 +110,17 @@ func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) 
 // validateFormat validates a string against the specified format
 func validateFormat(value, format string) error {
 	switch format {
-	case FormatEmail:
+	case keywords.FormatEmail:
 		_, err := mail.ParseAddress(value)
 		if err != nil {
 			return fmt.Errorf("invalid email format")
 		}
-	case FormatDate:
+	case keywords.FormatDate:
 		_, err := time.Parse("2006-01-02", value)
 		if err != nil {
 			return fmt.Errorf("invalid date format")
 		}
-	case FormatDateTime:
+	case keywords.FormatDateTime:
 		// Try RFC3339 format first (with timezone)
 		_, err := time.Parse(time.RFC3339, value)
 		if err != nil {
@@ -139,12 +130,12 @@ func validateFormat(value, format string) error {
 				return fmt.Errorf("invalid date-time format")
 			}
 		}
-	case FormatURI:
+	case keywords.FormatURI:
 		_, err := url.ParseRequestURI(value)
 		if err != nil {
 			return fmt.Errorf("invalid URI format")
 		}
-	case FormatUUID:
+	case keywords.FormatUUID:
 		// UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 		uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 		if !uuidRegex.MatchString(value) {

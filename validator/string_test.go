@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 	"github.com/stretchr/testify/assert"
@@ -803,43 +804,43 @@ func TestStringValidatorComprehensive(t *testing.T) {
 			{
 				name:    "valid email format",
 				value:   "test@example.com",
-				format:  "email",
+				format:  keywords.FormatEmail,
 				wantErr: false,
 			},
 			{
 				name:    "invalid email format",
 				value:   "not-an-email",
-				format:  "email",
+				format:  keywords.FormatEmail,
 				wantErr: true,
 			},
 			{
 				name:    "valid date format",
 				value:   "2023-12-25",
-				format:  "date",
+				format:  keywords.FormatDate,
 				wantErr: false,
 			},
 			{
 				name:    "invalid date format",
 				value:   "not-a-date",
-				format:  "date",
+				format:  keywords.FormatDate,
 				wantErr: true,
 			},
 			{
 				name:    "valid datetime format",
 				value:   "2023-12-25T10:30:00Z",
-				format:  "date-time",
+				format:  keywords.FormatDateTime,
 				wantErr: false,
 			},
 			{
 				name:    "valid URI format",
 				value:   "https://example.com/path",
-				format:  "uri",
+				format:  keywords.FormatURI,
 				wantErr: false,
 			},
 			{
 				name:    "valid UUID format",
 				value:   "550e8400-e29b-41d4-a716-446655440000",
-				format:  "uuid",
+				format:  keywords.FormatUUID,
 				wantErr: false,
 			},
 		}

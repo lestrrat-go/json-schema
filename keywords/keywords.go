@@ -70,4 +70,11 @@ const (
 	// These keywords were deprecated in JSON Schema 2020-12 but may still appear in older schemas
 	RecursiveAnchor = "$recursiveAnchor" // Deprecated: use $dynamicAnchor instead
 	RecursiveRef    = "$recursiveRef"    // Deprecated: use $dynamicRef instead
+
+	// Format constants for string validation
+	FormatEmail    = "email"
+	FormatDate     = "date"
+	FormatDateTime = "date-time"
+	FormatURI      = "uri"
+	FormatUUID     = "uuid"
 )
