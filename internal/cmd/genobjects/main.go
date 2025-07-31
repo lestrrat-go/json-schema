@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -408,6 +409,17 @@ func genObject(obj *codegen.Object) error {
 	return nil
 }
 
+func writeComment(o *codegen.Output, comment string) {
+	scanner := bufio.NewScanner(strings.NewReader(comment))
+	for scanner.Scan() {
+		line := scanner.Text()
+		o.L("//")
+		if line != "" {
+			o.R("%s", line)
+		}
+	}
+}
+
 func genBuilder(obj *codegen.Object) error {
 	fn := `builder_gen.go`
 
@@ -503,7 +515,11 @@ func genBuilder(obj *codegen.Object) error {
 			} else {
 				paramType := field.Type()
 
-				o.LL("func (b *Builder) %s(v %s) *Builder {", field.Name(true), paramType)
+				o.LL("// %s sets the %s field of the schema being built.", field.Name(true), field.JSON())
+				if comment := field.Comment(); comment != "" {
+					writeComment(o, comment)
+				}
+				o.L("func (b *Builder) %s(v %s) *Builder {", field.Name(true), paramType)
 				o.L("if b.err != nil {")
 				o.L("return b")
 				o.L("}")
