@@ -32,9 +32,9 @@ func TestCompositeValidatorWithRefAndOtherConstraints(t *testing.T) {
 
 	// Test the createSchemaWithoutRef function
 	withoutRef := createSchemaWithoutRef(schemaWithRef)
-	require.False(t, withoutRef.HasReference())
-	require.True(t, withoutRef.HasMaxLength())
-	require.True(t, withoutRef.HasPattern())
+	require.False(t, withoutRef.Has(schema.ReferenceField))
+	require.True(t, withoutRef.Has(schema.MaxLengthField))
+	require.True(t, withoutRef.Has(schema.PatternField))
 	require.Equal(t, schemaWithRef.MaxLength(), withoutRef.MaxLength())
 	require.Equal(t, schemaWithRef.Pattern(), withoutRef.Pattern())
 

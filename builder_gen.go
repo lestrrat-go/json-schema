@@ -603,217 +603,217 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		return b
 	}
 
-	if original.HasAdditionalItems() {
+	if original.Has(AdditionalItemsField) {
 		b.additionalItems = original.additionalItems
 	}
 
-	if original.HasAdditionalProperties() {
+	if original.Has(AdditionalPropertiesField) {
 		b.additionalProperties = original.additionalProperties
 	}
 
-	if original.HasAllOf() {
+	if original.Has(AllOfField) {
 		b.allOf = original.allOf
 	}
 
-	if original.HasAnchor() {
+	if original.Has(AnchorField) {
 		b.anchor = original.anchor
 	}
 
-	if original.HasAnyOf() {
+	if original.Has(AnyOfField) {
 		b.anyOf = original.anyOf
 	}
 
-	if original.HasComment() {
+	if original.Has(CommentField) {
 		b.comment = original.comment
 	}
 
-	if original.HasConst() {
+	if original.Has(ConstField) {
 		b.constantValue = original.constantValue
 	}
 
-	if original.HasContains() {
+	if original.Has(ContainsField) {
 		b.contains = original.contains
 	}
 
-	if original.HasContentEncoding() {
+	if original.Has(ContentEncodingField) {
 		b.contentEncoding = original.contentEncoding
 	}
 
-	if original.HasContentMediaType() {
+	if original.Has(ContentMediaTypeField) {
 		b.contentMediaType = original.contentMediaType
 	}
 
-	if original.HasContentSchema() {
+	if original.Has(ContentSchemaField) {
 		b.contentSchema = original.contentSchema
 	}
 
-	if original.HasDefault() {
+	if original.Has(DefaultField) {
 		b.defaultValue = original.defaultValue
 	}
 
-	if original.HasDefinitions() {
+	if original.Has(DefinitionsField) {
 		for name, schema := range original.definitions {
 			b.definitions = append(b.definitions, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.HasDependentRequired() {
+	if original.Has(DependentRequiredField) {
 		b.dependentRequired = original.dependentRequired
 	}
 
-	if original.HasDependentSchemas() {
+	if original.Has(DependentSchemasField) {
 		b.dependentSchemas = original.dependentSchemas
 	}
 
-	if original.HasDynamicAnchor() {
+	if original.Has(DynamicAnchorField) {
 		b.dynamicAnchor = original.dynamicAnchor
 	}
 
-	if original.HasDynamicReference() {
+	if original.Has(DynamicReferenceField) {
 		b.dynamicReference = original.dynamicReference
 	}
 
-	if original.HasElseSchema() {
+	if original.Has(ElseSchemaField) {
 		b.elseSchema = original.elseSchema
 	}
 
-	if original.HasEnum() {
+	if original.Has(EnumField) {
 		b.enum = original.enum
 	}
 
-	if original.HasExclusiveMaximum() {
+	if original.Has(ExclusiveMaximumField) {
 		b.exclusiveMaximum = original.exclusiveMaximum
 	}
 
-	if original.HasExclusiveMinimum() {
+	if original.Has(ExclusiveMinimumField) {
 		b.exclusiveMinimum = original.exclusiveMinimum
 	}
 
-	if original.HasFormat() {
+	if original.Has(FormatField) {
 		b.format = original.format
 	}
 
-	if original.HasID() {
+	if original.Has(IDField) {
 		b.id = original.id
 	}
 
-	if original.HasIfSchema() {
+	if original.Has(IfSchemaField) {
 		b.ifSchema = original.ifSchema
 	}
 
-	if original.HasItems() {
+	if original.Has(ItemsField) {
 		b.items = original.items
 	}
 
-	if original.HasMaxContains() {
+	if original.Has(MaxContainsField) {
 		b.maxContains = original.maxContains
 	}
 
-	if original.HasMaxItems() {
+	if original.Has(MaxItemsField) {
 		b.maxItems = original.maxItems
 	}
 
-	if original.HasMaxLength() {
+	if original.Has(MaxLengthField) {
 		b.maxLength = original.maxLength
 	}
 
-	if original.HasMaxProperties() {
+	if original.Has(MaxPropertiesField) {
 		b.maxProperties = original.maxProperties
 	}
 
-	if original.HasMaximum() {
+	if original.Has(MaximumField) {
 		b.maximum = original.maximum
 	}
 
-	if original.HasMinContains() {
+	if original.Has(MinContainsField) {
 		b.minContains = original.minContains
 	}
 
-	if original.HasMinItems() {
+	if original.Has(MinItemsField) {
 		b.minItems = original.minItems
 	}
 
-	if original.HasMinLength() {
+	if original.Has(MinLengthField) {
 		b.minLength = original.minLength
 	}
 
-	if original.HasMinProperties() {
+	if original.Has(MinPropertiesField) {
 		b.minProperties = original.minProperties
 	}
 
-	if original.HasMinimum() {
+	if original.Has(MinimumField) {
 		b.minimum = original.minimum
 	}
 
-	if original.HasMultipleOf() {
+	if original.Has(MultipleOfField) {
 		b.multipleOf = original.multipleOf
 	}
 
-	if original.HasNot() {
+	if original.Has(NotField) {
 		b.not = original.not
 	}
 
-	if original.HasOneOf() {
+	if original.Has(OneOfField) {
 		b.oneOf = original.oneOf
 	}
 
-	if original.HasPattern() {
+	if original.Has(PatternField) {
 		b.pattern = original.pattern
 	}
 
-	if original.HasPatternProperties() {
+	if original.Has(PatternPropertiesField) {
 		for name, schema := range original.patternProperties {
 			b.patternProperties = append(b.patternProperties, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.HasPrefixItems() {
+	if original.Has(PrefixItemsField) {
 		b.prefixItems = original.prefixItems
 	}
 
-	if original.HasProperties() {
+	if original.Has(PropertiesField) {
 		for name, schema := range original.properties {
 			b.properties = append(b.properties, &propPair{Name: name, Schema: schema})
 		}
 	}
 
-	if original.HasPropertyNames() {
+	if original.Has(PropertyNamesField) {
 		b.propertyNames = original.propertyNames
 	}
 
-	if original.HasReference() {
+	if original.Has(ReferenceField) {
 		b.reference = original.reference
 	}
 
-	if original.HasRequired() {
+	if original.Has(RequiredField) {
 		b.required = original.required
 	}
 
-	if original.HasSchema() {
+	if original.Has(SchemaField) {
 		b.schema = original.schema
 	}
 
-	if original.HasThenSchema() {
+	if original.Has(ThenSchemaField) {
 		b.thenSchema = original.thenSchema
 	}
 
-	if original.HasTypes() {
+	if original.Has(TypesField) {
 		b.types = original.types
 	}
 
-	if original.HasUnevaluatedItems() {
+	if original.Has(UnevaluatedItemsField) {
 		b.unevaluatedItems = original.unevaluatedItems
 	}
 
-	if original.HasUnevaluatedProperties() {
+	if original.Has(UnevaluatedPropertiesField) {
 		b.unevaluatedProperties = original.unevaluatedProperties
 	}
 
-	if original.HasUniqueItems() {
+	if original.Has(UniqueItemsField) {
 		b.uniqueItems = original.uniqueItems
 	}
 
-	if original.HasVocabulary() {
+	if original.Has(VocabularyField) {
 		b.vocabulary = original.vocabulary
 	}
 	return b

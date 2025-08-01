@@ -24,10 +24,10 @@ func TestBitFieldFunctionality(t *testing.T) {
 			MustBuild()
 
 		// Test individual field checks still work
-		require.True(t, schema.HasAnchor(), "Expected HasAnchor() to return true")
-		require.True(t, schema.HasMaximum(), "Expected HasMaximum() to return true")
-		require.True(t, schema.HasMinLength(), "Expected HasMinLength() to return true")
-		require.False(t, schema.HasMinimum(), "Expected HasMinimum() to return false")
+		require.True(t, schema.Has(AnchorField), "Expected HasAnchor() to return true")
+		require.True(t, schema.Has(MaximumField), "Expected HasMaximum() to return true")
+		require.True(t, schema.Has(MinLengthField), "Expected HasMinLength() to return true")
+		require.False(t, schema.Has(MinimumField), "Expected HasMinimum() to return false")
 
 		// Test the new Has method with multiple fields
 		require.True(t, schema.Has(AnchorField|MaximumField|MinLengthField), "Expected Has() to return true for all set fields")
@@ -69,13 +69,13 @@ func TestBitFieldFunctionality(t *testing.T) {
 		require.NoError(t, err, "Failed to unmarshal JSON")
 
 		// Check that the appropriate bit fields are set
-		require.True(t, schema.HasAnchor(), "Expected HasAnchor() to return true after JSON unmarshal")
-		require.True(t, schema.HasTypes(), "Expected HasTypes() to return true after JSON unmarshal")
-		require.True(t, schema.HasMinLength(), "Expected HasMinLength() to return true after JSON unmarshal")
-		require.True(t, schema.HasProperties(), "Expected HasProperties() to return true after JSON unmarshal")
+		require.True(t, schema.Has(AnchorField), "Expected HasAnchor() to return true after JSON unmarshal")
+		require.True(t, len(schema.Types()) > 0, "Expected HasTypes() to return true after JSON unmarshal")
+		require.True(t, schema.Has(MinLengthField), "Expected HasMinLength() to return true after JSON unmarshal")
+		require.True(t, schema.Has(PropertiesField), "Expected HasProperties() to return true after JSON unmarshal")
 
 		// Check that unset fields return false
-		require.False(t, schema.HasMaxLength(), "Expected HasMaxLength() to return false")
+		require.False(t, schema.Has(MaxLengthField), "Expected HasMaxLength() to return false")
 
 		// Verify the bit field contains the expected flags using Has method
 		expectedFields := AnchorField | TypesField | MinLengthField | PropertiesField
@@ -97,9 +97,9 @@ func TestBitFieldFunctionality(t *testing.T) {
 		require.True(t, cloned.Has(expectedFields) && original.Has(expectedFields), "Expected both original and cloned schema to have all expected fields set")
 
 		// Test specific fields
-		require.True(t, cloned.HasAnchor() && cloned.Anchor() == "original", "Expected cloned schema to have anchor 'original'")
-		require.True(t, cloned.HasMaximum() && cloned.Maximum() == 50.0, "Expected cloned schema to have maximum 50.0")
-		require.True(t, cloned.HasRequired(), "Expected cloned schema to have required fields")
+		require.True(t, cloned.Has(AnchorField) && cloned.Anchor() == "original", "Expected cloned schema to have anchor 'original'")
+		require.True(t, cloned.Has(MaximumField) && cloned.Maximum() == 50.0, "Expected cloned schema to have maximum 50.0")
+		require.True(t, cloned.Has(RequiredField), "Expected cloned schema to have required fields")
 	})
 
 	t.Run("Reset methods clear bit fields", func(t *testing.T) {
@@ -111,8 +111,8 @@ func TestBitFieldFunctionality(t *testing.T) {
 			MustBuild()
 
 		// Should have Maximum but not Anchor
-		require.False(t, schema.HasAnchor(), "Expected HasAnchor() to return false after ResetAnchor()")
-		require.True(t, schema.HasMaximum(), "Expected HasMaximum() to return true")
+		require.False(t, schema.Has(AnchorField), "Expected HasAnchor() to return false after ResetAnchor()")
+		require.True(t, schema.Has(MaximumField), "Expected HasMaximum() to return true")
 
 		// Bit field should only have MaximumField set
 		require.True(t, schema.Has(MaximumField) && !schema.Has(AnchorField), "Expected only MaximumField to be set after ResetAnchor()")

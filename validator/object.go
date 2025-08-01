@@ -17,19 +17,19 @@ var _ Interface = (*objectValidator)(nil)
 func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := Object()
 
-	if s.HasMinProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
+	if s.Has(schema.MinPropertiesField) && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
 		v.MinProperties(s.MinProperties())
 	}
-	if s.HasMaxProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "maxProperties") {
+	if s.Has(schema.MaxPropertiesField) && vocabulary.IsKeywordEnabledInContext(ctx, "maxProperties") {
 		v.MaxProperties(s.MaxProperties())
 	}
-	if s.HasRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "required") {
+	if s.Has(schema.RequiredField) && vocabulary.IsKeywordEnabledInContext(ctx, "required") {
 		v.Required(s.Required())
 	}
-	if s.HasDependentRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "dependentRequired") {
+	if s.Has(schema.DependentRequiredField) && vocabulary.IsKeywordEnabledInContext(ctx, "dependentRequired") {
 		v.DependentRequired(s.DependentRequired())
 	}
-	if s.HasProperties() {
+	if s.Has(schema.PropertiesField) {
 		schemaProps := s.Properties()
 		props := make([]PropertyPair, 0, len(schemaProps))
 		for name, propSchema := range schemaProps {
@@ -41,7 +41,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		}
 		v.Properties(props...)
 	}
-	if s.HasPatternProperties() {
+	if s.Has(schema.PatternPropertiesField) {
 		patternProperties := make(map[*regexp.Regexp]Interface)
 		for pattern, propSchema := range s.PatternProperties() {
 			re, err := regexp.Compile(pattern)
@@ -56,7 +56,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		}
 		v.PatternProperties(patternProperties)
 	}
-	if s.HasAdditionalProperties() {
+	if s.Has(schema.AdditionalPropertiesField) {
 		additionalProps := s.AdditionalProperties()
 		if additionalProps != nil {
 			// Handle SchemaOrBool types
@@ -76,7 +76,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			}
 		}
 	}
-	if s.HasPropertyNames() {
+	if s.Has(schema.PropertyNamesField) {
 		propertyNamesSchema := s.PropertyNames()
 		if propertyNamesSchema != nil {
 			propertyNamesValidator, err := Compile(ctx, propertyNamesSchema)
@@ -86,7 +86,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			v.PropertyNames(propertyNamesValidator)
 		}
 	}
-	if s.HasUnevaluatedProperties() {
+	if s.Has(schema.UnevaluatedPropertiesField) {
 		unevaluatedProps := s.UnevaluatedProperties()
 		if unevaluatedProps != nil {
 			// Handle SchemaOrBool types

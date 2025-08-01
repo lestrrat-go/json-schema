@@ -272,8 +272,8 @@ func TestDependentSchemas(t *testing.T) {
 		// Check what types are defined
 		t.Logf("Schema types: %v", s.Types())
 		t.Logf("Has explicit types: %v", len(s.Types()) > 0)
-		t.Logf("Has properties: %v", s.HasProperties())
-		t.Logf("Has dependent schemas: %v", s.HasDependentSchemas())
+		t.Logf("Has properties: %v", s.Has(schema.PropertiesField))
+		t.Logf("Has dependent schemas: %v", s.Has(schema.DependentSchemasField))
 
 		_, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)

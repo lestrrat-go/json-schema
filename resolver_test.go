@@ -269,7 +269,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Verify resolved schema
 		require.True(t, resolved.ContainsType(schema.ObjectType))
-		require.True(t, resolved.HasProperties())
+		require.True(t, resolved.Has(schema.PropertiesField))
 		nameSchema := resolved.Properties()["name"]
 		require.NotNil(t, nameSchema)
 		require.True(t, nameSchema.ContainsType(schema.StringType))
@@ -298,7 +298,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Verify resolved schema
 		require.True(t, resolved.ContainsType(schema.ObjectType))
-		require.True(t, resolved.HasProperties())
+		require.True(t, resolved.Has(schema.PropertiesField))
 		nameSchema := resolved.Properties()["name"]
 		require.NotNil(t, nameSchema)
 		require.True(t, nameSchema.ContainsType(schema.StringType))

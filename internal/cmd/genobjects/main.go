@@ -164,9 +164,6 @@ func genObject(obj *codegen.Object) error {
 	o.L("}")
 
 	for _, field := range obj.Fields() {
-		o.LL("func (s *Schema) Has%s() bool {", field.Name(true))
-		o.L("return s.populatedFields&%sField != 0", field.Name(true))
-		o.L("}")
 		o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
 		o.L("return ")
 		if !isNilZeroType(field) && !isInterfaceField(field) {
@@ -196,7 +193,7 @@ func genObject(obj *codegen.Object) error {
 	o.LL(`func (s *Schema) MarshalJSON() ([]byte, error) {`)
 	o.L(`fields := make([]pair, 0, %d)`, len(obj.Fields()))
 	for _, field := range obj.Fields() {
-		o.L(`if s.Has%s() {`, field.Name(true))
+		o.L(`if s.Has(%sField) {`, field.Name(true))
 		constName := field.Name(true)
 		switch constName {
 		case "Types":
@@ -556,13 +553,13 @@ func genBuilder(obj *codegen.Object) error {
 		switch field.Type() {
 		case `map[string]*Schema`:
 			// For map fields, we need to copy the map to propPair slices
-			o.LL("if original.Has%s() {", field.Name(true))
+			o.LL("if original.Has(%sField) {", field.Name(true))
 			o.L("for name, schema := range original.%s {", field.Name(false))
 			o.L("b.%s = append(b.%s, &propPair{Name: name, Schema: schema})", field.Name(false), field.Name(false))
 			o.L("}")
 			o.L("}")
 		default:
-			o.LL("if original.Has%s() {", field.Name(true))
+			o.LL("if original.Has(%sField) {", field.Name(true))
 			if !isNilZeroType(field) && !isInterfaceField(field) {
 				// For pointer fields, can assign the pointer directly
 				o.L("b.%s = original.%s", field.Name(false), field.Name(false))

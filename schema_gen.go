@@ -140,416 +140,208 @@ func (s *Schema) HasAny(flags FieldFlag) bool {
 	return (s.populatedFields & flags) != 0
 }
 
-func (s *Schema) HasAdditionalItems() bool {
-	return s.populatedFields&AdditionalItemsField != 0
-}
-
 func (s *Schema) AdditionalItems() SchemaOrBool {
 	return s.additionalItems
-}
-
-func (s *Schema) HasAdditionalProperties() bool {
-	return s.populatedFields&AdditionalPropertiesField != 0
 }
 
 func (s *Schema) AdditionalProperties() SchemaOrBool {
 	return s.additionalProperties
 }
 
-func (s *Schema) HasAllOf() bool {
-	return s.populatedFields&AllOfField != 0
-}
-
 func (s *Schema) AllOf() []SchemaOrBool {
 	return s.allOf
-}
-
-func (s *Schema) HasAnchor() bool {
-	return s.populatedFields&AnchorField != 0
 }
 
 func (s *Schema) Anchor() string {
 	return *(s.anchor)
 }
 
-func (s *Schema) HasAnyOf() bool {
-	return s.populatedFields&AnyOfField != 0
-}
-
 func (s *Schema) AnyOf() []SchemaOrBool {
 	return s.anyOf
-}
-
-func (s *Schema) HasComment() bool {
-	return s.populatedFields&CommentField != 0
 }
 
 func (s *Schema) Comment() string {
 	return *(s.comment)
 }
 
-func (s *Schema) HasConst() bool {
-	return s.populatedFields&ConstField != 0
-}
-
 func (s *Schema) Const() any {
 	return *(s.constantValue)
-}
-
-func (s *Schema) HasContains() bool {
-	return s.populatedFields&ContainsField != 0
 }
 
 func (s *Schema) Contains() SchemaOrBool {
 	return s.contains
 }
 
-func (s *Schema) HasContentEncoding() bool {
-	return s.populatedFields&ContentEncodingField != 0
-}
-
 func (s *Schema) ContentEncoding() string {
 	return *(s.contentEncoding)
-}
-
-func (s *Schema) HasContentMediaType() bool {
-	return s.populatedFields&ContentMediaTypeField != 0
 }
 
 func (s *Schema) ContentMediaType() string {
 	return *(s.contentMediaType)
 }
 
-func (s *Schema) HasContentSchema() bool {
-	return s.populatedFields&ContentSchemaField != 0
-}
-
 func (s *Schema) ContentSchema() *Schema {
 	return s.contentSchema
-}
-
-func (s *Schema) HasDefault() bool {
-	return s.populatedFields&DefaultField != 0
 }
 
 func (s *Schema) Default() any {
 	return *(s.defaultValue)
 }
 
-func (s *Schema) HasDefinitions() bool {
-	return s.populatedFields&DefinitionsField != 0
-}
-
 func (s *Schema) Definitions() map[string]*Schema {
 	return s.definitions
-}
-
-func (s *Schema) HasDependentRequired() bool {
-	return s.populatedFields&DependentRequiredField != 0
 }
 
 func (s *Schema) DependentRequired() map[string][]string {
 	return s.dependentRequired
 }
 
-func (s *Schema) HasDependentSchemas() bool {
-	return s.populatedFields&DependentSchemasField != 0
-}
-
 func (s *Schema) DependentSchemas() map[string]SchemaOrBool {
 	return s.dependentSchemas
-}
-
-func (s *Schema) HasDynamicAnchor() bool {
-	return s.populatedFields&DynamicAnchorField != 0
 }
 
 func (s *Schema) DynamicAnchor() string {
 	return *(s.dynamicAnchor)
 }
 
-func (s *Schema) HasDynamicReference() bool {
-	return s.populatedFields&DynamicReferenceField != 0
-}
-
 func (s *Schema) DynamicReference() string {
 	return *(s.dynamicReference)
-}
-
-func (s *Schema) HasElseSchema() bool {
-	return s.populatedFields&ElseSchemaField != 0
 }
 
 func (s *Schema) ElseSchema() SchemaOrBool {
 	return s.elseSchema
 }
 
-func (s *Schema) HasEnum() bool {
-	return s.populatedFields&EnumField != 0
-}
-
 func (s *Schema) Enum() []any {
 	return s.enum
-}
-
-func (s *Schema) HasExclusiveMaximum() bool {
-	return s.populatedFields&ExclusiveMaximumField != 0
 }
 
 func (s *Schema) ExclusiveMaximum() float64 {
 	return *(s.exclusiveMaximum)
 }
 
-func (s *Schema) HasExclusiveMinimum() bool {
-	return s.populatedFields&ExclusiveMinimumField != 0
-}
-
 func (s *Schema) ExclusiveMinimum() float64 {
 	return *(s.exclusiveMinimum)
-}
-
-func (s *Schema) HasFormat() bool {
-	return s.populatedFields&FormatField != 0
 }
 
 func (s *Schema) Format() string {
 	return *(s.format)
 }
 
-func (s *Schema) HasID() bool {
-	return s.populatedFields&IDField != 0
-}
-
 func (s *Schema) ID() string {
 	return *(s.id)
-}
-
-func (s *Schema) HasIfSchema() bool {
-	return s.populatedFields&IfSchemaField != 0
 }
 
 func (s *Schema) IfSchema() SchemaOrBool {
 	return s.ifSchema
 }
 
-func (s *Schema) HasItems() bool {
-	return s.populatedFields&ItemsField != 0
-}
-
 func (s *Schema) Items() SchemaOrBool {
 	return s.items
-}
-
-func (s *Schema) HasMaxContains() bool {
-	return s.populatedFields&MaxContainsField != 0
 }
 
 func (s *Schema) MaxContains() uint {
 	return *(s.maxContains)
 }
 
-func (s *Schema) HasMaxItems() bool {
-	return s.populatedFields&MaxItemsField != 0
-}
-
 func (s *Schema) MaxItems() uint {
 	return *(s.maxItems)
-}
-
-func (s *Schema) HasMaxLength() bool {
-	return s.populatedFields&MaxLengthField != 0
 }
 
 func (s *Schema) MaxLength() int {
 	return *(s.maxLength)
 }
 
-func (s *Schema) HasMaxProperties() bool {
-	return s.populatedFields&MaxPropertiesField != 0
-}
-
 func (s *Schema) MaxProperties() uint {
 	return *(s.maxProperties)
-}
-
-func (s *Schema) HasMaximum() bool {
-	return s.populatedFields&MaximumField != 0
 }
 
 func (s *Schema) Maximum() float64 {
 	return *(s.maximum)
 }
 
-func (s *Schema) HasMinContains() bool {
-	return s.populatedFields&MinContainsField != 0
-}
-
 func (s *Schema) MinContains() uint {
 	return *(s.minContains)
-}
-
-func (s *Schema) HasMinItems() bool {
-	return s.populatedFields&MinItemsField != 0
 }
 
 func (s *Schema) MinItems() uint {
 	return *(s.minItems)
 }
 
-func (s *Schema) HasMinLength() bool {
-	return s.populatedFields&MinLengthField != 0
-}
-
 func (s *Schema) MinLength() int {
 	return *(s.minLength)
-}
-
-func (s *Schema) HasMinProperties() bool {
-	return s.populatedFields&MinPropertiesField != 0
 }
 
 func (s *Schema) MinProperties() uint {
 	return *(s.minProperties)
 }
 
-func (s *Schema) HasMinimum() bool {
-	return s.populatedFields&MinimumField != 0
-}
-
 func (s *Schema) Minimum() float64 {
 	return *(s.minimum)
-}
-
-func (s *Schema) HasMultipleOf() bool {
-	return s.populatedFields&MultipleOfField != 0
 }
 
 func (s *Schema) MultipleOf() float64 {
 	return *(s.multipleOf)
 }
 
-func (s *Schema) HasNot() bool {
-	return s.populatedFields&NotField != 0
-}
-
 func (s *Schema) Not() *Schema {
 	return s.not
-}
-
-func (s *Schema) HasOneOf() bool {
-	return s.populatedFields&OneOfField != 0
 }
 
 func (s *Schema) OneOf() []SchemaOrBool {
 	return s.oneOf
 }
 
-func (s *Schema) HasPattern() bool {
-	return s.populatedFields&PatternField != 0
-}
-
 func (s *Schema) Pattern() string {
 	return *(s.pattern)
-}
-
-func (s *Schema) HasPatternProperties() bool {
-	return s.populatedFields&PatternPropertiesField != 0
 }
 
 func (s *Schema) PatternProperties() map[string]*Schema {
 	return s.patternProperties
 }
 
-func (s *Schema) HasPrefixItems() bool {
-	return s.populatedFields&PrefixItemsField != 0
-}
-
 func (s *Schema) PrefixItems() []*Schema {
 	return s.prefixItems
-}
-
-func (s *Schema) HasProperties() bool {
-	return s.populatedFields&PropertiesField != 0
 }
 
 func (s *Schema) Properties() map[string]*Schema {
 	return s.properties
 }
 
-func (s *Schema) HasPropertyNames() bool {
-	return s.populatedFields&PropertyNamesField != 0
-}
-
 func (s *Schema) PropertyNames() *Schema {
 	return s.propertyNames
-}
-
-func (s *Schema) HasReference() bool {
-	return s.populatedFields&ReferenceField != 0
 }
 
 func (s *Schema) Reference() string {
 	return *(s.reference)
 }
 
-func (s *Schema) HasRequired() bool {
-	return s.populatedFields&RequiredField != 0
-}
-
 func (s *Schema) Required() []string {
 	return s.required
-}
-
-func (s *Schema) HasSchema() bool {
-	return s.populatedFields&SchemaField != 0
 }
 
 func (s *Schema) Schema() string {
 	return *(s.schema)
 }
 
-func (s *Schema) HasThenSchema() bool {
-	return s.populatedFields&ThenSchemaField != 0
-}
-
 func (s *Schema) ThenSchema() SchemaOrBool {
 	return s.thenSchema
-}
-
-func (s *Schema) HasTypes() bool {
-	return s.populatedFields&TypesField != 0
 }
 
 func (s *Schema) Types() PrimitiveTypes {
 	return s.types
 }
 
-func (s *Schema) HasUnevaluatedItems() bool {
-	return s.populatedFields&UnevaluatedItemsField != 0
-}
-
 func (s *Schema) UnevaluatedItems() SchemaOrBool {
 	return s.unevaluatedItems
-}
-
-func (s *Schema) HasUnevaluatedProperties() bool {
-	return s.populatedFields&UnevaluatedPropertiesField != 0
 }
 
 func (s *Schema) UnevaluatedProperties() SchemaOrBool {
 	return s.unevaluatedProperties
 }
 
-func (s *Schema) HasUniqueItems() bool {
-	return s.populatedFields&UniqueItemsField != 0
-}
-
 func (s *Schema) UniqueItems() bool {
 	return *(s.uniqueItems)
-}
-
-func (s *Schema) HasVocabulary() bool {
-	return s.populatedFields&VocabularyField != 0
 }
 
 func (s *Schema) Vocabulary() map[string]bool {
@@ -575,160 +367,160 @@ type pair struct {
 
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	fields := make([]pair, 0, 52)
-	if s.HasAdditionalItems() {
+	if s.Has(AdditionalItemsField) {
 		fields = append(fields, pair{Name: keywords.AdditionalItems, Value: s.additionalItems})
 	}
-	if s.HasAdditionalProperties() {
+	if s.Has(AdditionalPropertiesField) {
 		fields = append(fields, pair{Name: keywords.AdditionalProperties, Value: s.additionalProperties})
 	}
-	if s.HasAllOf() {
+	if s.Has(AllOfField) {
 		fields = append(fields, pair{Name: keywords.AllOf, Value: s.allOf})
 	}
-	if s.HasAnchor() {
+	if s.Has(AnchorField) {
 		fields = append(fields, pair{Name: keywords.Anchor, Value: *(s.anchor)})
 	}
-	if s.HasAnyOf() {
+	if s.Has(AnyOfField) {
 		fields = append(fields, pair{Name: keywords.AnyOf, Value: s.anyOf})
 	}
-	if s.HasComment() {
+	if s.Has(CommentField) {
 		fields = append(fields, pair{Name: keywords.Comment, Value: *(s.comment)})
 	}
-	if s.HasConst() {
+	if s.Has(ConstField) {
 		fields = append(fields, pair{Name: keywords.Const, Value: *(s.constantValue)})
 	}
-	if s.HasContains() {
+	if s.Has(ContainsField) {
 		fields = append(fields, pair{Name: keywords.Contains, Value: s.contains})
 	}
-	if s.HasContentEncoding() {
+	if s.Has(ContentEncodingField) {
 		fields = append(fields, pair{Name: keywords.ContentEncoding, Value: *(s.contentEncoding)})
 	}
-	if s.HasContentMediaType() {
+	if s.Has(ContentMediaTypeField) {
 		fields = append(fields, pair{Name: keywords.ContentMediaType, Value: *(s.contentMediaType)})
 	}
-	if s.HasContentSchema() {
+	if s.Has(ContentSchemaField) {
 		fields = append(fields, pair{Name: keywords.ContentSchema, Value: s.contentSchema})
 	}
-	if s.HasDefault() {
+	if s.Has(DefaultField) {
 		fields = append(fields, pair{Name: keywords.Default, Value: *(s.defaultValue)})
 	}
-	if s.HasDefinitions() {
+	if s.Has(DefinitionsField) {
 		fields = append(fields, pair{Name: keywords.Definitions, Value: s.definitions})
 	}
-	if s.HasDependentRequired() {
+	if s.Has(DependentRequiredField) {
 		fields = append(fields, pair{Name: keywords.DependentRequired, Value: s.dependentRequired})
 	}
-	if s.HasDependentSchemas() {
+	if s.Has(DependentSchemasField) {
 		fields = append(fields, pair{Name: keywords.DependentSchemas, Value: s.dependentSchemas})
 	}
-	if s.HasDynamicAnchor() {
+	if s.Has(DynamicAnchorField) {
 		fields = append(fields, pair{Name: keywords.DynamicAnchor, Value: *(s.dynamicAnchor)})
 	}
-	if s.HasDynamicReference() {
+	if s.Has(DynamicReferenceField) {
 		fields = append(fields, pair{Name: keywords.DynamicReference, Value: *(s.dynamicReference)})
 	}
-	if s.HasElseSchema() {
+	if s.Has(ElseSchemaField) {
 		fields = append(fields, pair{Name: keywords.Else, Value: s.elseSchema})
 	}
-	if s.HasEnum() {
+	if s.Has(EnumField) {
 		fields = append(fields, pair{Name: keywords.Enum, Value: s.enum})
 	}
-	if s.HasExclusiveMaximum() {
+	if s.Has(ExclusiveMaximumField) {
 		fields = append(fields, pair{Name: keywords.ExclusiveMaximum, Value: *(s.exclusiveMaximum)})
 	}
-	if s.HasExclusiveMinimum() {
+	if s.Has(ExclusiveMinimumField) {
 		fields = append(fields, pair{Name: keywords.ExclusiveMinimum, Value: *(s.exclusiveMinimum)})
 	}
-	if s.HasFormat() {
+	if s.Has(FormatField) {
 		fields = append(fields, pair{Name: keywords.Format, Value: *(s.format)})
 	}
-	if s.HasID() {
+	if s.Has(IDField) {
 		fields = append(fields, pair{Name: keywords.ID, Value: *(s.id)})
 	}
-	if s.HasIfSchema() {
+	if s.Has(IfSchemaField) {
 		fields = append(fields, pair{Name: keywords.If, Value: s.ifSchema})
 	}
-	if s.HasItems() {
+	if s.Has(ItemsField) {
 		fields = append(fields, pair{Name: keywords.Items, Value: s.items})
 	}
-	if s.HasMaxContains() {
+	if s.Has(MaxContainsField) {
 		fields = append(fields, pair{Name: keywords.MaxContains, Value: *(s.maxContains)})
 	}
-	if s.HasMaxItems() {
+	if s.Has(MaxItemsField) {
 		fields = append(fields, pair{Name: keywords.MaxItems, Value: *(s.maxItems)})
 	}
-	if s.HasMaxLength() {
+	if s.Has(MaxLengthField) {
 		fields = append(fields, pair{Name: keywords.MaxLength, Value: *(s.maxLength)})
 	}
-	if s.HasMaxProperties() {
+	if s.Has(MaxPropertiesField) {
 		fields = append(fields, pair{Name: keywords.MaxProperties, Value: *(s.maxProperties)})
 	}
-	if s.HasMaximum() {
+	if s.Has(MaximumField) {
 		fields = append(fields, pair{Name: keywords.Maximum, Value: *(s.maximum)})
 	}
-	if s.HasMinContains() {
+	if s.Has(MinContainsField) {
 		fields = append(fields, pair{Name: keywords.MinContains, Value: *(s.minContains)})
 	}
-	if s.HasMinItems() {
+	if s.Has(MinItemsField) {
 		fields = append(fields, pair{Name: keywords.MinItems, Value: *(s.minItems)})
 	}
-	if s.HasMinLength() {
+	if s.Has(MinLengthField) {
 		fields = append(fields, pair{Name: keywords.MinLength, Value: *(s.minLength)})
 	}
-	if s.HasMinProperties() {
+	if s.Has(MinPropertiesField) {
 		fields = append(fields, pair{Name: keywords.MinProperties, Value: *(s.minProperties)})
 	}
-	if s.HasMinimum() {
+	if s.Has(MinimumField) {
 		fields = append(fields, pair{Name: keywords.Minimum, Value: *(s.minimum)})
 	}
-	if s.HasMultipleOf() {
+	if s.Has(MultipleOfField) {
 		fields = append(fields, pair{Name: keywords.MultipleOf, Value: *(s.multipleOf)})
 	}
-	if s.HasNot() {
+	if s.Has(NotField) {
 		fields = append(fields, pair{Name: keywords.Not, Value: s.not})
 	}
-	if s.HasOneOf() {
+	if s.Has(OneOfField) {
 		fields = append(fields, pair{Name: keywords.OneOf, Value: s.oneOf})
 	}
-	if s.HasPattern() {
+	if s.Has(PatternField) {
 		fields = append(fields, pair{Name: keywords.Pattern, Value: *(s.pattern)})
 	}
-	if s.HasPatternProperties() {
+	if s.Has(PatternPropertiesField) {
 		fields = append(fields, pair{Name: keywords.PatternProperties, Value: s.patternProperties})
 	}
-	if s.HasPrefixItems() {
+	if s.Has(PrefixItemsField) {
 		fields = append(fields, pair{Name: keywords.PrefixItems, Value: s.prefixItems})
 	}
-	if s.HasProperties() {
+	if s.Has(PropertiesField) {
 		fields = append(fields, pair{Name: keywords.Properties, Value: s.properties})
 	}
-	if s.HasPropertyNames() {
+	if s.Has(PropertyNamesField) {
 		fields = append(fields, pair{Name: keywords.PropertyNames, Value: s.propertyNames})
 	}
-	if s.HasReference() {
+	if s.Has(ReferenceField) {
 		fields = append(fields, pair{Name: keywords.Reference, Value: *(s.reference)})
 	}
-	if s.HasRequired() {
+	if s.Has(RequiredField) {
 		fields = append(fields, pair{Name: keywords.Required, Value: s.required})
 	}
-	if s.HasSchema() {
+	if s.Has(SchemaField) {
 		fields = append(fields, pair{Name: keywords.Schema, Value: *(s.schema)})
 	}
-	if s.HasThenSchema() {
+	if s.Has(ThenSchemaField) {
 		fields = append(fields, pair{Name: keywords.Then, Value: s.thenSchema})
 	}
-	if s.HasTypes() {
+	if s.Has(TypesField) {
 		fields = append(fields, pair{Name: keywords.Type, Value: s.types})
 	}
-	if s.HasUnevaluatedItems() {
+	if s.Has(UnevaluatedItemsField) {
 		fields = append(fields, pair{Name: keywords.UnevaluatedItems, Value: s.unevaluatedItems})
 	}
-	if s.HasUnevaluatedProperties() {
+	if s.Has(UnevaluatedPropertiesField) {
 		fields = append(fields, pair{Name: keywords.UnevaluatedProperties, Value: s.unevaluatedProperties})
 	}
-	if s.HasUniqueItems() {
+	if s.Has(UniqueItemsField) {
 		fields = append(fields, pair{Name: keywords.UniqueItems, Value: *(s.uniqueItems)})
 	}
-	if s.HasVocabulary() {
+	if s.Has(VocabularyField) {
 		fields = append(fields, pair{Name: keywords.Vocabulary, Value: s.vocabulary})
 	}
 	sort.Slice(fields, func(i, j int) bool {

@@ -367,7 +367,7 @@ func hasOtherConstraints(s *schema.Schema) bool {
 func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 	// Use the new Clone Builder pattern to create a copy without the $ref/$dynamicRef field
 	builder := schema.NewBuilder().Clone(s).ResetReference()
-	if s.HasDynamicReference() {
+	if s.Has(schema.DynamicReferenceField) {
 		builder = builder.ResetDynamicReference()
 	}
 	return builder.MustBuild()

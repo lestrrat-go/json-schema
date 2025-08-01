@@ -200,20 +200,20 @@ func ValidateReference(reference string) error {
 // findSchemaByAnchor recursively searches for a schema with the given anchor name
 func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schema, error) {
 	// Check if current schema has the anchor
-	if schema.HasAnchor() && schema.Anchor() == anchorName {
+	if schema.Has(AnchorField) && schema.Anchor() == anchorName {
 		return schema, nil
 	}
 
 	// Check if current schema has the dynamic anchor
-	if schema.HasDynamicAnchor() && schema.DynamicAnchor() == anchorName {
+	if schema.Has(DynamicAnchorField) && schema.DynamicAnchor() == anchorName {
 		return schema, nil
 	}
 
 	// Search in definitions, but be scope-aware
-	if schema.HasDefinitions() {
+	if schema.Has(DefinitionsField) {
 		// First pass: search definitions that don't have their own $id (same scope)
 		for _, defSchema := range schema.Definitions() {
-			if !defSchema.HasID() {
+			if !defSchema.Has(IDField) {
 				if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
 					return found, nil
 				}
@@ -222,7 +222,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 
 		// Second pass: search definitions that have their own $id (different scope)
 		for _, defSchema := range schema.Definitions() {
-			if defSchema.HasID() {
+			if defSchema.Has(IDField) {
 				if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
 					return found, nil
 				}
@@ -231,7 +231,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in properties
-	if schema.HasProperties() {
+	if schema.Has(PropertiesField) {
 		for _, propSchema := range schema.Properties() {
 			if found, err := r.findSchemaByAnchor(propSchema, anchorName); err == nil {
 				return found, nil
@@ -240,7 +240,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in pattern properties
-	if schema.HasPatternProperties() {
+	if schema.Has(PatternPropertiesField) {
 		for _, propSchema := range schema.PatternProperties() {
 			if found, err := r.findSchemaByAnchor(propSchema, anchorName); err == nil {
 				return found, nil
@@ -249,7 +249,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in items
-	if schema.HasItems() {
+	if schema.Has(ItemsField) {
 		if itemSchema, ok := schema.Items().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(itemSchema, anchorName); err == nil {
 				return found, nil
@@ -258,7 +258,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in additional properties
-	if schema.HasAdditionalProperties() {
+	if schema.Has(AdditionalPropertiesField) {
 		if addlSchema, ok := schema.AdditionalProperties().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(addlSchema, anchorName); err == nil {
 				return found, nil
@@ -267,7 +267,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in unevaluated properties
-	if schema.HasUnevaluatedProperties() {
+	if schema.Has(UnevaluatedPropertiesField) {
 		if unevalSchema, ok := schema.UnevaluatedProperties().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(unevalSchema, anchorName); err == nil {
 				return found, nil
@@ -276,7 +276,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in unevaluated items
-	if schema.HasUnevaluatedItems() {
+	if schema.Has(UnevaluatedItemsField) {
 		if unevalSchema, ok := schema.UnevaluatedItems().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(unevalSchema, anchorName); err == nil {
 				return found, nil
@@ -285,7 +285,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in composition schemas
-	if schema.HasAllOf() {
+	if schema.Has(AllOfField) {
 		for _, subSchema := range schema.AllOf() {
 			if subSchema, ok := subSchema.(*Schema); ok {
 				if found, err := r.findSchemaByAnchor(subSchema, anchorName); err == nil {
@@ -295,7 +295,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 		}
 	}
 
-	if schema.HasAnyOf() {
+	if schema.Has(AnyOfField) {
 		for _, subSchema := range schema.AnyOf() {
 			if subSchema, ok := subSchema.(*Schema); ok {
 				if found, err := r.findSchemaByAnchor(subSchema, anchorName); err == nil {
@@ -305,7 +305,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 		}
 	}
 
-	if schema.HasOneOf() {
+	if schema.Has(OneOfField) {
 		for _, subSchema := range schema.OneOf() {
 			if subSchema, ok := subSchema.(*Schema); ok {
 				if found, err := r.findSchemaByAnchor(subSchema, anchorName); err == nil {
@@ -316,14 +316,14 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in not schema
-	if schema.HasNot() {
+	if schema.Has(NotField) {
 		if found, err := r.findSchemaByAnchor(schema.Not(), anchorName); err == nil {
 			return found, nil
 		}
 	}
 
 	// Search in if/then/else schemas
-	if schema.HasIfSchema() {
+	if schema.Has(IfSchemaField) {
 		if ifSchema, ok := schema.IfSchema().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(ifSchema, anchorName); err == nil {
 				return found, nil
@@ -331,7 +331,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 		}
 	}
 
-	if schema.HasThenSchema() {
+	if schema.Has(ThenSchemaField) {
 		if thenSchema, ok := schema.ThenSchema().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(thenSchema, anchorName); err == nil {
 				return found, nil
@@ -339,7 +339,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 		}
 	}
 
-	if schema.HasElseSchema() {
+	if schema.Has(ElseSchemaField) {
 		if elseSchema, ok := schema.ElseSchema().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(elseSchema, anchorName); err == nil {
 				return found, nil
@@ -348,7 +348,7 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in contains schema
-	if schema.HasContains() {
+	if schema.Has(ContainsField) {
 		if containsSchema, ok := schema.Contains().(*Schema); ok {
 			if found, err := r.findSchemaByAnchor(containsSchema, anchorName); err == nil {
 				return found, nil
@@ -357,14 +357,14 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 	}
 
 	// Search in property names schema
-	if schema.HasPropertyNames() {
+	if schema.Has(PropertyNamesField) {
 		if found, err := r.findSchemaByAnchor(schema.PropertyNames(), anchorName); err == nil {
 			return found, nil
 		}
 	}
 
 	// Search in content schema
-	if schema.HasContentSchema() {
+	if schema.Has(ContentSchemaField) {
 		if found, err := r.findSchemaByAnchor(schema.ContentSchema(), anchorName); err == nil {
 			return found, nil
 		}

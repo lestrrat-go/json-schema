@@ -76,7 +76,7 @@ func TestSchemaDefinitions(t *testing.T) {
 			Definitions("person", personSchema).
 			Build()
 		require.NoError(t, err)
-		require.True(t, s.HasDefinitions())
+		require.True(t, s.Has(schema.DefinitionsField))
 		defs := s.Definitions()
 		require.Contains(t, defs, "person")
 		require.Equal(t, personSchema, defs["person"])

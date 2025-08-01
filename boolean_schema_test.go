@@ -20,7 +20,7 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 			).
 			MustBuild()
 
-		require.True(t, s.HasOneOf())
+		require.True(t, s.Has(schema.OneOfField))
 		oneOf := s.OneOf()
 		require.Len(t, oneOf, 3)
 
@@ -49,7 +49,7 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 			).
 			MustBuild()
 
-		require.True(t, s.HasAllOf())
+		require.True(t, s.Has(schema.AllOfField))
 		allOf := s.AllOf()
 		require.Len(t, allOf, 2)
 
@@ -73,7 +73,7 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 			).
 			MustBuild()
 
-		require.True(t, s.HasAnyOf())
+		require.True(t, s.Has(schema.AnyOfField))
 		anyOf := s.AnyOf()
 		require.Len(t, anyOf, 2)
 

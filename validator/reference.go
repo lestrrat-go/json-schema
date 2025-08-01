@@ -163,7 +163,7 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 
 	// If the target schema has relative references, we need to ensure they're resolved
 	// against the correct base URI. For metaschema, this is crucial.
-	if targetSchema.HasID() && targetSchema.ID() != "" {
+	if targetSchema.Has(schema.IDField) && targetSchema.ID() != "" {
 		// Set the base URI from the target schema's $id
 		if baseURI := extractBaseURI(targetSchema.ID()); baseURI != "" {
 			ctxWithScope = schema.WithBaseURI(ctxWithScope, baseURI)
@@ -224,7 +224,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 			currentSchema := scopeChain[i]
 
 			// Check if this schema has a matching $dynamicAnchor
-			if currentSchema.HasDynamicAnchor() && currentSchema.DynamicAnchor() == anchorName {
+			if currentSchema.Has(schema.DynamicAnchorField) && currentSchema.DynamicAnchor() == anchorName {
 				return currentSchema, nil
 			}
 		}
@@ -251,7 +251,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 		currentSchema := scopeChain[i]
 
 		// Check if this schema has a matching $dynamicAnchor
-		if currentSchema.HasDynamicAnchor() && currentSchema.DynamicAnchor() == anchorName {
+		if currentSchema.Has(schema.DynamicAnchorField) && currentSchema.DynamicAnchor() == anchorName {
 			return currentSchema, nil
 		}
 	}

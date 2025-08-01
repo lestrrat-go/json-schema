@@ -18,22 +18,22 @@ func TestCloneBuilderPattern(t *testing.T) {
 		MustBuild()
 
 	// Test that original schema has all the fields
-	require.True(t, original.HasReference())
+	require.True(t, original.Has(ReferenceField))
 	require.Equal(t, "#/definitions/MyType", original.Reference())
-	require.True(t, original.HasProperties())
-	require.True(t, original.HasRequired())
-	require.True(t, original.HasMinProperties())
-	require.True(t, original.HasMaxProperties())
+	require.True(t, original.Has(PropertiesField))
+	require.True(t, original.Has(RequiredField))
+	require.True(t, original.Has(MinPropertiesField))
+	require.True(t, original.Has(MaxPropertiesField))
 
 	// Test Clone method - should copy all fields
 	cloned := NewBuilder().Clone(original).MustBuild()
 
-	require.True(t, cloned.HasReference())
+	require.True(t, cloned.Has(ReferenceField))
 	require.Equal(t, "#/definitions/MyType", cloned.Reference())
-	require.True(t, cloned.HasProperties())
-	require.True(t, cloned.HasRequired())
-	require.True(t, cloned.HasMinProperties())
-	require.True(t, cloned.HasMaxProperties())
+	require.True(t, cloned.Has(PropertiesField))
+	require.True(t, cloned.Has(RequiredField))
+	require.True(t, cloned.Has(MinPropertiesField))
+	require.True(t, cloned.Has(MaxPropertiesField))
 
 	// Properties should be the same
 	require.Equal(t, len(original.Properties()), len(cloned.Properties()))
@@ -44,11 +44,11 @@ func TestCloneBuilderPattern(t *testing.T) {
 	// Test ResetReference method - should remove only reference
 	withoutRef := NewBuilder().Clone(original).ResetReference().MustBuild()
 
-	require.False(t, withoutRef.HasReference())
-	require.True(t, withoutRef.HasProperties())
-	require.True(t, withoutRef.HasRequired())
-	require.True(t, withoutRef.HasMinProperties())
-	require.True(t, withoutRef.HasMaxProperties())
+	require.False(t, withoutRef.Has(ReferenceField))
+	require.True(t, withoutRef.Has(PropertiesField))
+	require.True(t, withoutRef.Has(RequiredField))
+	require.True(t, withoutRef.Has(MinPropertiesField))
+	require.True(t, withoutRef.Has(MaxPropertiesField))
 
 	// Other fields should remain unchanged
 	require.Equal(t, len(original.Properties()), len(withoutRef.Properties()))
@@ -58,14 +58,14 @@ func TestCloneBuilderPattern(t *testing.T) {
 
 	// Test other reset methods
 	withoutProps := NewBuilder().Clone(original).ResetProperties().MustBuild()
-	require.True(t, withoutProps.HasReference())
-	require.False(t, withoutProps.HasProperties())
-	require.True(t, withoutProps.HasRequired())
+	require.True(t, withoutProps.Has(ReferenceField))
+	require.False(t, withoutProps.Has(PropertiesField))
+	require.True(t, withoutProps.Has(RequiredField))
 
 	withoutRequired := NewBuilder().Clone(original).ResetRequired().MustBuild()
-	require.True(t, withoutRequired.HasReference())
-	require.True(t, withoutRequired.HasProperties())
-	require.False(t, withoutRequired.HasRequired())
+	require.True(t, withoutRequired.Has(ReferenceField))
+	require.True(t, withoutRequired.Has(PropertiesField))
+	require.False(t, withoutRequired.Has(RequiredField))
 }
 
 func TestCloneBuilderWithCompositeValidator(t *testing.T) {
@@ -80,9 +80,9 @@ func TestCloneBuilderWithCompositeValidator(t *testing.T) {
 	// This should create a schema with all constraints except $ref
 	withoutRef := NewBuilder().Clone(schemaWithRef).ResetReference().MustBuild()
 
-	require.False(t, withoutRef.HasReference())
-	require.True(t, withoutRef.HasProperties())
-	require.True(t, withoutRef.HasRequired())
+	require.False(t, withoutRef.Has(ReferenceField))
+	require.True(t, withoutRef.Has(PropertiesField))
+	require.True(t, withoutRef.Has(RequiredField))
 	require.Equal(t, schemaWithRef.Properties(), withoutRef.Properties())
 	require.Equal(t, schemaWithRef.Required(), withoutRef.Required())
 }

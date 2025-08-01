@@ -16,16 +16,16 @@ var _ Interface = (*arrayValidator)(nil)
 func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := Array()
 
-	if s.HasMinItems() && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
+	if s.Has(schema.MinItemsField) && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
 		v.MinItems(s.MinItems())
 	}
-	if s.HasMaxItems() && vocabulary.IsKeywordEnabledInContext(ctx, "maxItems") {
+	if s.Has(schema.MaxItemsField) && vocabulary.IsKeywordEnabledInContext(ctx, "maxItems") {
 		v.MaxItems(s.MaxItems())
 	}
-	if s.HasUniqueItems() && vocabulary.IsKeywordEnabledInContext(ctx, "uniqueItems") {
+	if s.Has(schema.UniqueItemsField) && vocabulary.IsKeywordEnabledInContext(ctx, "uniqueItems") {
 		v.UniqueItems(s.UniqueItems())
 	}
-	if s.HasPrefixItems() {
+	if s.Has(schema.PrefixItemsField) {
 		if prefixItems := s.PrefixItems(); len(prefixItems) > 0 {
 			prefixValidators := make([]Interface, len(prefixItems))
 			for i, prefixSchema := range prefixItems {
@@ -38,7 +38,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 			v.PrefixItems(prefixValidators)
 		}
 	}
-	if s.HasItems() {
+	if s.Has(schema.ItemsField) {
 		itemsSchema := s.Items()
 		if itemsSchema != nil {
 			itemValidator, err := Compile(ctx, convertSchemaOrBool(itemsSchema))
@@ -48,7 +48,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 			v.Items(itemValidator)
 		}
 	}
-	if s.HasAdditionalItems() {
+	if s.Has(schema.AdditionalItemsField) {
 		additionalItemsSchema := s.AdditionalItems()
 		if additionalItemsSchema != nil {
 			additionalItemsValidator, err := Compile(ctx, convertSchemaOrBool(additionalItemsSchema))
@@ -58,7 +58,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 			v.AdditionalItems(additionalItemsValidator)
 		}
 	}
-	if s.HasContains() {
+	if s.Has(schema.ContainsField) {
 		containsSchema := s.Contains()
 		if containsSchema != nil {
 			// Handle SchemaOrBool types
@@ -86,13 +86,13 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 			}
 		}
 	}
-	if s.HasMinContains() {
+	if s.Has(schema.MinContainsField) {
 		v.MinContains(s.MinContains())
 	}
-	if s.HasMaxContains() {
+	if s.Has(schema.MaxContainsField) {
 		v.MaxContains(s.MaxContains())
 	}
-	if s.HasUnevaluatedItems() {
+	if s.Has(schema.UnevaluatedItemsField) {
 		unevaluatedItems := s.UnevaluatedItems()
 		if unevaluatedItems != nil {
 			// Handle SchemaOrBool types

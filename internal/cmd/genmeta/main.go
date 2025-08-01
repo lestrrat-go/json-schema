@@ -54,7 +54,7 @@ func _main() error {
 	}
 
 	// Debug: Check if meta-schema has types
-	if metaSchema.HasTypes() {
+	if metaSchema.Has(TypesField) {
 		types := metaSchema.Types()
 		fmt.Printf("Meta-schema has types: %v\n", types)
 
@@ -91,14 +91,14 @@ func _main() error {
 
 			// Debug: Check which allOf compilation path will be taken
 			fmt.Printf("Checking allOf compilation path...\n")
-			fmt.Printf("metaSchema.HasAllOf(): %v\n", metaSchema.HasAllOf())
+			fmt.Printf("metaSchema.Has(AllOfField): %v\n", metaSchema.Has(AllOfField))
 			fmt.Printf("hasBaseConstraints(metaSchema): %v\n", len(metaSchema.Types()) > 0) // This is what hasBaseConstraints checks for types
 
 			// Check if it has unevaluated fields that would trigger special handling
-			hasUnevaluatedProperties := metaSchema.HasUnevaluatedProperties()
-			hasUnevaluatedItems := metaSchema.HasUnevaluatedItems()
-			fmt.Printf("metaSchema.HasUnevaluatedProperties(): %v\n", hasUnevaluatedProperties)
-			fmt.Printf("metaSchema.HasUnevaluatedItems(): %v\n", hasUnevaluatedItems)
+			hasUnevaluatedProperties := metaSchema.Has(UnevaluatedPropertiesField)
+			hasUnevaluatedItems := metaSchema.Has(UnevaluatedItemsField)
+			fmt.Printf("metaSchema.Has(UnevaluatedPropertiesField): %v\n", hasUnevaluatedProperties)
+			fmt.Printf("metaSchema.Has(UnevaluatedItemsField): %v\n", hasUnevaluatedItems)
 		}
 	} else {
 		fmt.Printf("Meta-schema has NO types field!\n")

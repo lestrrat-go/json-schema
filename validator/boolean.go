@@ -15,10 +15,10 @@ var _ Interface = (*booleanValidator)(nil)
 
 func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Boolean()
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
+	if s.Has(schema.ConstField) && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
 		v.Const(s.Const())
 	}
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
+	if s.Has(schema.EnumField) && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
 		v.Enum(s.Enum()...)
 	}
 	return v.Build()

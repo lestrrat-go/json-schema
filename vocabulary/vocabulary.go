@@ -261,7 +261,7 @@ func DefaultSet() *VocabularySet {
 
 // ExtractVocabularySet extracts the vocabulary set from a schema's $vocabulary declaration
 func ExtractVocabularySet(s *schema.Schema) *VocabularySet {
-	if s == nil || !s.HasVocabulary() {
+	if s == nil || !s.Has(schema.VocabularyField) {
 		return AllEnabled() // Default to all enabled if no vocabulary declaration
 	}
 

@@ -150,7 +150,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		// Check core fields are present
 		require.Equal(t, "https://example.com/person", s.ID())
-		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
+		require.True(t, s.Has(schema.SchemaField), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.True(t, s.ContainsType(schema.ObjectType))
 		require.NotNil(t, s.Properties())
@@ -203,11 +203,11 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		// Check complex fields are present
 		require.Equal(t, "https://example.com/complex", s.ID())
 		require.True(t, s.ContainsType(schema.ObjectType))
-		require.True(t, s.HasAllOf())
-		require.True(t, s.HasAnyOf())
-		require.True(t, s.HasOneOf())
-		require.True(t, s.HasNot())
-		require.True(t, s.HasEnum())
+		require.True(t, s.Has(schema.AllOfField))
+		require.True(t, s.Has(schema.AnyOfField))
+		require.True(t, s.Has(schema.OneOfField))
+		require.True(t, s.Has(schema.NotField))
+		require.True(t, s.Has(schema.EnumField))
 		require.Equal(t, "constant_value", s.Const())
 		require.Equal(t, "Complex schema for testing", s.Comment())
 	})
