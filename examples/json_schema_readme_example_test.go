@@ -10,6 +10,13 @@ import (
 	"github.com/lestrrat-go/json-schema/validator"
 )
 
+// User represents a user structure that matches our schema
+type User struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Age   int    `json:"age,omitempty"`
+}
+
 func Example() {
 	// Build a JSON Schema using the fluent builder API
 	userSchema := schema.NewBuilder().
@@ -34,25 +41,43 @@ func Example() {
 		return
 	}
 
-	// Validate data
-	validUser := map[string]any{
-		"name":  "John Doe",
-		"email": "john@example.com",
-		"age":   30,
+	// Validate data using different equivalent input types
+	testCases := []struct {
+		name string
+		data any
+	}{
+		{
+			name: "Map",
+			data: map[string]any{
+				"name":  "John Doe",
+				"email": "john@example.com",
+				"age":   30,
+			},
+		},
+		{
+			name: "Struct",
+			data: User{
+				Name:  "John Doe",
+				Email: "john@example.com",
+				Age:   30,
+			},
+		},
 	}
 
-	_, err = v.Validate(context.Background(), validUser)
-	if err != nil {
-		fmt.Printf("validation failed: %s\n", err)
-		return
+	// Validate each input type - they all represent the same data
+	for _, tc := range testCases {
+		_, err = v.Validate(context.Background(), tc.data)
+		if err != nil {
+			fmt.Printf("%s validation failed: %s\n", tc.name, err)
+			return
+		}
+		fmt.Printf("%s data is valid!\n", tc.name)
 	}
-
-	fmt.Println("User data is valid!")
 
 	// Test with invalid data
-	invalidUser := map[string]any{
-		"name":  "", // Empty name should fail
-		"email": "not-an-email",
+	invalidUser := User{
+		Name:  "", // Empty name should fail
+		Email: "not-an-email",
 	}
 
 	_, err = v.Validate(context.Background(), invalidUser)
@@ -82,6 +107,7 @@ func Example() {
 	//   ],
 	//   "type": "object"
 	// }
-	// User data is valid!
+	// Map data is valid!
+	// Struct data is valid!
 	// validation failed as expected: invalid value passed to ObjectValidator: property validation failed for name: invalid value passed to StringValidator: string length (0) shorter then minLength (1)
 }
