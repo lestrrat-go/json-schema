@@ -382,105 +382,18 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 //
 // Only basic validation constraints are copied (types, string/number/array/object constraints, enum/const).
 func createBaseSchema(s *schema.Schema) *schema.Schema {
-	builder := schema.NewBuilder()
-
-	// Copy types
-	if len(s.Types()) > 0 {
-		builder.Types(s.Types()...)
-	}
-
-	// Copy string constraints
-	if s.HasMinLength() {
-		builder.MinLength(s.MinLength())
-	}
-	if s.HasMaxLength() {
-		builder.MaxLength(s.MaxLength())
-	}
-	if s.HasPattern() {
-		builder.Pattern(s.Pattern())
-	}
-
-	// Copy number constraints
-	if s.HasMinimum() {
-		builder.Minimum(s.Minimum())
-	}
-	if s.HasMaximum() {
-		builder.Maximum(s.Maximum())
-	}
-	if s.HasExclusiveMinimum() {
-		builder.ExclusiveMinimum(s.ExclusiveMinimum())
-	}
-	if s.HasExclusiveMaximum() {
-		builder.ExclusiveMaximum(s.ExclusiveMaximum())
-	}
-	if s.HasMultipleOf() {
-		builder.MultipleOf(s.MultipleOf())
-	}
-
-	// Copy array constraints
-	if s.HasMinItems() {
-		builder.MinItems(s.MinItems())
-	}
-	if s.HasMaxItems() {
-		builder.MaxItems(s.MaxItems())
-	}
-	if s.HasUniqueItems() {
-		builder.UniqueItems(s.UniqueItems())
-	}
-	if s.HasItems() {
-		builder.Items(s.Items())
-	}
-	if s.HasContains() {
-		builder.Contains(s.Contains())
-	}
-	if s.HasUnevaluatedItems() {
-		builder.UnevaluatedItems(s.UnevaluatedItems())
-	}
-
-	// Copy object constraints
-	if s.HasMinProperties() {
-		builder.MinProperties(s.MinProperties())
-	}
-	if s.HasMaxProperties() {
-		builder.MaxProperties(s.MaxProperties())
-	}
-	if s.HasRequired() {
-		for _, req := range s.Required() {
-			builder.Required(req)
-		}
-	}
-	if s.HasProperties() {
-		for name, prop := range s.Properties() {
-			builder.Property(name, prop)
-		}
-	}
-	if s.HasPatternProperties() {
-		for pattern, prop := range s.PatternProperties() {
-			builder.PatternProperty(pattern, prop)
-		}
-	}
-	if s.HasAdditionalProperties() {
-		builder.AdditionalProperties(s.AdditionalProperties())
-	}
-	if s.HasUnevaluatedProperties() {
-		builder.UnevaluatedProperties(s.UnevaluatedProperties())
-	}
-	if s.HasDependentSchemas() {
-		builder.DependentSchemas(s.DependentSchemas())
-	}
-	if s.HasPropertyNames() {
-		builder.PropertyNames(s.PropertyNames())
-	}
-
-	// Copy enum/const
-	if s.HasEnum() {
-		builder.Enum(s.Enum()...)
-	}
-	if s.HasConst() {
-		builder.Const(s.Const())
-	}
-
-	return builder.MustBuild()
+	// Clone all fields first, then reset the composition/control flow fields
+	return schema.NewBuilder().Clone(s).
+		ResetAllOf().
+		ResetAnyOf().
+		ResetOneOf().
+		ResetNot().
+		ResetIfSchema().
+		ResetThenSchema().
+		ResetElseSchema().
+		ResetReference().
+		ResetDynamicReference().
+		MustBuild()
 }
 
 // mergeGenericResults merges two results, handling both ObjectResult and ArrayResult types
