@@ -362,24 +362,6 @@ func TestComplexValidatorsCodeGeneration(t *testing.T) {
 			},
 		},
 		{
-			name: "UnevaluatedPropertiesCompositionValidator",
-			createValidator: func(_ *testing.T) Interface {
-				allOfValidator := String().MinLength(1).MustBuild()
-				baseValidator := String().MaxLength(10).MustBuild()
-				return &unevaluatedPropertiesValidator{
-					allOfValidators: []Interface{allOfValidator},
-					baseValidator:   baseValidator,
-				}
-			},
-			testValue:  "test",
-			shouldPass: true,
-			checkGenerated: func(t *testing.T, code string) {
-				require.Contains(t, code, "&validator.UnevaluatedPropertiesCompositionValidator{")
-				require.Contains(t, code, "allOfValidators:")
-				require.Contains(t, code, "baseValidator:")
-			},
-		},
-		{
 			name: "AnyOfUnevaluatedPropertiesCompositionValidator",
 			createValidator: func(_ *testing.T) Interface {
 				anyOfValidator := String().MinLength(1).MustBuild()

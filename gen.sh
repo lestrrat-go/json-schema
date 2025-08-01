@@ -5,11 +5,15 @@
 
 set -e
 
-pushd internal/cmd/genobjects
+dir=$(cd $(dirname $0); pwd -P)
+
+pushd $dir/internal/cmd/genobjects
 go mod tidy
 go build -o genobjects main.go
 popd
 
-./internal/cmd/genobjects/genobjects -objects=internal/cmd/genobjects/objects.yml
+pushd $dir
+$dir/internal/cmd/genobjects/genobjects -objects=$dir/internal/cmd/genobjects/objects.yml
+popd
 
-rm internal/cmd/genobjects/genobjects
+rm $dir/internal/cmd/genobjects/genobjects

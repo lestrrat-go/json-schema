@@ -48,13 +48,24 @@ type anyOfValidator struct {
 }
 
 func (v *anyOfValidator) Validate(ctx context.Context, in any) (Result, error) {
+	var resultMerger resultMerger
+	anyPassed := false
+
+	// According to JSON Schema spec, anyOf must collect annotations from ALL passing validators
 	for _, subv := range v.validators {
 		result, err := subv.Validate(ctx, in)
 		if err == nil {
-			return result, nil
+			anyPassed = true
+			resultMerger.mergeResult(result)
+			// Continue checking other validators to collect all annotations
 		}
 	}
-	return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
+
+	if !anyPassed {
+		return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
+	}
+
+	return resultMerger.FinalResult(), nil
 }
 
 type oneOfValidator struct {
@@ -80,63 +91,6 @@ func (v *oneOfValidator) Validate(ctx context.Context, in any) (Result, error) {
 	return validResult, nil
 }
 
-// hasBaseConstraints checks if a schema has base-level constraints that need validation
-// when used with allOf/anyOf/oneOf
-func hasBaseConstraints(s *schema.Schema) bool {
-	// Check for types separately since it's not a bit field check
-	if len(s.Types()) > 0 {
-		return true
-	}
-
-	// Use bit field approach for efficient checking of multiple constraints
-	baseConstraintFields := schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
-		schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
-		schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField | schema.UnevaluatedItemsField |
-		schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
-		schema.EnumField | schema.ConstField
-
-	// Returns true if ANY of the base constraint fields are set
-	return s.HasAny(baseConstraintFields)
-}
-
-// validateBaseWithContext validates the base schema with annotation context
-func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Context, in any, previousObjectResult *ObjectResult, previousArrayResult *ArrayResult) (Result, error) {
-	// Get existing evaluation context or create a new one
-	var ec *schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
-
-	if previousObjectResult != nil {
-		evalProps := previousObjectResult.EvaluatedProperties()
-		if len(evalProps) > 0 {
-			// Mark properties as evaluated
-			for prop := range evalProps {
-				if evalProps[prop] {
-					ec.Properties.MarkEvaluated(prop)
-				}
-			}
-		}
-	}
-
-	if previousArrayResult != nil {
-		evalItems := previousArrayResult.EvaluatedItems()
-		if len(evalItems) > 0 {
-			// Copy evaluated items
-			for i, evaluated := range evalItems {
-				if evaluated {
-					ec.Items.Set(i, true)
-				}
-			}
-		}
-	}
-
-	ctx = schemactx.WithEvaluationContext(ctx, ec)
-
-	return v.baseValidator.Validate(ctx, in)
-}
-
 // AnyOfUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with anyOf
 type AnyOfUnevaluatedPropertiesCompositionValidator struct {
 	anyOfValidators []Interface
@@ -144,15 +98,7 @@ type AnyOfUnevaluatedPropertiesCompositionValidator struct {
 	schema          *schema.Schema
 }
 
-func NewAnyOfUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *AnyOfUnevaluatedPropertiesCompositionValidator {
-	v, err := NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(context.Background(), s, nil, nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create anyOf composition validator: %v", err))
-	}
-	return v
-}
-
-func NewAnyOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, anyOfValidators []Interface, _ *schema.Resolver) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
+func NewAnyOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, anyOfValidators ...Interface) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &AnyOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}
@@ -329,15 +275,7 @@ type OneOfUnevaluatedPropertiesCompositionValidator struct {
 	schema          *schema.Schema
 }
 
-func NewOneOfUnevaluatedPropertiesCompositionValidator(s *schema.Schema) *OneOfUnevaluatedPropertiesCompositionValidator {
-	v, err := NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(context.Background(), s, nil, nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create oneOf composition validator: %v", err))
-	}
-	return v
-}
-
-func NewOneOfUnevaluatedPropertiesCompositionValidatorWithResolver(ctx context.Context, s *schema.Schema, oneOfValidators []Interface, _ *schema.Resolver) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
+func NewOneOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, oneOfValidators ...Interface) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &OneOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
 	}

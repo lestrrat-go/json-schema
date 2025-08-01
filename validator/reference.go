@@ -96,6 +96,13 @@ type DynamicReferenceValidator struct {
 	dynamicScope []*schema.Schema // Store the dynamic scope chain from compilation
 }
 
+// NewDynamicReferenceValidator creates a new DynamicReferenceValidator for the given reference
+func NewDynamicReferenceValidator(reference string) *DynamicReferenceValidator {
+	return &DynamicReferenceValidator{
+		reference: reference,
+	}
+}
+
 func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Lazy resolution - only resolve when actually needed for validation
 	dr.resolvedOnce.Do(func() {

@@ -62,7 +62,7 @@ type Builder struct {
 	propertyNames         *Schema
 	reference             *string
 	required              []string
-	schema                string
+	schema                *string
 	thenSchema            SchemaOrBool
 	types                 PrimitiveTypes
 	unevaluatedItems      SchemaOrBool
@@ -72,9 +72,7 @@ type Builder struct {
 }
 
 func NewBuilder() *Builder {
-	return &Builder{
-		schema: Version,
-	}
+	return &Builder{}
 }
 
 func (b *Builder) AdditionalItems(v SchemaOrBool) *Builder {
@@ -109,6 +107,7 @@ func (b *Builder) AllOf(v ...SchemaOrBool) *Builder {
 	return b
 }
 
+// Anchor sets the $anchor field of the schema being built.
 func (b *Builder) Anchor(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -134,6 +133,7 @@ func (b *Builder) AnyOf(v ...SchemaOrBool) *Builder {
 	return b
 }
 
+// Comment sets the $comment field of the schema being built.
 func (b *Builder) Comment(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -143,6 +143,7 @@ func (b *Builder) Comment(v string) *Builder {
 	return b
 }
 
+// Const sets the const field of the schema being built.
 func (b *Builder) Const(v any) *Builder {
 	if b.err != nil {
 		return b
@@ -160,6 +161,7 @@ func (b *Builder) Contains(v SchemaOrBool) *Builder {
 	return b
 }
 
+// ContentEncoding sets the contentEncoding field of the schema being built.
 func (b *Builder) ContentEncoding(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -169,6 +171,7 @@ func (b *Builder) ContentEncoding(v string) *Builder {
 	return b
 }
 
+// ContentMediaType sets the contentMediaType field of the schema being built.
 func (b *Builder) ContentMediaType(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -178,6 +181,7 @@ func (b *Builder) ContentMediaType(v string) *Builder {
 	return b
 }
 
+// ContentSchema sets the contentSchema field of the schema being built.
 func (b *Builder) ContentSchema(v *Schema) *Builder {
 	if b.err != nil {
 		return b
@@ -187,6 +191,7 @@ func (b *Builder) ContentSchema(v *Schema) *Builder {
 	return b
 }
 
+// Default sets the default field of the schema being built.
 func (b *Builder) Default(v any) *Builder {
 	if b.err != nil {
 		return b
@@ -205,6 +210,7 @@ func (b *Builder) Definitions(n string, v *Schema) *Builder {
 	return b
 }
 
+// DependentRequired sets the dependentRequired field of the schema being built.
 func (b *Builder) DependentRequired(v map[string][]string) *Builder {
 	if b.err != nil {
 		return b
@@ -214,6 +220,7 @@ func (b *Builder) DependentRequired(v map[string][]string) *Builder {
 	return b
 }
 
+// DependentSchemas sets the dependentSchemas field of the schema being built.
 func (b *Builder) DependentSchemas(v map[string]SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
@@ -223,6 +230,7 @@ func (b *Builder) DependentSchemas(v map[string]SchemaOrBool) *Builder {
 	return b
 }
 
+// DynamicAnchor sets the $dynamicAnchor field of the schema being built.
 func (b *Builder) DynamicAnchor(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -232,6 +240,7 @@ func (b *Builder) DynamicAnchor(v string) *Builder {
 	return b
 }
 
+// DynamicReference sets the $dynamicRef field of the schema being built.
 func (b *Builder) DynamicReference(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -258,6 +267,7 @@ func (b *Builder) Enum(v ...any) *Builder {
 	return b
 }
 
+// ExclusiveMaximum sets the exclusiveMaximum field of the schema being built.
 func (b *Builder) ExclusiveMaximum(v float64) *Builder {
 	if b.err != nil {
 		return b
@@ -267,6 +277,7 @@ func (b *Builder) ExclusiveMaximum(v float64) *Builder {
 	return b
 }
 
+// ExclusiveMinimum sets the exclusiveMinimum field of the schema being built.
 func (b *Builder) ExclusiveMinimum(v float64) *Builder {
 	if b.err != nil {
 		return b
@@ -276,6 +287,7 @@ func (b *Builder) ExclusiveMinimum(v float64) *Builder {
 	return b
 }
 
+// Format sets the format field of the schema being built.
 func (b *Builder) Format(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -285,6 +297,7 @@ func (b *Builder) Format(v string) *Builder {
 	return b
 }
 
+// ID sets the $id field of the schema being built.
 func (b *Builder) ID(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -310,6 +323,7 @@ func (b *Builder) Items(v SchemaOrBool) *Builder {
 	return b
 }
 
+// MaxContains sets the maxContains field of the schema being built.
 func (b *Builder) MaxContains(v uint) *Builder {
 	if b.err != nil {
 		return b
@@ -319,6 +333,7 @@ func (b *Builder) MaxContains(v uint) *Builder {
 	return b
 }
 
+// MaxItems sets the maxItems field of the schema being built.
 func (b *Builder) MaxItems(v uint) *Builder {
 	if b.err != nil {
 		return b
@@ -328,6 +343,7 @@ func (b *Builder) MaxItems(v uint) *Builder {
 	return b
 }
 
+// MaxLength sets the maxLength field of the schema being built.
 func (b *Builder) MaxLength(v int) *Builder {
 	if b.err != nil {
 		return b
@@ -337,6 +353,7 @@ func (b *Builder) MaxLength(v int) *Builder {
 	return b
 }
 
+// MaxProperties sets the maxProperties field of the schema being built.
 func (b *Builder) MaxProperties(v uint) *Builder {
 	if b.err != nil {
 		return b
@@ -346,6 +363,7 @@ func (b *Builder) MaxProperties(v uint) *Builder {
 	return b
 }
 
+// Maximum sets the maximum field of the schema being built.
 func (b *Builder) Maximum(v float64) *Builder {
 	if b.err != nil {
 		return b
@@ -355,6 +373,7 @@ func (b *Builder) Maximum(v float64) *Builder {
 	return b
 }
 
+// MinContains sets the minContains field of the schema being built.
 func (b *Builder) MinContains(v uint) *Builder {
 	if b.err != nil {
 		return b
@@ -364,6 +383,7 @@ func (b *Builder) MinContains(v uint) *Builder {
 	return b
 }
 
+// MinItems sets the minItems field of the schema being built.
 func (b *Builder) MinItems(v uint) *Builder {
 	if b.err != nil {
 		return b
@@ -373,6 +393,7 @@ func (b *Builder) MinItems(v uint) *Builder {
 	return b
 }
 
+// MinLength sets the minLength field of the schema being built.
 func (b *Builder) MinLength(v int) *Builder {
 	if b.err != nil {
 		return b
@@ -382,6 +403,7 @@ func (b *Builder) MinLength(v int) *Builder {
 	return b
 }
 
+// MinProperties sets the minProperties field of the schema being built.
 func (b *Builder) MinProperties(v uint) *Builder {
 	if b.err != nil {
 		return b
@@ -391,6 +413,7 @@ func (b *Builder) MinProperties(v uint) *Builder {
 	return b
 }
 
+// Minimum sets the minimum field of the schema being built.
 func (b *Builder) Minimum(v float64) *Builder {
 	if b.err != nil {
 		return b
@@ -400,6 +423,7 @@ func (b *Builder) Minimum(v float64) *Builder {
 	return b
 }
 
+// MultipleOf sets the multipleOf field of the schema being built.
 func (b *Builder) MultipleOf(v float64) *Builder {
 	if b.err != nil {
 		return b
@@ -409,6 +433,7 @@ func (b *Builder) MultipleOf(v float64) *Builder {
 	return b
 }
 
+// Not sets the not field of the schema being built.
 func (b *Builder) Not(v *Schema) *Builder {
 	if b.err != nil {
 		return b
@@ -434,6 +459,7 @@ func (b *Builder) OneOf(v ...SchemaOrBool) *Builder {
 	return b
 }
 
+// Pattern sets the pattern field of the schema being built.
 func (b *Builder) Pattern(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -470,6 +496,7 @@ func (b *Builder) Property(n string, v *Schema) *Builder {
 	return b
 }
 
+// PropertyNames sets the propertyNames field of the schema being built.
 func (b *Builder) PropertyNames(v *Schema) *Builder {
 	if b.err != nil {
 		return b
@@ -479,6 +506,7 @@ func (b *Builder) PropertyNames(v *Schema) *Builder {
 	return b
 }
 
+// Reference sets the $ref field of the schema being built.
 func (b *Builder) Reference(v string) *Builder {
 	if b.err != nil {
 		return b
@@ -497,12 +525,20 @@ func (b *Builder) Required(v ...string) *Builder {
 	return b
 }
 
+// Schema sets the $schema field of the schema being built.
+// Please note that this field is not automatically set by the library
+// when building a schema, as there is no way to know if the schema
+// is intended to be used as a standalone schema or as part of a larger
+// schema. Therefore, you must set it explicitly when building a schema.
+//
+// When unmarshaling from JSON, this field is will be automatically set
+// to the value of the `$schema` keyword if it exists.
 func (b *Builder) Schema(v string) *Builder {
 	if b.err != nil {
 		return b
 	}
 
-	b.schema = v
+	b.schema = &v
 	return b
 }
 
@@ -539,6 +575,7 @@ func (b *Builder) UnevaluatedProperties(v SchemaOrBool) *Builder {
 	return b
 }
 
+// UniqueItems sets the uniqueItems field of the schema being built.
 func (b *Builder) UniqueItems(v bool) *Builder {
 	if b.err != nil {
 		return b
@@ -548,6 +585,7 @@ func (b *Builder) UniqueItems(v bool) *Builder {
 	return b
 }
 
+// Vocabulary sets the $vocabulary field of the schema being built.
 func (b *Builder) Vocabulary(v map[string]bool) *Builder {
 	if b.err != nil {
 		return b
@@ -751,7 +789,9 @@ func (b *Builder) Clone(original *Schema) *Builder {
 		b.required = original.required
 	}
 
-	b.schema = original.schema
+	if original.HasSchema() {
+		b.schema = original.schema
+	}
 
 	if original.HasThenSchema() {
 		b.thenSchema = original.thenSchema
@@ -1143,7 +1183,7 @@ func (b *Builder) ResetSchema() *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.schema = Version
+	b.schema = nil
 	return b
 }
 
@@ -1398,7 +1438,10 @@ func (b *Builder) Build() (*Schema, error) {
 		s.required = b.required
 		s.populatedFields |= RequiredField
 	}
-	s.schema = b.schema
+	if b.schema != nil {
+		s.schema = b.schema
+		s.populatedFields |= SchemaField
+	}
 	if b.thenSchema != nil {
 		s.thenSchema = b.thenSchema
 		s.populatedFields |= ThenSchemaField

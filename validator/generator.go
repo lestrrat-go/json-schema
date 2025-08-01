@@ -369,14 +369,9 @@ func (g *codeGenerator) generateDynamicReference(dst io.Writer, v *DynamicRefere
 			}
 		}
 	} else {
-		// If not resolved, create a reasonable validator based on JSON Schema expectations
-		// Most unresolved dynamic references in meta-schemas expect either:
-		// 1. JSON Schema objects (which should be objects)
-		// 2. Any JSON value (for things like const/default)
-		// For meta-schema generation, assume these accept schema objects (type: object)
-		// This is better than EmptyValidator which accepts anything
-		// Use StrictObjectType(true) to ensure only objects are accepted
-		o.R("validator.Object().StrictObjectType(true).MustBuild()")
+		// For unresolved dynamic references, create a runtime-resolved validator
+		// This preserves the dynamic resolution behavior while generating valid code
+		o.R("validator.NewDynamicReferenceValidator(%q)", v.reference)
 	}
 
 	_, err := buf.WriteTo(dst)
@@ -646,66 +641,6 @@ func (g *codeGenerator) generateNull(dst io.Writer) error {
 	o := codegen.NewOutput(&buf)
 
 	o.R("validator.Null()")
-
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
-func (g *codeGenerator) generateAlwaysPass(dst io.Writer) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-	o.R("&validator.EmptyValidator{}")
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
-func (g *codeGenerator) generateAlwaysFail(dst io.Writer) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-	o.R("&validator.NotValidator{validator: &validator.EmptyValidator{}}")
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
-func (g *codeGenerator) generateUnevaluatedPropertiesComposition(dst io.Writer, v *unevaluatedPropertiesValidator) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-
-	// UnevaluatedPropertiesComposition validators have allOf validators and a base validator
-	o.L("func() validator.Interface {")
-
-	// Generate allOf validators
-	if len(v.allOfValidators) > 0 {
-		o.L("allOfValidators := make([]validator.Interface, %d)", len(v.allOfValidators))
-		for i, allOfValidator := range v.allOfValidators {
-			o.L("allOfValidators[%d] = ", i)
-			if err := g.Generate(&buf, allOfValidator); err != nil {
-				return fmt.Errorf("failed to generate allOf validator %d: %w", i, err)
-			}
-			o.R("")
-		}
-	} else {
-		o.L("allOfValidators := make([]validator.Interface, 0)")
-	}
-
-	// Generate base validator
-	if v.baseValidator != nil {
-		o.L("baseValidator := ")
-		if err := g.Generate(&buf, v.baseValidator); err != nil {
-			return fmt.Errorf("failed to generate base validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("baseValidator := &validator.EmptyValidator{}")
-	}
-
-	// Create the UnevaluatedPropertiesCompositionValidator
-	o.L("return &validator.UnevaluatedPropertiesCompositionValidator{")
-	o.L("allOfValidators: allOfValidators,")
-	o.L("baseValidator: baseValidator,")
-	o.L("schema: nil, // Schema not available during generation")
-	o.L("}")
-	o.L("}()")
 
 	_, err := buf.WriteTo(dst)
 	return err

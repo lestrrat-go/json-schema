@@ -10,12 +10,6 @@ import (
 
 // TestMetaSchemaCompliance tests meta-schema compliance for JSON Schema 2020-12
 func TestMetaSchemaCompliance(t *testing.T) {
-	t.Run("Default Meta-Schema", func(t *testing.T) {
-		// Test that new schemas use the correct default meta-schema
-		s := schema.New()
-		require.Equal(t, schema.Version, s.Schema())
-	})
-
 	t.Run("Custom Meta-Schema", func(t *testing.T) {
 		// Test setting custom meta-schema
 		customMetaSchema := "https://example.com/custom-meta-schema"
@@ -29,11 +23,13 @@ func TestMetaSchemaCompliance(t *testing.T) {
 	t.Run("Meta-Schema Declaration Required", func(t *testing.T) {
 		// Every schema should declare its meta-schema
 		s, err := schema.NewBuilder().
+			Schema(schema.Version).
 			Types(schema.StringType).
 			Build()
 		require.NoError(t, err)
 
 		// Should have default meta-schema
+		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
 		require.NotEmpty(t, s.Schema())
 		require.Equal(t, schema.Version, s.Schema())
 	})
@@ -63,6 +59,7 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 
 		// Check that all fields are properly structured
 		require.Equal(t, "https://example.com/valid", s.ID())
+		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, s.ContainsType(schema.ObjectType), true, `Schema should be of type Object`)
 		require.NotNil(t, s.Properties())
@@ -89,6 +86,7 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 
 		// Verify all core keywords are present
 		require.Equal(t, "https://example.com/comprehensive", s.ID())
+		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, "#/definitions/base", s.Reference())
 		require.Equal(t, "main", s.Anchor())
@@ -135,21 +133,9 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 
 // TestSchemaVocabularyDeclaration tests vocabulary declaration
 func TestSchemaVocabularyDeclaration(t *testing.T) {
-	t.Run("Core Vocabulary Support", func(t *testing.T) {
-		// Test that the implementation supports core vocabulary
-		s := schema.New()
-
-		// Should have the correct version which implies core vocabulary support
-		require.Equal(t, schema.Version, s.Schema())
-	})
-
 	t.Run("Schema Version Compatibility", func(t *testing.T) {
 		// Test version string matches expected format
 		require.Equal(t, "https://json-schema.org/draft/2020-12/schema", schema.Version)
-
-		// Test that schemas declare this version by default
-		s := schema.New()
-		require.Equal(t, schema.Version, s.Schema())
 	})
 }
 

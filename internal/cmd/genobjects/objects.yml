@@ -8,6 +8,14 @@ objects:
         type: 'map[string]*Schema'
       - name: schema
         json: '$schema'
+        comment: |
+          Please note that this field is not automatically set by the library
+          when building a schema, as there is no way to know if the schema
+          is intended to be used as a standalone schema or as part of a larger
+          schema. Therefore, you must set it explicitly when building a schema.
+
+          When unmarshaling from JSON, this field is will be automatically set
+          to the value of the `$schema` keyword if it exists.
       - name: dynamicReference
         json: '$dynamicRef'
       - name: reference

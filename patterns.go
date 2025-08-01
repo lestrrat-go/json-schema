@@ -1,5 +1,7 @@
 package schema
 
+import "github.com/lestrrat-go/json-schema/keywords"
+
 // Common Pattern Helpers
 //
 // This file provides convenient one-liners for frequent JSON Schema validation patterns.
@@ -7,12 +9,12 @@ package schema
 
 // Email creates a Builder for email validation using the "email" format
 func Email() *Builder {
-	return NewBuilder().Types(StringType).Format("email")
+	return NewBuilder().Types(StringType).Format(keywords.FormatEmail)
 }
 
 // URL creates a Builder for URL validation using the "uri" format
 func URL() *Builder {
-	return NewBuilder().Types(StringType).Format("uri")
+	return NewBuilder().Types(StringType).Format(keywords.FormatURI)
 }
 
 // NonEmptyString creates a Builder for non-empty string validation
@@ -69,17 +71,17 @@ func Optional(s *Schema) *Builder {
 
 // UUID creates a Builder for UUID validation using the "uuid" format
 func UUID() *Builder {
-	return NewBuilder().Types(StringType).Format("uuid")
+	return NewBuilder().Types(StringType).Format(keywords.FormatUUID)
 }
 
 // Date creates a Builder for date validation using the "date" format
 func Date() *Builder {
-	return NewBuilder().Types(StringType).Format("date")
+	return NewBuilder().Types(StringType).Format(keywords.FormatDate)
 }
 
 // DateTime creates a Builder for date-time validation using the "date-time" format
 func DateTime() *Builder {
-	return NewBuilder().Types(StringType).Format("date-time")
+	return NewBuilder().Types(StringType).Format(keywords.FormatDateTime)
 }
 
 // AlphanumericString creates a Builder for alphanumeric string validation

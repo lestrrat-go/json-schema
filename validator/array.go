@@ -26,8 +26,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 		v.UniqueItems(s.UniqueItems())
 	}
 	if s.HasPrefixItems() {
-		prefixItems := s.PrefixItems()
-		if len(prefixItems) > 0 {
+		if prefixItems := s.PrefixItems(); len(prefixItems) > 0 {
 			prefixValidators := make([]Interface, len(prefixItems))
 			for i, prefixSchema := range prefixItems {
 				prefixValidator, err := Compile(ctx, prefixSchema)
@@ -69,11 +68,11 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				if bool(val) {
 					// contains: true - any item matches, so any non-empty array is valid
 					// We'll create a validator that always passes
-					v.Contains(&alwaysPassValidator{})
+					v.Contains(&EmptyValidator{})
 				} else {
 					// contains: false - no items should match, so any non-empty array is invalid
 					// We'll create a validator that always fails
-					v.Contains(&alwaysFailValidator{})
+					v.Contains(&NotValidator{validator: &EmptyValidator{}})
 				}
 			case *schema.Schema:
 				// Regular schema object
@@ -362,13 +361,12 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			}
 		}
 
-		// Validate additionalItems for items beyond the defined items schema
+		// Validate additionalItems for items beyond prefixItems
 		if c.additionalItems != nil {
-			for i := range rv.Len() {
-				// For now, assuming items is a single schema that applies to all items
-				// If items is nil or the item hasn't been evaluated yet, additionalItems applies
+			// additionalItems only applies to indices beyond prefixItems
+			for i := prefixItemsCount; i < arrayLength; i++ {
+				// Only apply additionalItems if this item wasn't handled by items schema
 				if c.items == nil {
-					// If no items schema, additionalItems applies to all items
 					item := rv.Index(i).Interface()
 					_, err := c.additionalItems.Validate(ctx, item)
 					if err != nil {
@@ -447,19 +445,4 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		//nolint: nilnil
 		return nil, nil
 	}
-}
-
-// alwaysPassValidator is a validator that always passes (used for contains: true)
-type alwaysPassValidator struct{}
-
-func (v *alwaysPassValidator) Validate(_ context.Context, _ any) (Result, error) {
-	//nolint: nilnil
-	return nil, nil
-}
-
-// alwaysFailValidator is a validator that always fails (used for contains: false)
-type alwaysFailValidator struct{}
-
-func (v *alwaysFailValidator) Validate(_ context.Context, _ any) (Result, error) {
-	return nil, fmt.Errorf("contains: false schema always fails")
 }

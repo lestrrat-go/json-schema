@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 	"github.com/stretchr/testify/assert"
@@ -803,43 +804,43 @@ func TestStringValidatorComprehensive(t *testing.T) {
 			{
 				name:    "valid email format",
 				value:   "test@example.com",
-				format:  "email",
+				format:  keywords.FormatEmail,
 				wantErr: false,
 			},
 			{
 				name:    "invalid email format",
 				value:   "not-an-email",
-				format:  "email",
+				format:  keywords.FormatEmail,
 				wantErr: true,
 			},
 			{
 				name:    "valid date format",
 				value:   "2023-12-25",
-				format:  "date",
+				format:  keywords.FormatDate,
 				wantErr: false,
 			},
 			{
 				name:    "invalid date format",
 				value:   "not-a-date",
-				format:  "date",
+				format:  keywords.FormatDate,
 				wantErr: true,
 			},
 			{
 				name:    "valid datetime format",
 				value:   "2023-12-25T10:30:00Z",
-				format:  "date-time",
+				format:  keywords.FormatDateTime,
 				wantErr: false,
 			},
 			{
 				name:    "valid URI format",
 				value:   "https://example.com/path",
-				format:  "uri",
+				format:  keywords.FormatURI,
 				wantErr: false,
 			},
 			{
 				name:    "valid UUID format",
 				value:   "550e8400-e29b-41d4-a716-446655440000",
-				format:  "uuid",
+				format:  keywords.FormatUUID,
 				wantErr: false,
 			},
 		}
@@ -938,24 +939,18 @@ func TestCommonPatterns(t *testing.T) {
 			ctx := context.Background()
 			ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
 			v, err := validator.Compile(ctx, schemaObj)
-			if err != nil {
-				t.Fatalf("Failed to compile validator: %v", err)
-			}
+			require.NoError(t, err, "Failed to compile validator")
 
 			// Test valid cases
 			for _, validValue := range tc.valid {
 				_, err := v.Validate(context.Background(), validValue)
-				if err != nil {
-					t.Errorf("Expected %v to be valid, got error: %v", validValue, err)
-				}
+				require.NoError(t, err, "Expected %v to be valid", validValue)
 			}
 
 			// Test invalid cases
 			for _, invalidValue := range tc.invalid {
 				_, err := v.Validate(context.Background(), invalidValue)
-				if err == nil {
-					t.Errorf("Expected %v to be invalid, but validation passed", invalidValue)
-				}
+				require.Error(t, err, "Expected %v to be invalid", invalidValue)
 			}
 		})
 	}

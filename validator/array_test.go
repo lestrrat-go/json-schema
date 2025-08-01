@@ -291,8 +291,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 		}
 	})
 
-	// TODO: Re-enable when tuple validation methods are available
-	/* t.Run("Tuple Validation (Positional Items)", func(t *testing.T) {
+	t.Run("Tuple Validation (Positional Items)", func(t *testing.T) {
 		testCases := []struct {
 			name            string
 			value           []any
@@ -330,7 +329,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
 				},
 				wantErr: true,
-				errMsg:  "item validation failed",
+				errMsg:  "prefixItems[0] validation failed",
 			},
 			{
 				name:  "additional items allowed",
@@ -353,10 +352,10 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				},
 				additionalItems: false,
 				wantErr:         true,
-				errMsg:          "additional items not allowed",
+				errMsg:          "additionalItems validation failed",
 			},
 			{
-				name:  "additional items with schema",
+				name:  "additional items with schema - valid strings",
 				value: []any{"John", 30, true, "extra1", "extra2"},
 				prefixItems: []*schema.Schema{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
@@ -376,7 +375,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				},
 				additionalItems: schema.NewBuilder().Types(schema.StringType).MustBuild(),
 				wantErr:         true,
-				errMsg:          "additional item validation failed",
+				errMsg:          "additionalItems validation failed",
 			},
 		}
 
@@ -384,17 +383,15 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				builder := schema.NewBuilder().Types(schema.ArrayType)
 
-				// Set prefix items (tuple validation)
-				for i, itemSchema := range tc.prefixItems {
-					builder = builder.PrefixItem(i, itemSchema)
-				}
+				// Set prefix items (tuple validation) - use PrefixItems with all schemas at once
+				builder = builder.PrefixItems(tc.prefixItems...)
 
-				// Set additional items policy
+				// Set additional items policy - AdditionalItems accepts SchemaOrBool
 				switch ai := tc.additionalItems.(type) {
 				case bool:
-					builder = builder.AdditionalItems(ai)
+					builder = builder.AdditionalItems(schema.BoolSchema(ai))
 				case *schema.Schema:
-					builder = builder.AdditionalItemsSchema(ai)
+					builder = builder.AdditionalItems(ai)
 				}
 
 				s, err := builder.Build()
@@ -414,7 +411,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 				}
 			})
 		}
-	}) */
+	})
 
 	t.Run("Unique Items Validation", func(t *testing.T) {
 		testCases := []struct {

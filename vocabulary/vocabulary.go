@@ -23,37 +23,37 @@ const (
 	MetaDataURL         = "https://json-schema.org/draft/2020-12/vocab/meta-data"
 )
 
-type Set2 struct {
+type Set struct {
 	mu       sync.RWMutex
 	uri      string
 	keywords map[string]struct{}
 	list     []string
 }
 
-func NewSet(uri string) *Set2 {
-	return &Set2{
+func NewSet(uri string) *Set {
+	return &Set{
 		uri: uri,
 	}
 }
 
-func (s *Set2) URI() string {
+func (s *Set) URI() string {
 	return s.uri
 }
 
-func (s *Set2) Keywords() []string {
+func (s *Set) Keywords() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.list
 }
 
-func (s *Set2) KeywordExists(keyword string) bool {
+func (s *Set) KeywordExists(keyword string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	_, exists := s.keywords[keyword]
 	return exists
 }
 
-func (s *Set2) Add(keywords ...string) *Set2 {
+func (s *Set) Add(keywords ...string) *Set {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -74,20 +74,20 @@ func (s *Set2) Add(keywords ...string) *Set2 {
 // Registry maps vocabulary URIs to their enabled keywords
 type Registry struct {
 	mu           sync.RWMutex
-	vocabularies map[string]*Set2
+	vocabularies map[string]*Set
 }
 
-func (r *Registry) Add(set *Set2) *Registry {
+func (r *Registry) Add(set *Set) *Registry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.vocabularies == nil {
-		r.vocabularies = make(map[string]*Set2)
+		r.vocabularies = make(map[string]*Set)
 	}
 	r.vocabularies[set.URI()] = set
 	return r
 }
 
-func (r *Registry) Get(vocabularyURI string) *Set2 {
+func (r *Registry) Get(vocabularyURI string) *Set {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.vocabularies == nil {
@@ -106,7 +106,7 @@ func DefaultRegistry() *Registry {
 func init() {
 	defaultRegistry = &Registry{}
 
-	vocabularies := []*Set2{
+	vocabularies := []*Set{
 		NewSet(CoreURL).Add(
 			keywords.Schema, keywords.ID, keywords.Reference, keywords.DynamicReference, keywords.DynamicAnchor, keywords.Vocabulary, keywords.Comment, keywords.Definitions,
 		),
@@ -168,15 +168,15 @@ func (r *Registry) GetVocabularyForKeyword(keyword string) string {
 // This replaces the old Set map[string]bool approach with a structured approach
 type VocabularySet struct { //nolint:revive // VocabularySet name is used to maintain API compatibility
 	mu           sync.RWMutex
-	enabled      map[string]bool  // vocabulary URI -> enabled status
-	vocabularies map[string]*Set2 // vocabulary URI -> Set2 object (for keyword lookup)
+	enabled      map[string]bool // vocabulary URI -> enabled status
+	vocabularies map[string]*Set // vocabulary URI -> Set2 object (for keyword lookup)
 }
 
 // NewVocabularySet creates a new VocabularySet
 func NewVocabularySet() *VocabularySet {
 	return &VocabularySet{
 		enabled:      make(map[string]bool),
-		vocabularies: make(map[string]*Set2),
+		vocabularies: make(map[string]*Set),
 	}
 }
 

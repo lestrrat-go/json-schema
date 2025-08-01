@@ -112,6 +112,18 @@ func _main() error {
 	vocabSet := vocabulary.AllEnabled()
 	ctx = vocabulary.WithSet(ctx, vocabSet)
 
+	// Set up resolver for meta-schema references
+	resolver := schema.NewResolver()
+	ctx = schema.WithResolver(ctx, resolver)
+
+	// Set up base schema context for reference resolution
+	ctx = schema.WithBaseSchema(ctx, &metaSchema)
+
+	// Set up base URI for relative reference resolution within metaschema
+	// Use the directory base URI, not the specific schema file URI
+	// This allows meta/core to resolve to https://json-schema.org/draft/2020-12/meta/core
+	ctx = schema.WithBaseURI(ctx, "https://json-schema.org/draft/2020-12/")
+
 	// Compile the meta-schema to a validator
 	compiledValidator, err := validator.Compile(ctx, &metaSchema)
 	if err != nil {
