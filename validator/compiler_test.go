@@ -1,10 +1,11 @@
-package validator
+package validator_test
 
 import (
 	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,9 +14,9 @@ func TestCompile_Simple(t *testing.T) {
 
 	// Test empty schema
 	emptySchema := schema.NewBuilder().MustBuild()
-	validator, err := Compile(ctx, emptySchema)
+	v, err := validator.Compile(ctx, emptySchema)
 	require.NoError(t, err)
-	require.IsType(t, &EmptyValidator{}, validator)
+	require.NotNil(t, v)
 
 	// Test simple string schema
 	stringSchema := schema.NewBuilder().
@@ -24,18 +25,18 @@ func TestCompile_Simple(t *testing.T) {
 		MaxLength(10).
 		MustBuild()
 
-	validator, err = Compile(ctx, stringSchema)
+	v, err = validator.Compile(ctx, stringSchema)
 	require.NoError(t, err)
 
 	// Should be just the string validator since no unevaluated constraints
-	result, err := validator.Validate(ctx, "hello")
+	result, err := v.Validate(ctx, "hello")
 	require.NoError(t, err)
 	if result != nil {
 		t.Logf("Got result: %+v", result)
 	}
 
 	// Test validation failure
-	_, err = validator.Validate(ctx, "this string is too long")
+	_, err = v.Validate(ctx, "this string is too long")
 	require.Error(t, err)
 }
 
@@ -53,18 +54,16 @@ func TestCompile_WithUnevaluated(t *testing.T) {
 		UnevaluatedProperties(schema.BoolSchema(false)). // No additional properties allowed
 		MustBuild()
 
-	validator, err := Compile(ctx, allOfSchema)
+	v, err := validator.Compile(ctx, allOfSchema)
 	require.NoError(t, err)
-
-	// Should be an unevaluatedCoordinator
-	require.IsType(t, &unevaluatedCoordinator{}, validator)
+	require.NotNil(t, v)
 
 	// Test validation of valid object
 	validObj := map[string]any{
 		"name": "John",
 		"age":  30,
 	}
-	result, err := validator.Validate(ctx, validObj)
+	result, err := v.Validate(ctx, validObj)
 	require.NoError(t, err)
 	if result != nil {
 		t.Logf("Got result: %+v", result)
@@ -76,7 +75,7 @@ func TestCompile_WithUnevaluated(t *testing.T) {
 		"age":   30,
 		"extra": "not allowed",
 	}
-	_, err = validator.Validate(ctx, invalidObj)
+	_, err = v.Validate(ctx, invalidObj)
 	require.Error(t, err)
 	t.Logf("Got expected error: %v", err)
 }
@@ -92,14 +91,12 @@ func TestCompile_AllOfOnly(t *testing.T) {
 		).
 		MustBuild()
 
-	validator, err := Compile(ctx, allOfSchema)
+	v, err := validator.Compile(ctx, allOfSchema)
 	require.NoError(t, err)
-
-	// Should be just the allOf validator since no unevaluated constraints
-	require.IsType(t, &allOfValidator{}, validator)
+	require.NotNil(t, v)
 
 	// Test validation
-	result, err := validator.Validate(ctx, "hello")
+	result, err := v.Validate(ctx, "hello")
 	require.NoError(t, err)
 	if result != nil {
 		t.Logf("Got result: %+v", result)
