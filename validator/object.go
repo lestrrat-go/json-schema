@@ -30,18 +30,14 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		v.DependentRequired(s.DependentRequired())
 	}
 	if s.HasProperties() {
-		properties := make(map[string]Interface)
-		for name, propSchema := range s.Properties() {
+		schemaProps := s.Properties()
+		props := make([]PropertyPair, 0, len(schemaProps))
+		for name, propSchema := range schemaProps {
 			propValidator, err := Compile(ctx, propSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property validator for %s: %w", name, err)
 			}
-			properties[name] = propValidator
-		}
-		// Convert map to PropertyPair slice
-		props := make([]PropertyPair, 0, len(properties))
-		for name, validator := range properties {
-			props = append(props, PropPair(name, validator))
+			props = append(props, PropPair(name, propValidator))
 		}
 		v.Properties(props...)
 	}
