@@ -127,38 +127,6 @@ func withEvaluatedItems(ctx context.Context, evaluatedItems []bool) context.Cont
 	return schemactx.WithEvaluationContext(ctx, ec)
 }
 
-// withEvaluatedResults creates a new context with evaluated properties and items from results
-func withEvaluatedResults(ctx context.Context, objResult *ObjectResult, arrResult *ArrayResult) context.Context {
-	// Get existing evaluation context or create a new one
-	var ec *schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
-
-	// Add evaluated properties
-	if objResult != nil {
-		evalProps := objResult.EvaluatedProperties()
-		for prop := range evalProps {
-			if evalProps[prop] {
-				ec.Properties.MarkEvaluated(prop)
-			}
-		}
-	}
-
-	// Add evaluated items
-	if arrResult != nil {
-		evalItems := arrResult.EvaluatedItems()
-		for i, evaluated := range evalItems {
-			if evaluated {
-				ec.Items.Set(i, true)
-			}
-		}
-	}
-
-	return schemactx.WithEvaluationContext(ctx, ec)
-}
-
 // executeValidatorsAndMergeResults executes all validators and merges their results
 // Returns the result merger and any error encountered
 func executeValidatorsAndMergeResults(ctx context.Context, validators []Interface, input any, validatorType string) (*resultMerger, error) {

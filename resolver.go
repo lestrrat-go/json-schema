@@ -29,6 +29,9 @@ func NewResolver() *Resolver {
 		resolver.AddResolver(fsResolver)
 	}
 
+	// Add object resolver for JSON pointer resolution within map data structures
+	resolver.AddResolver(jsref.NewObjectResolver())
+
 	return &Resolver{resolver: resolver}
 }
 

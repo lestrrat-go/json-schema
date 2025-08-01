@@ -27,54 +27,6 @@ func init() {
 					validator.Object().
 						Properties(
 							validator.PropPair(
-								keywords.RecursiveAnchor,
-								validator.String().
-									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
-									MustBuild(),
-							),
-							validator.PropPair(
-								keywords.RecursiveRef,
-								validator.String().
-									Format("uri-reference").
-									MustBuild(),
-							),
-							validator.PropPair(
-								keywords.Definitions,
-								validator.Object().
-									AdditionalProperties(
-										validator.Object().StrictObjectType(true).MustBuild(),
-									).
-									StrictObjectType(true).
-									MustBuild(),
-							),
-							validator.PropPair(
-								keywords.DependentSchemas,
-								validator.Object().
-									AdditionalProperties(
-
-										validator.AnyOf(validator.Object().StrictObjectType(true).MustBuild(),
-											validator.Array().
-												UniqueItems(true).
-												Items(
-													validator.String().
-														MustBuild()).
-												StrictArrayType(true).
-												MustBuild(),
-										),
-									).
-									StrictObjectType(true).
-									MustBuild(),
-							),
-						).
-						StrictObjectType(true).
-						MustBuild(),
-					validator.Boolean().
-						MustBuild(),
-				),
-				validator.AnyOf(
-					validator.Object().
-						Properties(
-							validator.PropPair(
 								keywords.Anchor,
 								validator.String().
 									Pattern("^[A-Za-z_][-A-Za-z0-9._]*$").
@@ -89,7 +41,7 @@ func init() {
 								keywords.Definitions,
 								validator.Object().
 									AdditionalProperties(
-										validator.Object().StrictObjectType(true).MustBuild(),
+										validator.NewDynamicReferenceValidator("#meta"),
 									).
 									StrictObjectType(true).
 									MustBuild(),
@@ -155,13 +107,13 @@ func init() {
 					validator.Object().
 						Properties(
 							validator.PropPair(
-								keywords.AdditionalProperties, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.AdditionalProperties, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
 								keywords.AllOf,
 								validator.Array().
 									MinItems(1).
-									Items(validator.Object().StrictObjectType(true).MustBuild()).
+									Items(validator.NewDynamicReferenceValidator("#meta")).
 									StrictArrayType(true).
 									MustBuild(),
 							),
@@ -169,39 +121,39 @@ func init() {
 								keywords.AnyOf,
 								validator.Array().
 									MinItems(1).
-									Items(validator.Object().StrictObjectType(true).MustBuild()).
+									Items(validator.NewDynamicReferenceValidator("#meta")).
 									StrictArrayType(true).
 									MustBuild(),
 							),
 							validator.PropPair(
-								keywords.Contains, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.Contains, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
 								keywords.DependentSchemas,
 								validator.Object().
 									AdditionalProperties(
-										validator.Object().StrictObjectType(true).MustBuild(),
+										validator.NewDynamicReferenceValidator("#meta"),
 									).
 									StrictObjectType(true).
 									MustBuild(),
 							),
 							validator.PropPair(
-								keywords.Else, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.Else, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
-								keywords.If, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.If, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
-								keywords.Items, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.Items, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
-								keywords.Not, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.Not, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
 								keywords.OneOf,
 								validator.Array().
 									MinItems(1).
-									Items(validator.Object().StrictObjectType(true).MustBuild()).
+									Items(validator.NewDynamicReferenceValidator("#meta")).
 									StrictArrayType(true).
 									MustBuild(),
 							),
@@ -209,7 +161,7 @@ func init() {
 								keywords.PatternProperties,
 								validator.Object().
 									AdditionalProperties(
-										validator.Object().StrictObjectType(true).MustBuild(),
+										validator.NewDynamicReferenceValidator("#meta"),
 									).
 									PropertyNames(
 										validator.String().
@@ -223,7 +175,7 @@ func init() {
 								keywords.PrefixItems,
 								validator.Array().
 									MinItems(1).
-									Items(validator.Object().StrictObjectType(true).MustBuild()).
+									Items(validator.NewDynamicReferenceValidator("#meta")).
 									StrictArrayType(true).
 									MustBuild(),
 							),
@@ -231,16 +183,16 @@ func init() {
 								keywords.Properties,
 								validator.Object().
 									AdditionalProperties(
-										validator.Object().StrictObjectType(true).MustBuild(),
+										validator.NewDynamicReferenceValidator("#meta"),
 									).
 									StrictObjectType(true).
 									MustBuild(),
 							),
 							validator.PropPair(
-								keywords.PropertyNames, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.PropertyNames, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
-								keywords.Then, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.Then, validator.NewDynamicReferenceValidator("#meta"),
 							),
 						).
 						StrictObjectType(true).
@@ -252,10 +204,10 @@ func init() {
 					validator.Object().
 						Properties(
 							validator.PropPair(
-								keywords.UnevaluatedItems, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.UnevaluatedItems, validator.NewDynamicReferenceValidator("#meta"),
 							),
 							validator.PropPair(
-								keywords.UnevaluatedProperties, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.UnevaluatedProperties, validator.NewDynamicReferenceValidator("#meta"),
 							),
 						).
 						StrictObjectType(true).
@@ -385,32 +337,28 @@ func init() {
 							validator.PropPair(
 								keywords.Type,
 								validator.AnyOf(
-									validator.String().
-										Enum(
-											"array",
-											"boolean",
-											"integer",
-											"null",
-											"number",
-											"object",
-											"string",
-										).
-										MustBuild(),
+									validator.Untyped().Enum(
+										"array",
+										"boolean",
+										"integer",
+										"null",
+										"number",
+										"object",
+										"string",
+									).MustBuild(),
 									validator.Array().
 										MinItems(1).
 										UniqueItems(true).
 										Items(
-											validator.String().
-												Enum(
-													"array",
-													"boolean",
-													"integer",
-													"null",
-													"number",
-													"object",
-													"string",
-												).
-												MustBuild()).
+											validator.Untyped().Enum(
+												"array",
+												"boolean",
+												"integer",
+												"null",
+												"number",
+												"object",
+												"string",
+											).MustBuild()).
 										StrictArrayType(true).
 										MustBuild(),
 								),
@@ -498,7 +446,7 @@ func init() {
 									MustBuild(),
 							),
 							validator.PropPair(
-								keywords.ContentSchema, validator.Object().StrictObjectType(true).MustBuild(),
+								keywords.ContentSchema, validator.NewDynamicReferenceValidator("#meta"),
 							),
 						).
 						StrictObjectType(true).
@@ -526,7 +474,7 @@ func init() {
 							keywords.Definitions,
 							validator.Object().
 								AdditionalProperties(
-									validator.Object().StrictObjectType(true).MustBuild(),
+									validator.NewDynamicReferenceValidator("#meta"),
 								).
 								StrictObjectType(true).
 								MustBuild(),
@@ -536,7 +484,7 @@ func init() {
 							validator.Object().
 								AdditionalProperties(
 
-									validator.AnyOf(validator.Object().StrictObjectType(true).MustBuild(),
+									validator.AnyOf(validator.NewDynamicReferenceValidator("#meta"),
 										validator.Array().
 											UniqueItems(true).
 											Items(

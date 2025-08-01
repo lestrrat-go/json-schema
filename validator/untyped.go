@@ -105,7 +105,7 @@ func validateConst(ctx context.Context, value any, constValue any) error {
 	logger := TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "validating const constraint", "expected", constValue, "actual", value)
 
-	if !reflect.DeepEqual(value, constValue) {
+	if !jsonSchemaEqual(value, constValue) {
 		return fmt.Errorf(`must be const value %v`, constValue)
 	}
 	return nil
@@ -117,9 +117,62 @@ func validateEnum(ctx context.Context, value any, enumValues []any) error {
 	logger.InfoContext(ctx, "validating enum constraint", "allowed_values", enumValues, "actual", value)
 
 	for _, enumVal := range enumValues {
-		if reflect.DeepEqual(value, enumVal) {
+		if jsonSchemaEqual(value, enumVal) {
 			return nil
 		}
 	}
 	return fmt.Errorf(`invalid value: %v not found in enum %v`, value, enumValues)
+}
+
+// jsonSchemaEqual compares two values according to JSON Schema equality rules
+// This handles numeric type equivalence (5 == 5.0) as required by JSON Schema spec
+func jsonSchemaEqual(a, b any) bool {
+	// First try direct equality (handles same types efficiently)
+	if reflect.DeepEqual(a, b) {
+		return true
+	}
+
+	// Handle numeric comparisons specially
+	aNum, aIsNum := convertToNumber(a)
+	bNum, bIsNum := convertToNumber(b)
+
+	if aIsNum && bIsNum {
+		// Both are numbers - compare their mathematical values
+		return aNum == bNum
+	}
+
+	// For non-numeric types, fall back to reflect.DeepEqual
+	return false
+}
+
+// convertToNumber converts a value to float64 if it's a numeric type
+func convertToNumber(v any) (float64, bool) {
+	switch val := v.(type) {
+	case int:
+		return float64(val), true
+	case int8:
+		return float64(val), true
+	case int16:
+		return float64(val), true
+	case int32:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case uint:
+		return float64(val), true
+	case uint8:
+		return float64(val), true
+	case uint16:
+		return float64(val), true
+	case uint32:
+		return float64(val), true
+	case uint64:
+		return float64(val), true
+	case float32:
+		return float64(val), true
+	case float64:
+		return val, true
+	default:
+		return 0, false
+	}
 }

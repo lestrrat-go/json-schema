@@ -8,14 +8,6 @@ import (
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
-// baseConstraintFields defines the bit field mask for all base constraint fields
-// that should be checked when determining if a schema has base-level constraints
-const baseConstraintFields = schema.MinLengthField | schema.MaxLengthField | schema.PatternField |
-	schema.MinimumField | schema.MaximumField | schema.ExclusiveMinimumField | schema.ExclusiveMaximumField | schema.MultipleOfField |
-	schema.MinItemsField | schema.MaxItemsField | schema.UniqueItemsField | schema.ItemsField | schema.ContainsField | schema.UnevaluatedItemsField |
-	schema.MinPropertiesField | schema.MaxPropertiesField | schema.RequiredField | schema.PropertiesField | schema.PatternPropertiesField | schema.AdditionalPropertiesField | schema.UnevaluatedPropertiesField | schema.DependentSchemasField | schema.PropertyNamesField |
-	schema.EnumField | schema.ConstField
-
 // AllOf is a convnience function to create a Validator that can handle allOf validation.
 func AllOf(validators ...Interface) Interface {
 	return &allOfValidator{
@@ -56,13 +48,24 @@ type anyOfValidator struct {
 }
 
 func (v *anyOfValidator) Validate(ctx context.Context, in any) (Result, error) {
+	var resultMerger resultMerger
+	anyPassed := false
+
+	// According to JSON Schema spec, anyOf must collect annotations from ALL passing validators
 	for _, subv := range v.validators {
 		result, err := subv.Validate(ctx, in)
 		if err == nil {
-			return result, nil
+			anyPassed = true
+			resultMerger.mergeResult(result)
+			// Continue checking other validators to collect all annotations
 		}
 	}
-	return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
+
+	if !anyPassed {
+		return nil, fmt.Errorf(`anyOf validation failed: none of the validators passed`)
+	}
+
+	return resultMerger.FinalResult(), nil
 }
 
 type oneOfValidator struct {
@@ -86,54 +89,6 @@ func (v *oneOfValidator) Validate(ctx context.Context, in any) (Result, error) {
 		return nil, fmt.Errorf(`oneOf validation failed: more than one validator passed (%d), expected exactly one`, passedCount)
 	}
 	return validResult, nil
-}
-
-// hasBaseConstraints checks if a schema has base-level constraints that need validation
-// when used with allOf/anyOf/oneOf
-func hasBaseConstraints(s *schema.Schema) bool {
-	// Check for types separately since it's not a bit field check
-	if len(s.Types()) > 0 {
-		return true
-	}
-
-	// Returns true if ANY of the base constraint fields are set
-	return s.HasAny(baseConstraintFields)
-}
-
-// validateBaseWithContext validates the base schema with annotation context
-func (v *unevaluatedPropertiesValidator) validateBaseWithContext(ctx context.Context, in any, previousObjectResult *ObjectResult, previousArrayResult *ArrayResult) (Result, error) {
-	// Get existing evaluation context or create a new one
-	var ec *schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
-
-	if previousObjectResult != nil {
-		if evalProps := previousObjectResult.EvaluatedProperties(); len(evalProps) > 0 {
-			// Mark properties as evaluated
-			for prop := range evalProps {
-				if evalProps[prop] {
-					ec.Properties.MarkEvaluated(prop)
-				}
-			}
-		}
-	}
-
-	if previousArrayResult != nil {
-		if evalItems := previousArrayResult.EvaluatedItems(); len(evalItems) > 0 {
-			// Copy evaluated items
-			for i, evaluated := range evalItems {
-				if evaluated {
-					ec.Items.Set(i, true)
-				}
-			}
-		}
-	}
-
-	ctx = schemactx.WithEvaluationContext(ctx, ec)
-
-	return v.baseValidator.Validate(ctx, in)
 }
 
 // AnyOfUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with anyOf
