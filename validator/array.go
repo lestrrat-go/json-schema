@@ -137,6 +137,8 @@ type ArrayValidatorBuilder struct {
 	c   *arrayValidator
 }
 
+// Array creates a new ArrayValidatorBuilder instance that can be used to build a
+// Validator for array values according to the JSON Schema specification.
 func Array() *ArrayValidatorBuilder {
 	return (&ArrayValidatorBuilder{}).Reset()
 }

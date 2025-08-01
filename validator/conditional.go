@@ -97,6 +97,7 @@ type IfThenElseUnevaluatedPropertiesCompositionValidator struct {
 	schema        *schema.Schema
 }
 
+// NewIfThenElseUnevaluatedPropertiesCompositionValidator creates a new IfThenElseUnevaluatedPropertiesCompositionValidator instance.
 func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema) *IfThenElseUnevaluatedPropertiesCompositionValidator {
 	v := &IfThenElseUnevaluatedPropertiesCompositionValidator{
 		schema: s,

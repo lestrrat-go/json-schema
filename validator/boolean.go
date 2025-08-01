@@ -33,6 +33,8 @@ type BooleanValidatorBuilder struct {
 	c   *booleanValidator
 }
 
+// Boolean creates a new BooleanValidatorBuilder instance that can be used to build a
+// Validator for boolean values according to the JSON Schema specification.
 func Boolean() *BooleanValidatorBuilder {
 	return (&BooleanValidatorBuilder{}).Reset()
 }

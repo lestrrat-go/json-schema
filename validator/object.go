@@ -140,6 +140,8 @@ type ObjectValidatorBuilder struct {
 	c   *objectValidator
 }
 
+// Object creates a new ObjectValidatorBuilder instance that can be used to build a
+// Validator for object values according to the JSON Schema specification.
 func Object() *ObjectValidatorBuilder {
 	return (&ObjectValidatorBuilder{}).Reset()
 }

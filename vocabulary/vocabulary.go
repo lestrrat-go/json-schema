@@ -30,6 +30,7 @@ type Set struct {
 	list     []string
 }
 
+// NewSet creates a new vocabulary set with the given URI.
 func NewSet(uri string) *Set {
 	return &Set{
 		uri: uri,
