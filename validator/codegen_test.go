@@ -255,26 +255,44 @@ func TestCodeGeneration(t *testing.T) {
 func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 	// Test code generation with validators compiled from schemas
 	tests := []struct {
-		name       string
-		schemaJSON string
-		testValue  any
-		shouldPass bool
+		name         string
+		createSchema func() *schema.Schema
+		testValue    any
+		shouldPass   bool
 	}{
 		{
-			name:       "CompiledStringValidator",
-			schemaJSON: `{"type": "string", "minLength": 3, "maxLength": 10}`,
+			name: "CompiledStringValidator",
+			createSchema: func() *schema.Schema {
+				return schema.NewBuilder().
+					Types(schema.StringType).
+					MinLength(3).
+					MaxLength(10).
+					MustBuild()
+			},
 			testValue:  "hello",
 			shouldPass: true,
 		},
 		{
-			name:       "CompiledObjectValidator",
-			schemaJSON: `{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}`,
+			name: "CompiledObjectValidator",
+			createSchema: func() *schema.Schema {
+				return schema.NewBuilder().
+					Types(schema.ObjectType).
+					Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+					Required("name").
+					MustBuild()
+			},
 			testValue:  map[string]any{"name": "test"},
 			shouldPass: true,
 		},
 		{
-			name:       "CompiledArrayValidator",
-			schemaJSON: `{"type": "array", "items": {"type": "string"}, "minItems": 1}`,
+			name: "CompiledArrayValidator",
+			createSchema: func() *schema.Schema {
+				return schema.NewBuilder().
+					Types(schema.ArrayType).
+					Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
+					MinItems(1).
+					MustBuild()
+			},
 			testValue:  []any{"hello", "world"},
 			shouldPass: true,
 		},
@@ -282,14 +300,12 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Parse schema
-			var s schema.Schema
-			err := s.UnmarshalJSON([]byte(tt.schemaJSON))
-			require.NoError(t, err)
+			// Create schema using builder
+			s := tt.createSchema()
 
 			// Compile validator
 			ctx := context.Background()
-			originalValidator, err := Compile(ctx, &s)
+			originalValidator, err := Compile(ctx, s)
 			require.NoError(t, err)
 
 			// Test original validator

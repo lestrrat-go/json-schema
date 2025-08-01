@@ -21,29 +21,21 @@ func TestResolver(t *testing.T) {
 }
 
 func TestResolveLocalReference(t *testing.T) {
-	// Since we can't add definitions directly (not in current schema),
-	// let's test with a more realistic schema structure
-	jsonSchema := `{
-		"$id": "https://example.com/person",
-		"type": "object",
-		"properties": {
-			"name": {"$ref": "#/$defs/stringType"},
-			"age": {"$ref": "#/$defs/intType"}
-		},
-		"$defs": {
-			"stringType": {"type": "string"},
-			"intType": {"type": "integer", "minimum": 0}
-		}
-	}`
-
-	var base schema.Schema
-	require.NoError(t, base.UnmarshalJSON([]byte(jsonSchema)))
+	// Create schema with $defs using our builder
+	base := schema.NewBuilder().
+		ID("https://example.com/person").
+		Types(schema.ObjectType).
+		Property("name", schema.NewBuilder().Reference("#/$defs/stringType").MustBuild()).
+		Property("age", schema.NewBuilder().Reference("#/$defs/intType").MustBuild()).
+		Definitions("stringType", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+		Definitions("intType", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
+		MustBuild()
 
 	resolver := schema.NewResolver()
 
 	t.Run("resolve string definition", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &base)
+		ctx := schema.WithBaseSchema(context.Background(), base)
 		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/stringType")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.StringType))
@@ -51,7 +43,7 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve integer definition", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &base)
+		ctx := schema.WithBaseSchema(context.Background(), base)
 		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/intType")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.IntegerType))
@@ -60,7 +52,7 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve non-existent reference", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &base)
+		ctx := schema.WithBaseSchema(context.Background(), base)
 		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/nonexistent")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve local reference")
@@ -71,34 +63,30 @@ func TestResolveFileReference(t *testing.T) {
 	// Create temporary schema files
 	tmpDir := t.TempDir()
 
-	// Create person.json
-	personSchema := map[string]any{
-		"$id":  "https://example.com/person",
-		"type": "object",
-		"properties": map[string]any{
-			"name": map[string]any{"type": "string"},
-			"age":  map[string]any{"type": "integer", "minimum": 0},
-		},
-		"required": []string{"name"},
-	}
+	// Create person.json using builder
+	personSchema := schema.NewBuilder().
+		ID("https://example.com/person").
+		Types(schema.ObjectType).
+		Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+		Property("age", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
+		Required("name").
+		MustBuild()
 
 	personFile := filepath.Join(tmpDir, "person.json")
-	personData, err := json.Marshal(personSchema)
+	personData, err := personSchema.MarshalJSON()
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(personFile, personData, 0644))
 
-	// Create address.json that references person.json
-	addressSchema := map[string]any{
-		"$id":  "https://example.com/address",
-		"type": "object",
-		"properties": map[string]any{
-			"street":   map[string]any{"type": "string"},
-			"resident": map[string]any{"$ref": "person.json"},
-		},
-	}
+	// Create address.json that references person.json using builder
+	addressSchema := schema.NewBuilder().
+		ID("https://example.com/address").
+		Types(schema.ObjectType).
+		Property("street", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+		Property("resident", schema.NewBuilder().Reference("person.json").MustBuild()).
+		MustBuild()
 
 	addressFile := filepath.Join(tmpDir, "address.json")
-	addressData, err := json.Marshal(addressSchema)
+	addressData, err := addressSchema.MarshalJSON()
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(addressFile, addressData, 0644))
 
@@ -138,17 +126,15 @@ func TestResolveHTTPReference(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/person.json":
-			personSchema := map[string]any{
-				"$id":  "https://example.com/person",
-				"type": "object",
-				"properties": map[string]any{
-					"name": map[string]any{"type": "string"},
-					"age":  map[string]any{"type": "integer", "minimum": 0},
-				},
-				"$defs": map[string]any{
-					"nameType": map[string]any{"type": "string", "minLength": 1},
-				},
-			}
+			// Create schema using builder instead of map
+			personSchema := schema.NewBuilder().
+				ID("https://example.com/person").
+				Types(schema.ObjectType).
+				Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+				Property("age", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
+				Definitions("nameType", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+				MustBuild()
+
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(personSchema)
 		default:
@@ -219,23 +205,22 @@ func TestResolverWithYAMLFiles(t *testing.T) {
 	// Create temporary YAML schema file
 	tmpDir := t.TempDir()
 
-	yamlContent := `
-$id: https://example.com/yaml-schema
-type: object
-properties:
-  title:
-    type: string
-  count:
-    type: integer
-    minimum: 0
-$defs:
-  positiveInt:
-    type: integer
-    minimum: 1
-`
+	// Create schema using builder and convert to YAML-formatted JSON
+	yamlSchema := schema.NewBuilder().
+		ID("https://example.com/yaml-schema").
+		Types(schema.ObjectType).
+		Property("title", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+		Property("count", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
+		Definitions("positiveInt", schema.NewBuilder().Types(schema.IntegerType).Minimum(1).MustBuild()).
+		MustBuild()
 
+	// Marshal to JSON and then format as YAML-style for file content
+	schemaJSON, err := yamlSchema.MarshalJSON()
+	require.NoError(t, err)
+
+	// Write as JSON since resolver supports JSON in .yaml files
 	yamlFile := filepath.Join(tmpDir, "schema.yaml")
-	require.NoError(t, os.WriteFile(yamlFile, []byte(yamlContent), 0644))
+	require.NoError(t, os.WriteFile(yamlFile, schemaJSON, 0644))
 
 	// Change to tmpDir for relative path resolution
 	t.Chdir(tmpDir)
@@ -263,31 +248,22 @@ $defs:
 
 func TestResolverSeparateAPIs(t *testing.T) {
 	t.Run("ResolveJSONReference", func(t *testing.T) {
-		// Schema with JSON pointer reference
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"user": {"$ref": "#/$defs/person"}
-			},
-			"$defs": {
-				"person": {
-					"type": "object",
-					"properties": {
-						"name": {"type": "string", "minLength": 1}
-					},
-					"required": ["name"]
-				}
-			}
-		}`
-
-		var baseSchema schema.Schema
-		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
+		// Schema with JSON pointer reference using builder
+		baseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("user", schema.NewBuilder().Reference("#/$defs/person").MustBuild()).
+			Definitions("person", schema.NewBuilder().
+				Types(schema.ObjectType).
+				Property("name", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+				Required("name").
+				MustBuild()).
+			MustBuild()
 
 		resolver := schema.NewResolver()
 
 		// Test ResolveJSONReference directly
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
+		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
 		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/person")
 		require.NoError(t, err)
 
@@ -300,32 +276,23 @@ func TestResolverSeparateAPIs(t *testing.T) {
 	})
 
 	t.Run("ResolveAnchor", func(t *testing.T) {
-		// Schema with anchor
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"user": {"$ref": "#person"}
-			},
-			"$defs": {
-				"personDef": {
-					"$anchor": "person",
-					"type": "object",
-					"properties": {
-						"name": {"type": "string", "minLength": 1}
-					},
-					"required": ["name"]
-				}
-			}
-		}`
-
-		var baseSchema schema.Schema
-		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
+		// Schema with anchor using builder
+		baseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("user", schema.NewBuilder().Reference("#person").MustBuild()).
+			Definitions("personDef", schema.NewBuilder().
+				Anchor("person").
+				Types(schema.ObjectType).
+				Property("name", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+				Required("name").
+				MustBuild()).
+			MustBuild()
 
 		resolver := schema.NewResolver()
 
 		// Test ResolveAnchor directly
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
+		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
 		err := resolver.ResolveAnchor(ctx, &resolved, "person")
 		require.NoError(t, err)
 
@@ -339,33 +306,24 @@ func TestResolverSeparateAPIs(t *testing.T) {
 	})
 
 	t.Run("ResolveReference unified API dispatching", func(t *testing.T) {
-		// Schema with both JSON pointer and anchor references
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"userByPointer": {"$ref": "#/$defs/person"},
-				"userByAnchor": {"$ref": "#person"}
-			},
-			"$defs": {
-				"person": {
-					"$anchor": "person",
-					"type": "object",
-					"properties": {
-						"name": {"type": "string", "minLength": 1}
-					},
-					"required": ["name"]
-				}
-			}
-		}`
-
-		var baseSchema schema.Schema
-		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
+		// Schema with both JSON pointer and anchor references using builder
+		baseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("userByPointer", schema.NewBuilder().Reference("#/$defs/person").MustBuild()).
+			Property("userByAnchor", schema.NewBuilder().Reference("#person").MustBuild()).
+			Definitions("person", schema.NewBuilder().
+				Anchor("person").
+				Types(schema.ObjectType).
+				Property("name", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+				Required("name").
+				MustBuild()).
+			MustBuild()
 
 		resolver := schema.NewResolver()
 
 		// Test unified API with JSON pointer reference
 		var resolvedPointer schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
+		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
 		err := resolver.ResolveReference(ctx, &resolvedPointer, "#/$defs/person")
 		require.NoError(t, err)
 		require.True(t, resolvedPointer.ContainsType(schema.ObjectType))
@@ -383,49 +341,37 @@ func TestResolverSeparateAPIs(t *testing.T) {
 	})
 
 	t.Run("ResolveAnchor error handling", func(t *testing.T) {
-		// Schema without the requested anchor
-		jsonSchema := `{
-			"type": "object",
-			"$defs": {
-				"person": {
-					"$anchor": "person",
-					"type": "string"
-				}
-			}
-		}`
-
-		var baseSchema schema.Schema
-		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
+		// Schema without the requested anchor using builder
+		baseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Definitions("person", schema.NewBuilder().
+				Anchor("person").
+				Types(schema.StringType).
+				MustBuild()).
+			MustBuild()
 
 		resolver := schema.NewResolver()
 
 		// Try to resolve non-existent anchor
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
+		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
 		err := resolver.ResolveAnchor(ctx, &resolved, "nonexistent")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor nonexistent not found")
 	})
 
 	t.Run("ResolveJSONReference error handling", func(t *testing.T) {
-		// Schema without the requested definition
-		jsonSchema := `{
-			"type": "object",
-			"$defs": {
-				"person": {
-					"type": "string"
-				}
-			}
-		}`
-
-		var baseSchema schema.Schema
-		require.NoError(t, baseSchema.UnmarshalJSON([]byte(jsonSchema)))
+		// Schema without the requested definition using builder
+		baseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Definitions("person", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			MustBuild()
 
 		resolver := schema.NewResolver()
 
 		// Try to resolve non-existent JSON pointer
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
+		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
 		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/nonexistent")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve local JSON pointer reference")
@@ -436,17 +382,17 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/person.json":
-				personSchema := map[string]any{
-					"$id":  "https://example.com/person",
-					"type": "object",
-					"$defs": map[string]any{
-						"nameType": map[string]any{
-							"$anchor":   "personName",
-							"type":      "string",
-							"minLength": 1,
-						},
-					},
-				}
+				// Create schema using builder instead of map
+				personSchema := schema.NewBuilder().
+					ID("https://example.com/person").
+					Types(schema.ObjectType).
+					Definitions("nameType", schema.NewBuilder().
+						Anchor("personName").
+						Types(schema.StringType).
+						MinLength(1).
+						MustBuild()).
+					MustBuild()
+
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(personSchema)
 			default:

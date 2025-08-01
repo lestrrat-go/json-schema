@@ -13,50 +13,49 @@ func TestIfThenElseWithReferences(t *testing.T) {
 	t.Run("if/then/else with references", func(t *testing.T) {
 		// Schema with if/then/else that uses references
 		// The if condition checks the root object to determine the data type
-		jsonSchema := `{
-			"if": {"$ref": "#/$defs/isString"},
-			"then": {
-				"type": "object",
-				"properties": {
-					"type": {"type": "string"},
-					"value": {"$ref": "#/$defs/stringValue"}
-				},
-				"required": ["type", "value"]
-			},
-			"else": {
-				"type": "object",
-				"properties": {
-					"type": {"type": "string"}, 
-					"value": {"$ref": "#/$defs/numberValue"}
-				},
-				"required": ["type", "value"]
-			},
-			"$defs": {
-				"isString": {
-					"properties": {
-						"type": {"const": "string"}
-					}
-				},
-				"stringValue": {
-					"type": "string",
-					"minLength": 1
-				},
-				"numberValue": {
-					"type": "number",
-					"minimum": 0
-				}
-			}
-		}`
+		isStringSchema := schema.NewBuilder().
+			Property("type", schema.NewBuilder().Const("string").MustBuild()).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		stringValueSchema := schema.NewBuilder().
+			Types(schema.StringType).
+			MinLength(1).
+			MustBuild()
+
+		numberValueSchema := schema.NewBuilder().
+			Types(schema.NumberType).
+			Minimum(0).
+			MustBuild()
+
+		thenSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("value", schema.NewBuilder().Reference("#/$defs/stringValue").MustBuild()).
+			Required("type", "value").
+			MustBuild()
+
+		elseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("value", schema.NewBuilder().Reference("#/$defs/numberValue").MustBuild()).
+			Required("type", "value").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			IfSchema(schema.NewBuilder().Reference("#/$defs/isString").MustBuild()).
+			ThenSchema(thenSchema).
+			ElseSchema(elseSchema).
+			Definitions("isString", isStringSchema).
+			Definitions("stringValue", stringValueSchema).
+			Definitions("numberValue", numberValueSchema).
+			MustBuild()
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		t.Run("then branch - string type", func(t *testing.T) {
@@ -107,53 +106,49 @@ func TestIfThenElseWithReferences(t *testing.T) {
 
 	t.Run("property-level if/then/else with references", func(t *testing.T) {
 		// Schema that uses references in property-level if/then/else
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"category": {"type": "string"},
-				"config": {
-					"if": {"$ref": "#/$defs/hasSimpleFlag"},
-					"then": {"$ref": "#/$defs/basicConfig"},
-					"else": {"$ref": "#/$defs/advancedConfig"}
-				}
-			},
-			"required": ["category", "config"],
-			"$defs": {
-				"hasSimpleFlag": {
-					"type": "object",
-					"properties": {
-						"simple": {"const": true}
-					},
-					"required": ["simple"]
-				},
-				"basicConfig": {
-					"type": "object",
-					"properties": {
-						"simple": {"type": "boolean"},
-						"name": {"type": "string"}
-					},
-					"required": ["simple"]
-				},
-				"advancedConfig": {
-					"type": "object",
-					"properties": {
-						"features": {"type": "array", "items": {"type": "string"}},
-						"enabled": {"type": "boolean"}
-					},
-					"required": ["features", "enabled"]
-				}
-			}
-		}`
+		hasSimpleFlagSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("simple", schema.NewBuilder().Const(true).MustBuild()).
+			Required("simple").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		basicConfigSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("simple", schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Required("simple").
+			MustBuild()
+
+		advancedConfigSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("features", schema.NewBuilder().
+				Types(schema.ArrayType).
+				Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
+				MustBuild()).
+			Property("enabled", schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
+			Required("features", "enabled").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("category", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("config", schema.NewBuilder().
+				IfSchema(schema.NewBuilder().Reference("#/$defs/hasSimpleFlag").MustBuild()).
+				ThenSchema(schema.NewBuilder().Reference("#/$defs/basicConfig").MustBuild()).
+				ElseSchema(schema.NewBuilder().Reference("#/$defs/advancedConfig").MustBuild()).
+				MustBuild()).
+			Required("category", "config").
+			Definitions("hasSimpleFlag", hasSimpleFlagSchema).
+			Definitions("basicConfig", basicConfigSchema).
+			Definitions("advancedConfig", advancedConfigSchema).
+			MustBuild()
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		t.Run("basic config - then branch", func(t *testing.T) {

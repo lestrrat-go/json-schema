@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCompile_Simple(t *testing.T) {

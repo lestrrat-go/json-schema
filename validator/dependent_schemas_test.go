@@ -12,21 +12,18 @@ import (
 func TestDependentSchemas(t *testing.T) {
 	t.Run("single dependency", func(t *testing.T) {
 		// Schema from the JSON Schema test suite
-		jsonSchema := `{
-			"dependentSchemas": {
-				"bar": {
-					"properties": {
-						"foo": {"type": "integer"},
-						"bar": {"type": "integer"}
-					}
-				}
-			}
-		}`
+		barDependentSchema := schema.NewBuilder().
+			Property("foo", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
+			Property("bar", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"bar": barDependentSchema,
+			}).
+			MustBuild()
 
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Valid case - both properties satisfy the dependent schema
@@ -66,26 +63,23 @@ func TestDependentSchemas(t *testing.T) {
 	})
 
 	t.Run("multiple dependencies", func(t *testing.T) {
-		jsonSchema := `{
-			"dependentSchemas": {
-				"quux": {
-					"properties": {
-						"foo": {"type": "integer"},
-						"bar": {"type": "integer"}
-					}
-				},
-				"foo": {
-					"properties": {
-						"bar": {"type": "string"}
-					}
-				}
-			}
-		}`
+		quuxDependentSchema := schema.NewBuilder().
+			Property("foo", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
+			Property("bar", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		fooDependentSchema := schema.NewBuilder().
+			Property("bar", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			MustBuild()
 
-		v, err := validator.Compile(context.Background(), &s)
+		s := schema.NewBuilder().
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"quux": quuxDependentSchema,
+				"foo":  fooDependentSchema,
+			}).
+			MustBuild()
+
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Invalid case - foo dependency requires bar to be string, but quux dependency requires bar to be integer
@@ -106,14 +100,11 @@ func TestDependentSchemas(t *testing.T) {
 	})
 
 	t.Run("empty dependent schemas", func(t *testing.T) {
-		jsonSchema := `{
-			"dependentSchemas": {}
-		}`
+		s := schema.NewBuilder().
+			DependentSchemas(map[string]schema.SchemaOrBool{}).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
-
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Any data should be valid
@@ -123,22 +114,19 @@ func TestDependentSchemas(t *testing.T) {
 	})
 
 	t.Run("dependent schema with complex validation", func(t *testing.T) {
-		jsonSchema := `{
-			"type": "object",
-			"dependentSchemas": {
-				"credit_card": {
-					"properties": {
-						"billing_address": {"type": "string"}
-					},
-					"required": ["billing_address"]
-				}
-			}
-		}`
+		creditCardDependentSchema := schema.NewBuilder().
+			Property("billing_address", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Required("billing_address").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"credit_card": creditCardDependentSchema,
+			}).
+			MustBuild()
 
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Valid case - credit_card present with required billing_address
@@ -165,31 +153,30 @@ func TestDependentSchemas(t *testing.T) {
 	})
 
 	t.Run("dependent schemas with references", func(t *testing.T) {
-		jsonSchema := `{
-			"type": "object",
-			"dependentSchemas": {
-				"name": {"$ref": "#/$defs/person"}
-			},
-			"$defs": {
-				"person": {
-					"type": "object",
-					"properties": {
-						"name": {"type": "string"},
-						"age": {"type": "integer", "minimum": 0}
-					},
-					"required": ["name", "age"]
-				}
-			}
-		}`
+		personSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("age", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
+			Required("name", "age").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		nameRefSchema := schema.NewBuilder().
+			Reference("#/$defs/person").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"name": nameRefSchema,
+			}).
+			Definitions("person", personSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		// Valid case - name present with required age
@@ -225,24 +212,19 @@ func TestDependentSchemas(t *testing.T) {
 
 	t.Run("debug: incompatible root and dependent schema", func(t *testing.T) {
 		// Test case from JSON Schema compliance test suite
-		jsonSchema := `{
-			"properties": {
-				"foo": {}
-			},
-			"dependentSchemas": {
-				"foo": {
-					"properties": {
-						"bar": {}
-					},
-					"additionalProperties": false
-				}
-			}
-		}`
+		fooDependentSchema := schema.NewBuilder().
+			Property("bar", schema.New()).
+			AdditionalProperties(schema.BoolSchema(false)).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Property("foo", schema.New()).
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"foo": fooDependentSchema,
+			}).
+			MustBuild()
 
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// This should FAIL because:
@@ -275,22 +257,17 @@ func TestDependentSchemas(t *testing.T) {
 
 	t.Run("debug: schema type inference", func(t *testing.T) {
 		// Test case from JSON Schema compliance test suite
-		jsonSchema := `{
-			"properties": {
-				"foo": {}
-			},
-			"dependentSchemas": {
-				"foo": {
-					"properties": {
-						"bar": {}
-					},
-					"additionalProperties": false
-				}
-			}
-		}`
+		fooDependentSchema := schema.NewBuilder().
+			Property("bar", schema.New()).
+			AdditionalProperties(schema.BoolSchema(false)).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Property("foo", schema.New()).
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"foo": fooDependentSchema,
+			}).
+			MustBuild()
 
 		// Check what types are defined
 		t.Logf("Schema types: %v", s.Types())
@@ -298,26 +275,23 @@ func TestDependentSchemas(t *testing.T) {
 		t.Logf("Has properties: %v", s.HasProperties())
 		t.Logf("Has dependent schemas: %v", s.HasDependentSchemas())
 
-		_, err := validator.Compile(context.Background(), &s)
+		_, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Try to test without the root properties constraint
-		jsonSchemaNoProps := `{
-			"type": "object",
-			"dependentSchemas": {
-				"foo": {
-					"properties": {
-						"bar": {}
-					},
-					"additionalProperties": false
-				}
-			}
-		}`
+		fooDependentSchema2 := schema.NewBuilder().
+			Property("bar", schema.New()).
+			AdditionalProperties(schema.BoolSchema(false)).
+			MustBuild()
 
-		var s2 schema.Schema
-		require.NoError(t, s2.UnmarshalJSON([]byte(jsonSchemaNoProps)))
+		s2 := schema.NewBuilder().
+			Types(schema.ObjectType).
+			DependentSchemas(map[string]schema.SchemaOrBool{
+				"foo": fooDependentSchema2,
+			}).
+			MustBuild()
 
-		v2, err := validator.Compile(context.Background(), &s2)
+		v2, err := validator.Compile(context.Background(), s2)
 		require.NoError(t, err)
 
 		// This should FAIL because dependent schema rejects "foo"
@@ -329,17 +303,12 @@ func TestDependentSchemas(t *testing.T) {
 
 	t.Run("isolation: dependent schema alone", func(t *testing.T) {
 		// Test just the dependent schema part
-		dependentSchemaJSON := `{
-			"properties": {
-				"bar": {}
-			},
-			"additionalProperties": false
-		}`
+		depSchema := schema.NewBuilder().
+			Property("bar", schema.New()).
+			AdditionalProperties(schema.BoolSchema(false)).
+			MustBuild()
 
-		var depSchema schema.Schema
-		require.NoError(t, depSchema.UnmarshalJSON([]byte(dependentSchemaJSON)))
-
-		v, err := validator.Compile(context.Background(), &depSchema)
+		v, err := validator.Compile(context.Background(), depSchema)
 		require.NoError(t, err)
 
 		// This should FAIL - "foo" is not allowed because additionalProperties: false
@@ -357,18 +326,13 @@ func TestDependentSchemas(t *testing.T) {
 
 	t.Run("isolation: direct dependent schemas validator", func(t *testing.T) {
 		// Test the DependentSchemasValidator directly
-		dependentSchemaJSON := `{
-			"properties": {
-				"bar": {}
-			},
-			"additionalProperties": false
-		}`
-
-		var depSchema schema.Schema
-		require.NoError(t, depSchema.UnmarshalJSON([]byte(dependentSchemaJSON)))
+		depSchema := schema.NewBuilder().
+			Property("bar", schema.New()).
+			AdditionalProperties(schema.BoolSchema(false)).
+			MustBuild()
 
 		ctx := context.Background()
-		depSchemas := map[string]*schema.Schema{"foo": &depSchema}
+		depSchemas := map[string]*schema.Schema{"foo": depSchema}
 
 		depValidator, err := validator.DependentSchemasValidator(ctx, depSchemas)
 		require.NoError(t, err)
