@@ -562,10 +562,9 @@ func compileValueConstraintsValidator(_ context.Context, s *schema.Schema) (Inte
 // createSchemaWithoutUnevaluatedFields creates a copy of the schema without unevaluated constraints
 func createSchemaWithoutUnevaluatedFields(s *schema.Schema) *schema.Schema {
 	// Use the builder to clone the schema and reset unevaluated fields
-	builder := schema.NewBuilder().Clone(s)
-	builder.ResetUnevaluatedProperties()
-	builder.ResetUnevaluatedItems()
-	return builder.MustBuild()
+	return schema.NewBuilder().Clone(s).
+		Reset(schema.UnevaluatedPropertiesField | schema.UnevaluatedItemsField).
+		MustBuild()
 }
 
 func hasExplicitArrayType(s *schema.Schema) bool {

@@ -102,20 +102,20 @@ func TestBitFieldFunctionality(t *testing.T) {
 		require.True(t, cloned.Has(RequiredField), "Expected cloned schema to have required fields")
 	})
 
-	t.Run("Reset methods clear bit fields", func(t *testing.T) {
+	t.Run("Reset method clears bit fields", func(t *testing.T) {
 		t.Parallel()
 		schema := NewBuilder().
 			Anchor("test").
 			Maximum(100.0).
-			ResetAnchor().
+			Reset(AnchorField).
 			MustBuild()
 
 		// Should have Maximum but not Anchor
-		require.False(t, schema.Has(AnchorField), "Expected HasAnchor() to return false after ResetAnchor()")
+		require.False(t, schema.Has(AnchorField), "Expected HasAnchor() to return false after Reset(AnchorField)")
 		require.True(t, schema.Has(MaximumField), "Expected HasMaximum() to return true")
 
 		// Bit field should only have MaximumField set
-		require.True(t, schema.Has(MaximumField) && !schema.Has(AnchorField), "Expected only MaximumField to be set after ResetAnchor()")
+		require.True(t, schema.Has(MaximumField) && !schema.Has(AnchorField), "Expected only MaximumField to be set after Reset(AnchorField)")
 	})
 }
 

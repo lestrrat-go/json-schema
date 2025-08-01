@@ -819,419 +819,170 @@ func (b *Builder) Clone(original *Schema) *Builder {
 	return b
 }
 
-func (b *Builder) ResetAdditionalItems() *Builder {
+// Reset clears the specified field flags
+// Usage: builder.Reset(AnchorField | PropertiesField) clears both anchor and properties
+func (b *Builder) Reset(flags FieldFlag) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.additionalItems = nil
-	return b
-}
 
-func (b *Builder) ResetAdditionalProperties() *Builder {
-	if b.err != nil {
-		return b
+	if (flags & AdditionalItemsField) != 0 {
+		b.additionalItems = nil
 	}
-	b.additionalProperties = nil
-	return b
-}
+	if (flags & AdditionalPropertiesField) != 0 {
+		b.additionalProperties = nil
+	}
+	if (flags & AllOfField) != 0 {
+		b.allOf = nil
+	}
+	if (flags & AnchorField) != 0 {
+		b.anchor = nil
+	}
+	if (flags & AnyOfField) != 0 {
+		b.anyOf = nil
+	}
+	if (flags & CommentField) != 0 {
+		b.comment = nil
+	}
+	if (flags & ConstField) != 0 {
+		b.constantValue = nil
+	}
+	if (flags & ContainsField) != 0 {
+		b.contains = nil
+	}
+	if (flags & ContentEncodingField) != 0 {
+		b.contentEncoding = nil
+	}
+	if (flags & ContentMediaTypeField) != 0 {
+		b.contentMediaType = nil
+	}
+	if (flags & ContentSchemaField) != 0 {
+		b.contentSchema = nil
+	}
+	if (flags & DefaultField) != 0 {
+		b.defaultValue = nil
+	}
+	if (flags & DefinitionsField) != 0 {
+		b.definitions = nil
+	}
+	if (flags & DependentRequiredField) != 0 {
+		b.dependentRequired = nil
+	}
+	if (flags & DependentSchemasField) != 0 {
+		b.dependentSchemas = nil
+	}
+	if (flags & DynamicAnchorField) != 0 {
+		b.dynamicAnchor = nil
+	}
+	if (flags & DynamicReferenceField) != 0 {
+		b.dynamicReference = nil
+	}
+	if (flags & ElseSchemaField) != 0 {
+		b.elseSchema = nil
+	}
+	if (flags & EnumField) != 0 {
+		b.enum = nil
+	}
+	if (flags & ExclusiveMaximumField) != 0 {
+		b.exclusiveMaximum = nil
+	}
+	if (flags & ExclusiveMinimumField) != 0 {
+		b.exclusiveMinimum = nil
+	}
+	if (flags & FormatField) != 0 {
+		b.format = nil
+	}
+	if (flags & IDField) != 0 {
+		b.id = nil
+	}
+	if (flags & IfSchemaField) != 0 {
+		b.ifSchema = nil
+	}
+	if (flags & ItemsField) != 0 {
+		b.items = nil
+	}
+	if (flags & MaxContainsField) != 0 {
+		b.maxContains = nil
+	}
+	if (flags & MaxItemsField) != 0 {
+		b.maxItems = nil
+	}
+	if (flags & MaxLengthField) != 0 {
+		b.maxLength = nil
+	}
+	if (flags & MaxPropertiesField) != 0 {
+		b.maxProperties = nil
+	}
+	if (flags & MaximumField) != 0 {
+		b.maximum = nil
+	}
+	if (flags & MinContainsField) != 0 {
+		b.minContains = nil
+	}
+	if (flags & MinItemsField) != 0 {
+		b.minItems = nil
+	}
+	if (flags & MinLengthField) != 0 {
+		b.minLength = nil
+	}
+	if (flags & MinPropertiesField) != 0 {
+		b.minProperties = nil
+	}
+	if (flags & MinimumField) != 0 {
+		b.minimum = nil
+	}
+	if (flags & MultipleOfField) != 0 {
+		b.multipleOf = nil
+	}
+	if (flags & NotField) != 0 {
+		b.not = nil
+	}
+	if (flags & OneOfField) != 0 {
+		b.oneOf = nil
+	}
+	if (flags & PatternField) != 0 {
+		b.pattern = nil
+	}
+	if (flags & PatternPropertiesField) != 0 {
+		b.patternProperties = nil
+	}
+	if (flags & PrefixItemsField) != 0 {
+		b.prefixItems = nil
+	}
+	if (flags & PropertiesField) != 0 {
+		b.properties = nil
+	}
+	if (flags & PropertyNamesField) != 0 {
+		b.propertyNames = nil
+	}
+	if (flags & ReferenceField) != 0 {
+		b.reference = nil
+	}
+	if (flags & RequiredField) != 0 {
+		b.required = nil
+	}
+	if (flags & SchemaField) != 0 {
+		b.schema = nil
+	}
+	if (flags & ThenSchemaField) != 0 {
+		b.thenSchema = nil
+	}
+	if (flags & TypesField) != 0 {
+		b.types = nil
+	}
+	if (flags & UnevaluatedItemsField) != 0 {
+		b.unevaluatedItems = nil
+	}
+	if (flags & UnevaluatedPropertiesField) != 0 {
+		b.unevaluatedProperties = nil
+	}
+	if (flags & UniqueItemsField) != 0 {
+		b.uniqueItems = nil
+	}
+	if (flags & VocabularyField) != 0 {
+		b.vocabulary = nil
+	}
 
-func (b *Builder) ResetAllOf() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.allOf = nil
-	return b
-}
-
-func (b *Builder) ResetAnchor() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.anchor = nil
-	return b
-}
-
-func (b *Builder) ResetAnyOf() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.anyOf = nil
-	return b
-}
-
-func (b *Builder) ResetComment() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.comment = nil
-	return b
-}
-
-func (b *Builder) ResetConst() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.constantValue = nil
-	return b
-}
-
-func (b *Builder) ResetContains() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.contains = nil
-	return b
-}
-
-func (b *Builder) ResetContentEncoding() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.contentEncoding = nil
-	return b
-}
-
-func (b *Builder) ResetContentMediaType() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.contentMediaType = nil
-	return b
-}
-
-func (b *Builder) ResetContentSchema() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.contentSchema = nil
-	return b
-}
-
-func (b *Builder) ResetDefault() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.defaultValue = nil
-	return b
-}
-
-func (b *Builder) ResetDefinitions() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.definitions = nil
-	return b
-}
-
-func (b *Builder) ResetDependentRequired() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.dependentRequired = nil
-	return b
-}
-
-func (b *Builder) ResetDependentSchemas() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.dependentSchemas = nil
-	return b
-}
-
-func (b *Builder) ResetDynamicAnchor() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.dynamicAnchor = nil
-	return b
-}
-
-func (b *Builder) ResetDynamicReference() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.dynamicReference = nil
-	return b
-}
-
-func (b *Builder) ResetElseSchema() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.elseSchema = nil
-	return b
-}
-
-func (b *Builder) ResetEnum() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.enum = nil
-	return b
-}
-
-func (b *Builder) ResetExclusiveMaximum() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.exclusiveMaximum = nil
-	return b
-}
-
-func (b *Builder) ResetExclusiveMinimum() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.exclusiveMinimum = nil
-	return b
-}
-
-func (b *Builder) ResetFormat() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.format = nil
-	return b
-}
-
-func (b *Builder) ResetID() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.id = nil
-	return b
-}
-
-func (b *Builder) ResetIfSchema() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.ifSchema = nil
-	return b
-}
-
-func (b *Builder) ResetItems() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.items = nil
-	return b
-}
-
-func (b *Builder) ResetMaxContains() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.maxContains = nil
-	return b
-}
-
-func (b *Builder) ResetMaxItems() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.maxItems = nil
-	return b
-}
-
-func (b *Builder) ResetMaxLength() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.maxLength = nil
-	return b
-}
-
-func (b *Builder) ResetMaxProperties() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.maxProperties = nil
-	return b
-}
-
-func (b *Builder) ResetMaximum() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.maximum = nil
-	return b
-}
-
-func (b *Builder) ResetMinContains() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.minContains = nil
-	return b
-}
-
-func (b *Builder) ResetMinItems() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.minItems = nil
-	return b
-}
-
-func (b *Builder) ResetMinLength() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.minLength = nil
-	return b
-}
-
-func (b *Builder) ResetMinProperties() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.minProperties = nil
-	return b
-}
-
-func (b *Builder) ResetMinimum() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.minimum = nil
-	return b
-}
-
-func (b *Builder) ResetMultipleOf() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.multipleOf = nil
-	return b
-}
-
-func (b *Builder) ResetNot() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.not = nil
-	return b
-}
-
-func (b *Builder) ResetOneOf() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.oneOf = nil
-	return b
-}
-
-func (b *Builder) ResetPattern() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.pattern = nil
-	return b
-}
-
-func (b *Builder) ResetPatternProperties() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.patternProperties = nil
-	return b
-}
-
-func (b *Builder) ResetPrefixItems() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.prefixItems = nil
-	return b
-}
-
-func (b *Builder) ResetProperties() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.properties = nil
-	return b
-}
-
-func (b *Builder) ResetPropertyNames() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.propertyNames = nil
-	return b
-}
-
-func (b *Builder) ResetReference() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.reference = nil
-	return b
-}
-
-func (b *Builder) ResetRequired() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.required = nil
-	return b
-}
-
-func (b *Builder) ResetSchema() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.schema = nil
-	return b
-}
-
-func (b *Builder) ResetThenSchema() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.thenSchema = nil
-	return b
-}
-
-func (b *Builder) ResetTypes() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.types = nil
-	return b
-}
-
-func (b *Builder) ResetUnevaluatedItems() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.unevaluatedItems = nil
-	return b
-}
-
-func (b *Builder) ResetUnevaluatedProperties() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.unevaluatedProperties = nil
-	return b
-}
-
-func (b *Builder) ResetUniqueItems() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.uniqueItems = nil
-	return b
-}
-
-func (b *Builder) ResetVocabulary() *Builder {
-	if b.err != nil {
-		return b
-	}
-	b.vocabulary = nil
 	return b
 }
 

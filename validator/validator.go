@@ -366,11 +366,11 @@ func hasOtherConstraints(s *schema.Schema) bool {
 // createSchemaWithoutRef creates a copy of the schema without the $ref/$dynamicRef constraint
 func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 	// Use the new Clone Builder pattern to create a copy without the $ref/$dynamicRef field
-	builder := schema.NewBuilder().Clone(s).ResetReference()
+	resetFlags := schema.ReferenceField
 	if s.Has(schema.DynamicReferenceField) {
-		builder = builder.ResetDynamicReference()
+		resetFlags |= schema.DynamicReferenceField
 	}
-	return builder.MustBuild()
+	return schema.NewBuilder().Clone(s).Reset(resetFlags).MustBuild()
 }
 
 // createBaseSchema creates a new schema with only the base constraints (no composition keywords).
@@ -384,15 +384,9 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 func createBaseSchema(s *schema.Schema) *schema.Schema {
 	// Clone all fields first, then reset the composition/control flow fields
 	return schema.NewBuilder().Clone(s).
-		ResetAllOf().
-		ResetAnyOf().
-		ResetOneOf().
-		ResetNot().
-		ResetIfSchema().
-		ResetThenSchema().
-		ResetElseSchema().
-		ResetReference().
-		ResetDynamicReference().
+		Reset(schema.AllOfField | schema.AnyOfField | schema.OneOfField | schema.NotField |
+			schema.IfSchemaField | schema.ThenSchemaField | schema.ElseSchemaField |
+			schema.ReferenceField | schema.DynamicReferenceField).
 		MustBuild()
 }
 
