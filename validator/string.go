@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
@@ -35,7 +36,7 @@ type stringValidator struct {
 }
 
 func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) {
-	logger := TraceSlogFromContext(ctx)
+	logger := schemactx.TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
 	rv := reflect.ValueOf(in)
 

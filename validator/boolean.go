@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
@@ -77,7 +78,7 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 }
 
 func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
-	logger := TraceSlogFromContext(ctx)
+	logger := schemactx.TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "boolean validator starting", "value", v, "type", fmt.Sprintf("%T", v))
 
 	rv := reflect.ValueOf(v)

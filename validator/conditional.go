@@ -3,10 +3,8 @@ package validator
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	schema "github.com/lestrrat-go/json-schema"
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // IfThenElseValidator handles if/then/else conditional validation
@@ -224,15 +222,3 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithCo
 	return v.baseValidator.Validate(ctx, in)
 }
 
-// Logging context functions
-
-// WithTraceSlog adds a trace slog logger to the context for debugging purposes
-func WithTraceSlog(ctx context.Context, logger *slog.Logger) context.Context {
-	return schemactx.WithTraceSlog(ctx, logger)
-}
-
-// TraceSlogFromContext retrieves the trace slog logger from context
-// Returns a no-op logger if no logger is associated with the context
-func TraceSlogFromContext(ctx context.Context) *slog.Logger {
-	return schemactx.TraceSlogFromContext(ctx)
-}

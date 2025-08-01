@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +19,7 @@ func contextWithLogging(_ *testing.T) context.Context {
 		logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}))
-		ctx = validator.WithTraceSlog(ctx, logger)
+		ctx = schemactx.WithTraceSlog(ctx, logger)
 	}
 	return ctx
 }
