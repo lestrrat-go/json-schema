@@ -154,6 +154,10 @@ func (s *Schema) AllOf() []SchemaOrBool {
 }
 
 func (s *Schema) Anchor() string {
+	if s.anchor == nil {
+		var zero string
+		return zero
+	}
 	return *(s.anchor)
 }
 
@@ -162,10 +166,18 @@ func (s *Schema) AnyOf() []SchemaOrBool {
 }
 
 func (s *Schema) Comment() string {
+	if s.comment == nil {
+		var zero string
+		return zero
+	}
 	return *(s.comment)
 }
 
 func (s *Schema) Const() any {
+	if s.constantValue == nil {
+		var zero any
+		return zero
+	}
 	return *(s.constantValue)
 }
 
@@ -174,10 +186,18 @@ func (s *Schema) Contains() SchemaOrBool {
 }
 
 func (s *Schema) ContentEncoding() string {
+	if s.contentEncoding == nil {
+		var zero string
+		return zero
+	}
 	return *(s.contentEncoding)
 }
 
 func (s *Schema) ContentMediaType() string {
+	if s.contentMediaType == nil {
+		var zero string
+		return zero
+	}
 	return *(s.contentMediaType)
 }
 
@@ -186,6 +206,10 @@ func (s *Schema) ContentSchema() *Schema {
 }
 
 func (s *Schema) Default() any {
+	if s.defaultValue == nil {
+		var zero any
+		return zero
+	}
 	return *(s.defaultValue)
 }
 
@@ -202,10 +226,18 @@ func (s *Schema) DependentSchemas() map[string]SchemaOrBool {
 }
 
 func (s *Schema) DynamicAnchor() string {
+	if s.dynamicAnchor == nil {
+		var zero string
+		return zero
+	}
 	return *(s.dynamicAnchor)
 }
 
 func (s *Schema) DynamicReference() string {
+	if s.dynamicReference == nil {
+		var zero string
+		return zero
+	}
 	return *(s.dynamicReference)
 }
 
@@ -218,18 +250,34 @@ func (s *Schema) Enum() []any {
 }
 
 func (s *Schema) ExclusiveMaximum() float64 {
+	if s.exclusiveMaximum == nil {
+		var zero float64
+		return zero
+	}
 	return *(s.exclusiveMaximum)
 }
 
 func (s *Schema) ExclusiveMinimum() float64 {
+	if s.exclusiveMinimum == nil {
+		var zero float64
+		return zero
+	}
 	return *(s.exclusiveMinimum)
 }
 
 func (s *Schema) Format() string {
+	if s.format == nil {
+		var zero string
+		return zero
+	}
 	return *(s.format)
 }
 
 func (s *Schema) ID() string {
+	if s.id == nil {
+		var zero string
+		return zero
+	}
 	return *(s.id)
 }
 
@@ -242,46 +290,90 @@ func (s *Schema) Items() SchemaOrBool {
 }
 
 func (s *Schema) MaxContains() uint {
+	if s.maxContains == nil {
+		var zero uint
+		return zero
+	}
 	return *(s.maxContains)
 }
 
 func (s *Schema) MaxItems() uint {
+	if s.maxItems == nil {
+		var zero uint
+		return zero
+	}
 	return *(s.maxItems)
 }
 
 func (s *Schema) MaxLength() int {
+	if s.maxLength == nil {
+		var zero int
+		return zero
+	}
 	return *(s.maxLength)
 }
 
 func (s *Schema) MaxProperties() uint {
+	if s.maxProperties == nil {
+		var zero uint
+		return zero
+	}
 	return *(s.maxProperties)
 }
 
 func (s *Schema) Maximum() float64 {
+	if s.maximum == nil {
+		var zero float64
+		return zero
+	}
 	return *(s.maximum)
 }
 
 func (s *Schema) MinContains() uint {
+	if s.minContains == nil {
+		var zero uint
+		return zero
+	}
 	return *(s.minContains)
 }
 
 func (s *Schema) MinItems() uint {
+	if s.minItems == nil {
+		var zero uint
+		return zero
+	}
 	return *(s.minItems)
 }
 
 func (s *Schema) MinLength() int {
+	if s.minLength == nil {
+		var zero int
+		return zero
+	}
 	return *(s.minLength)
 }
 
 func (s *Schema) MinProperties() uint {
+	if s.minProperties == nil {
+		var zero uint
+		return zero
+	}
 	return *(s.minProperties)
 }
 
 func (s *Schema) Minimum() float64 {
+	if s.minimum == nil {
+		var zero float64
+		return zero
+	}
 	return *(s.minimum)
 }
 
 func (s *Schema) MultipleOf() float64 {
+	if s.multipleOf == nil {
+		var zero float64
+		return zero
+	}
 	return *(s.multipleOf)
 }
 
@@ -294,6 +386,10 @@ func (s *Schema) OneOf() []SchemaOrBool {
 }
 
 func (s *Schema) Pattern() string {
+	if s.pattern == nil {
+		var zero string
+		return zero
+	}
 	return *(s.pattern)
 }
 
@@ -314,6 +410,10 @@ func (s *Schema) PropertyNames() *Schema {
 }
 
 func (s *Schema) Reference() string {
+	if s.reference == nil {
+		var zero string
+		return zero
+	}
 	return *(s.reference)
 }
 
@@ -322,6 +422,10 @@ func (s *Schema) Required() []string {
 }
 
 func (s *Schema) Schema() string {
+	if s.schema == nil {
+		var zero string
+		return zero
+	}
 	return *(s.schema)
 }
 
@@ -342,6 +446,10 @@ func (s *Schema) UnevaluatedProperties() SchemaOrBool {
 }
 
 func (s *Schema) UniqueItems() bool {
+	if s.uniqueItems == nil {
+		var zero bool
+		return zero
+	}
 	return *(s.uniqueItems)
 }
 

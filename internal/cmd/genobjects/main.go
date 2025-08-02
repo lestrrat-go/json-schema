@@ -171,11 +171,16 @@ func genObject(obj *codegen.Object) error {
 			o.L("}")
 		} else {
 			o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
-			o.L("return ")
 			if !isNilZeroType(field) && !isInterfaceField(field) {
-				o.R("*(s.%s)", field.Name(false))
+				// For pointer fields, return zero value if nil
+				o.L("if s.%s == nil {", field.Name(false))
+				o.L("var zero %s", field.Type())
+				o.L("return zero")
+				o.L("}")
+				o.L("return *(s.%s)", field.Name(false))
 			} else {
-				o.R("s.%s", field.Name(false))
+				// For slice/map/interface fields, can return directly (already safe)
+				o.L("return s.%s", field.Name(false))
 			}
 			o.L("}")
 		}
