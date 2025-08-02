@@ -182,10 +182,10 @@ func ExampleResolver_context() {
 func ExampleValidateReference() {
 	// Test various reference formats
 	references := []string{
-		"#/$defs/user",                    // Local JSON pointer
-		"#userAnchor",                     // Local anchor
-		"user.json#/$defs/person",         // Relative with fragment
-		"https://example.com/schema.json", // Absolute URI
+		"#/$defs/user",                                   // Local JSON pointer
+		"#userAnchor",                                    // Local anchor
+		"user.json#/$defs/person",                        // Relative with fragment
+		"https://example.com/schema.json",                // Absolute URI
 		"https://example.com/schema.json#/$defs/address", // Absolute with fragment
 	}
 
@@ -199,8 +199,8 @@ func ExampleValidateReference() {
 
 	// Test invalid references
 	invalidRefs := []string{
-		"",           // Empty
-		"not a uri",  // Invalid format
+		"",          // Empty
+		"not a uri", // Invalid format
 	}
 
 	for _, ref := range invalidRefs {

@@ -95,7 +95,7 @@ type EvaluationContext struct {
 type ValidationContext struct {
 	Resolver       any
 	RootSchema     any
-	ReferenceBase     any
+	ReferenceBase  any
 	BaseURI        string
 	DynamicScope   []any
 	VocabularySet  any

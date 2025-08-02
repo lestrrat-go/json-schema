@@ -49,8 +49,8 @@ func Example_patterns_basic() {
 func Example_patterns_enum() {
 	// Create enum schemas using pattern helpers
 	statusEnum := schema.Enum("active", "inactive", "pending").MustBuild()
-	_ = schema.Enum(1, 2, 3, 4, 5).MustBuild()  // priorityEnum example
-	_ = schema.Enum("low", 1, true, nil).MustBuild()  // mixedEnum example
+	_ = schema.Enum(1, 2, 3, 4, 5).MustBuild()       // priorityEnum example
+	_ = schema.Enum("low", 1, true, nil).MustBuild() // mixedEnum example
 
 	// Test the enum schemas
 	ctx := context.Background()
@@ -80,7 +80,7 @@ func Example_patterns_enum() {
 	//   active: VALID
 	//   invalid: INVALID (invalid value: invalid not found in enum [active inactive pending])
 	//   pending: VALID
-	// 
+	//
 	// Status enum schema:
 	// {
 	//   "enum": [
@@ -100,10 +100,10 @@ func Example_patterns_composition() {
 
 	// OneOf - exactly one must match
 	oneOfSchema := schema.OneOf(stringSchema, numberSchema, boolSchema).MustBuild()
-	
-	// AnyOf - at least one must match  
-	_ = schema.AnyOf(stringSchema, numberSchema).MustBuild()  // anyOfSchema example
-	
+
+	// AnyOf - at least one must match
+	_ = schema.AnyOf(stringSchema, numberSchema).MustBuild() // anyOfSchema example
+
 	// AllOf - all must match
 	constrainedString := schema.AllOf(
 		schema.NewBuilder().Types(schema.StringType).MustBuild(),
@@ -138,7 +138,7 @@ func Example_patterns_composition() {
 	//   42 (int): VALID
 	//   true (bool): VALID
 	//   <nil> (<nil>): INVALID
-	// 
+	//
 	// Constrained string (AllOf):
 	// {
 	//   "allOf": [
@@ -188,7 +188,7 @@ func Example_patterns_optional() {
 	//   <nil>: VALID
 	//   : INVALID (anyOf validation failed: none of the validators passed)
 	//   42: INVALID (anyOf validation failed: none of the validators passed)
-	// 
+	//
 	// Optional string schema:
 	// {
 	//   "anyOf": [

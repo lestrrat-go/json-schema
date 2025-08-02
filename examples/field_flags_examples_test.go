@@ -30,12 +30,12 @@ func Example_fieldFlags_has() {
 	fmt.Printf("Has minimum: %t\n", complexSchema.Has(schema.MinimumField))
 
 	// Check multiple fields at once (ALL must be present)
-	fmt.Printf("Has minLength AND maxLength: %t\n", 
-		complexSchema.Has(schema.MinLengthField | schema.MaxLengthField))
-	fmt.Printf("Has pattern AND format: %t\n", 
-		complexSchema.Has(schema.PatternField | schema.FormatField))
-	fmt.Printf("Has minLength AND minimum: %t\n", 
-		complexSchema.Has(schema.MinLengthField | schema.MinimumField))
+	fmt.Printf("Has minLength AND maxLength: %t\n",
+		complexSchema.Has(schema.MinLengthField|schema.MaxLengthField))
+	fmt.Printf("Has pattern AND format: %t\n",
+		complexSchema.Has(schema.PatternField|schema.FormatField))
+	fmt.Printf("Has minLength AND minimum: %t\n",
+		complexSchema.Has(schema.MinLengthField|schema.MinimumField))
 
 	// OUTPUT:
 	// Has types: true
@@ -71,23 +71,23 @@ func Example_fieldFlags_hasAny() {
 
 	// Check if any string constraint is present
 	stringConstraints := schema.MinLengthField | schema.MaxLengthField | schema.PatternField
-	fmt.Printf("String schema has any string constraint: %t\n", 
+	fmt.Printf("String schema has any string constraint: %t\n",
 		stringSchema.HasAny(stringConstraints))
-	fmt.Printf("Number schema has any string constraint: %t\n", 
+	fmt.Printf("Number schema has any string constraint: %t\n",
 		numberSchema.HasAny(stringConstraints))
 
 	// Check if any numeric constraint is present
 	numericConstraints := schema.MinimumField | schema.MaximumField | schema.MultipleOfField
-	fmt.Printf("String schema has any numeric constraint: %t\n", 
+	fmt.Printf("String schema has any numeric constraint: %t\n",
 		stringSchema.HasAny(numericConstraints))
-	fmt.Printf("Number schema has any numeric constraint: %t\n", 
+	fmt.Printf("Number schema has any numeric constraint: %t\n",
 		numberSchema.HasAny(numericConstraints))
 
 	// Check if any object-related field is present
 	objectConstraints := schema.PropertiesField | schema.RequiredField | schema.AdditionalPropertiesField
-	fmt.Printf("Object schema has any object constraint: %t\n", 
+	fmt.Printf("Object schema has any object constraint: %t\n",
 		objectSchema.HasAny(objectConstraints))
-	fmt.Printf("String schema has any object constraint: %t\n", 
+	fmt.Printf("String schema has any object constraint: %t\n",
 		stringSchema.HasAny(objectConstraints))
 
 	// OUTPUT:
@@ -111,7 +111,7 @@ func Example_fieldFlags_conditionalLogic() {
 
 	for i, s := range schemas {
 		fmt.Printf("Schema %d analysis:\n", i+1)
-		
+
 		// Determine schema category
 		if s.Has(schema.TypesField) {
 			types := s.Types()
@@ -120,23 +120,23 @@ func Example_fieldFlags_conditionalLogic() {
 
 		// Check validation capabilities
 		var capabilities []string
-		
+
 		if s.HasAny(schema.MinLengthField | schema.MaxLengthField | schema.PatternField) {
 			capabilities = append(capabilities, "string validation")
 		}
-		
+
 		if s.HasAny(schema.MinimumField | schema.MaximumField | schema.MultipleOfField) {
 			capabilities = append(capabilities, "numeric validation")
 		}
-		
+
 		if s.HasAny(schema.PropertiesField | schema.PatternPropertiesField | schema.RequiredField) {
 			capabilities = append(capabilities, "object validation")
 		}
-		
+
 		if s.HasAny(schema.ItemsField | schema.MinItemsField | schema.MaxItemsField) {
 			capabilities = append(capabilities, "array validation")
 		}
-		
+
 		if s.HasAny(schema.FormatField) {
 			capabilities = append(capabilities, "format validation")
 		}
@@ -174,15 +174,15 @@ func Example_fieldFlags_conditionalLogic() {
 	// Schema 1 analysis:
 	//   Primary type: [string]
 	//   Capabilities: [format validation]
-	// 
+	//
 	// Schema 2 analysis:
 	//   Primary type: [integer]
 	//   Capabilities: [numeric validation]
-	// 
+	//
 	// Schema 3 analysis:
 	//   Primary type: [array]
 	//   Capabilities: [array validation]
-	// 
+	//
 	// Schema 4 analysis:
 	//   Primary type: [object]
 	//   Capabilities: [object validation]
@@ -239,15 +239,15 @@ func Example_fieldFlags_composition() {
 	fmt.Printf("  Has types: %t\n", allOfSchema.Has(schema.TypesField))
 	fmt.Printf("  Has allOf: %t\n", allOfSchema.Has(schema.AllOfField))
 	fmt.Printf("  Has minLength: %t\n", allOfSchema.Has(schema.MinLengthField))
-	fmt.Printf("  Has composition: %t\n", 
-		allOfSchema.HasAny(schema.AllOfField | schema.AnyOfField | schema.OneOfField))
+	fmt.Printf("  Has composition: %t\n",
+		allOfSchema.HasAny(schema.AllOfField|schema.AnyOfField|schema.OneOfField))
 
 	fmt.Printf("\nAnyOf schema analysis:\n")
 	fmt.Printf("  Has types: %t\n", anyOfSchema.Has(schema.TypesField))
 	fmt.Printf("  Has anyOf: %t\n", anyOfSchema.Has(schema.AnyOfField))
 	fmt.Printf("  Has format: %t\n", anyOfSchema.Has(schema.FormatField))
-	fmt.Printf("  Has composition: %t\n", 
-		anyOfSchema.HasAny(schema.AllOfField | schema.AnyOfField | schema.OneOfField))
+	fmt.Printf("  Has composition: %t\n",
+		anyOfSchema.HasAny(schema.AllOfField|schema.AnyOfField|schema.OneOfField))
 
 	// OUTPUT:
 	// AllOf schema analysis:
@@ -255,7 +255,7 @@ func Example_fieldFlags_composition() {
 	//   Has allOf: true
 	//   Has minLength: false
 	//   Has composition: true
-	// 
+	//
 	// AnyOf schema analysis:
 	//   Has types: false
 	//   Has anyOf: true

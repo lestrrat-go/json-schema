@@ -23,14 +23,14 @@ func ExampleSchemaMap_basic() {
 
 	// Access properties using SchemaMap
 	properties := personSchema.Properties()
-	
+
 	// Check the number of properties
 	fmt.Printf("Number of properties: %d\n", properties.Len())
-	
+
 	// Get all property names
 	propertyNames := properties.Keys()
 	fmt.Printf("Property names: %v\n", propertyNames)
-	
+
 	// Access individual properties
 	var nameSchema schema.Schema
 	if err := properties.Get("name", &nameSchema); err != nil {
@@ -88,10 +88,10 @@ func ExampleSchemaMap_definitions() {
 
 	// Access definitions using SchemaMap
 	definitions := mainSchema.Definitions()
-	
+
 	fmt.Printf("Number of definitions: %d\n", definitions.Len())
 	fmt.Printf("Definition names: %v\n", definitions.Keys())
-	
+
 	// Get a specific definition
 	var addressSchema schema.Schema
 	if err := definitions.Get("address", &addressSchema); err != nil {
@@ -99,7 +99,7 @@ func ExampleSchemaMap_definitions() {
 	} else {
 		fmt.Printf("Address definition type: %v\n", addressSchema.Types())
 		fmt.Printf("Address has properties: %t\n", addressSchema.Has(schema.PropertiesField))
-		
+
 		// Access nested properties within the definition
 		addressProps := addressSchema.Properties()
 		fmt.Printf("Address properties: %v\n", addressProps.Keys())
@@ -129,10 +129,10 @@ func ExampleSchemaMap_patternProperties() {
 
 	// Access pattern properties using SchemaMap
 	patternProperties := flexibleSchema.PatternProperties()
-	
+
 	fmt.Printf("Number of pattern properties: %d\n", patternProperties.Len())
 	fmt.Printf("Pattern property patterns: %v\n", patternProperties.Keys())
-	
+
 	// Get specific pattern property
 	var stringPatternSchema schema.Schema
 	if err := patternProperties.Get("^str_", &stringPatternSchema); err != nil {
@@ -167,30 +167,30 @@ func ExampleSchemaMap_iteration() {
 	// Iterate over all properties
 	properties := configSchema.Properties()
 	fmt.Printf("Configuration schema properties (%d total):\n", properties.Len())
-	
+
 	for _, propName := range properties.Keys() {
 		var propSchema schema.Schema
 		if err := properties.Get(propName, &propSchema); err != nil {
 			fmt.Printf("  %s: ERROR - %v\n", propName, err)
 			continue
 		}
-		
+
 		// Show property details
 		types := propSchema.Types()
 		var details []string
-		
+
 		if len(types) > 0 {
 			details = append(details, fmt.Sprintf("type=%v", types))
 		}
-		
+
 		if propSchema.Has(schema.FormatField) {
 			details = append(details, fmt.Sprintf("format=%s", propSchema.Format()))
 		}
-		
+
 		if propSchema.Has(schema.MinimumField) {
 			details = append(details, fmt.Sprintf("minimum=%g", propSchema.Minimum()))
 		}
-		
+
 		fmt.Printf("  %s: %v\n", propName, details)
 	}
 
@@ -218,10 +218,10 @@ func ExampleSchemaMap_empty() {
 
 	fmt.Printf("Properties length: %d\n", properties.Len())
 	fmt.Printf("Properties keys: %v\n", properties.Keys())
-	
+
 	fmt.Printf("Definitions length: %d\n", definitions.Len())
 	fmt.Printf("Definitions keys: %v\n", definitions.Keys())
-	
+
 	fmt.Printf("Pattern properties length: %d\n", patternProperties.Len())
 	fmt.Printf("Pattern properties keys: %v\n", patternProperties.Keys())
 

@@ -125,7 +125,7 @@ func ExampleBuilder_composition() {
 	//     }
 	//   ]
 	// }
-	// 
+	//
 	// OneOf composition:
 	// {
 	//   "oneOf": [
@@ -180,7 +180,7 @@ func ExampleBuilder_clone() {
 	// Clone and extend the schema
 	extendedSchema, err := schema.NewBuilder().
 		Clone(baseSchema).
-		MinLength(5).  // Add additional constraint
+		MinLength(5).   // Add additional constraint
 		MaxLength(100). // Add additional constraint
 		Build()
 	if err != nil {

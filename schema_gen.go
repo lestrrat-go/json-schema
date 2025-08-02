@@ -133,18 +133,20 @@ func New() *Schema {
 // It uses bitwise AND to verify that every flag in the parameter is present.
 //
 // Single field check:
-//   if schema.Has(AnchorField) {
-//       // Schema has an anchor field set
-//   }
+//
+//	if schema.Has(AnchorField) {
+//	    // Schema has an anchor field set
+//	}
 //
 // Multiple field check (ALL must be present):
-//   if schema.Has(AnchorField | PropertiesField | TypesField) {
-//       // Schema has anchor AND properties AND types all set
-//   }
+//
+//	if schema.Has(AnchorField | PropertiesField | TypesField) {
+//	    // Schema has anchor AND properties AND types all set
+//	}
 //
 // Common patterns:
 //   - schema.Has(PropertiesField) - check if schema defines properties
-//   - schema.Has(TypesField) - check if schema specifies allowed types  
+//   - schema.Has(TypesField) - check if schema specifies allowed types
 //   - schema.Has(MinimumField | MaximumField) - check if both min and max constraints are set
 //   - schema.Has(AllOfField | AnyOfField | OneOfField) - check if all composition keywords are present
 func (s *Schema) Has(flags FieldFlag) bool {
@@ -155,14 +157,16 @@ func (s *Schema) Has(flags FieldFlag) bool {
 // It uses bitwise AND to verify that at least one flag in the parameter is present.
 //
 // Single field check (same as Has for single fields):
-//   if schema.HasAny(AnchorField) {
-//       // Schema has an anchor field set
-//   }
+//
+//	if schema.HasAny(AnchorField) {
+//	    // Schema has an anchor field set
+//	}
 //
 // Multiple field check (ANY can be present):
-//   if schema.HasAny(AnchorField | PropertiesField | TypesField) {
-//       // Schema has anchor OR properties OR types (or any combination)
-//   }
+//
+//	if schema.HasAny(AnchorField | PropertiesField | TypesField) {
+//	    // Schema has anchor OR properties OR types (or any combination)
+//	}
 //
 // Common patterns:
 //   - schema.HasAny(AllOfField | AnyOfField | OneOfField) - check if any composition is used

@@ -118,6 +118,8 @@ func compareFieldNames(a, b string) bool {
 }
 
 // SchemaMap represents a collection of schemas with a Get method for safe access
+//
+//nolint:revive // SchemaMap is clear and appropriate name despite package prefix
 type SchemaMap struct {
 	data map[string]*Schema
 }
@@ -128,12 +130,12 @@ func (sm *SchemaMap) Get(name string, dst *Schema) error {
 	if sm.data == nil {
 		return fmt.Errorf("schema %q not found", name)
 	}
-	
+
 	value, ok := sm.data[name]
 	if !ok {
 		return fmt.Errorf("schema %q not found", name)
 	}
-	
+
 	return blackmagic.AssignIfCompatible(dst, value)
 }
 
