@@ -3,7 +3,10 @@
 package schema
 
 import (
+	"fmt"
 	"unicode"
+
+	"github.com/lestrrat-go/blackmagic"
 )
 
 // The schema that this implementation supports. We use the name
@@ -112,4 +115,44 @@ func compareFieldNames(a, b string) bool {
 
 	// All characters are equal
 	return false
+}
+
+// SchemaMap represents a collection of schemas with a Get method for safe access
+type SchemaMap struct {
+	data map[string]*Schema
+}
+
+// Get retrieves a schema by name and assigns it to dst. dst must be a pointer to *Schema.
+// Returns an error if the schema does not exist or if assignment fails.
+func (sm *SchemaMap) Get(name string, dst *Schema) error {
+	if sm.data == nil {
+		return fmt.Errorf("schema %q not found", name)
+	}
+	
+	value, ok := sm.data[name]
+	if !ok {
+		return fmt.Errorf("schema %q not found", name)
+	}
+	
+	return blackmagic.AssignIfCompatible(dst, value)
+}
+
+// Keys returns a list of all schema names
+func (sm *SchemaMap) Keys() []string {
+	if sm.data == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(sm.data))
+	for name := range sm.data {
+		keys = append(keys, name)
+	}
+	return keys
+}
+
+// Len returns the number of schemas in the map
+func (sm *SchemaMap) Len() int {
+	if sm.data == nil {
+		return 0
+	}
+	return len(sm.data)
 }

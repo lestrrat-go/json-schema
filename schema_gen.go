@@ -188,8 +188,8 @@ func (s *Schema) Default() any {
 	return *(s.defaultValue)
 }
 
-func (s *Schema) Definitions() map[string]*Schema {
-	return s.definitions
+func (s *Schema) Definitions() *SchemaMap {
+	return &SchemaMap{data: s.definitions}
 }
 
 func (s *Schema) DependentRequired() map[string][]string {
@@ -296,16 +296,16 @@ func (s *Schema) Pattern() string {
 	return *(s.pattern)
 }
 
-func (s *Schema) PatternProperties() map[string]*Schema {
-	return s.patternProperties
+func (s *Schema) PatternProperties() *SchemaMap {
+	return &SchemaMap{data: s.patternProperties}
 }
 
 func (s *Schema) PrefixItems() []*Schema {
 	return s.prefixItems
 }
 
-func (s *Schema) Properties() map[string]*Schema {
-	return s.properties
+func (s *Schema) Properties() *SchemaMap {
+	return &SchemaMap{data: s.properties}
 }
 
 func (s *Schema) PropertyNames() *Schema {

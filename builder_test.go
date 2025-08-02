@@ -37,7 +37,7 @@ func TestCloneBuilderPattern(t *testing.T) {
 	require.True(t, cloned.Has(schema.MaxPropertiesField))
 
 	// Properties should be the same
-	require.Equal(t, len(original.Properties()), len(cloned.Properties()))
+	require.Equal(t, original.Properties().Len(), cloned.Properties().Len())
 	require.Equal(t, original.Required(), cloned.Required())
 	require.Equal(t, original.MinProperties(), cloned.MinProperties())
 	require.Equal(t, original.MaxProperties(), cloned.MaxProperties())
@@ -52,7 +52,7 @@ func TestCloneBuilderPattern(t *testing.T) {
 	require.True(t, withoutRef.Has(schema.MaxPropertiesField))
 
 	// Other fields should remain unchanged
-	require.Equal(t, len(original.Properties()), len(withoutRef.Properties()))
+	require.Equal(t, original.Properties().Len(), withoutRef.Properties().Len())
 	require.Equal(t, original.Required(), withoutRef.Required())
 	require.Equal(t, original.MinProperties(), withoutRef.MinProperties())
 	require.Equal(t, original.MaxProperties(), withoutRef.MaxProperties())

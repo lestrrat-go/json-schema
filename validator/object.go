@@ -31,9 +31,13 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 	}
 	if s.Has(schema.PropertiesField) {
 		schemaProps := s.Properties()
-		props := make([]PropertyPair, 0, len(schemaProps))
-		for name, propSchema := range schemaProps {
-			propValidator, err := Compile(ctx, propSchema)
+		props := make([]PropertyPair, 0, len(schemaProps.Keys()))
+		for _, name := range schemaProps.Keys() {
+			var propSchema schema.Schema
+			if err := schemaProps.Get(name, &propSchema); err != nil {
+				return nil, fmt.Errorf("failed to get property schema for %s: %w", name, err)
+			}
+			propValidator, err := Compile(ctx, &propSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property validator for %s: %w", name, err)
 			}
@@ -42,13 +46,18 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		v.Properties(props...)
 	}
 	if s.Has(schema.PatternPropertiesField) {
+		schemaPatternProps := s.PatternProperties()
 		patternProperties := make(map[*regexp.Regexp]Interface)
-		for pattern, propSchema := range s.PatternProperties() {
+		for _, pattern := range schemaPatternProps.Keys() {
+			var propSchema schema.Schema
+			if err := schemaPatternProps.Get(pattern, &propSchema); err != nil {
+				return nil, fmt.Errorf("failed to get pattern property schema for %s: %w", pattern, err)
+			}
 			re, err := regexp.Compile(pattern)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern %s: %w", pattern, err)
 			}
-			propValidator, err := Compile(ctx, propSchema)
+			propValidator, err := Compile(ctx, &propSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern property validator for %s: %w", pattern, err)
 			}

@@ -221,4 +221,3 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithCo
 
 	return v.baseValidator.Validate(ctx, in)
 }
-

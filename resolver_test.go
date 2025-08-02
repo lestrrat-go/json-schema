@@ -270,8 +270,10 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		// Verify resolved schema
 		require.True(t, resolved.ContainsType(schema.ObjectType))
 		require.True(t, resolved.Has(schema.PropertiesField))
-		nameSchema := resolved.Properties()["name"]
-		require.NotNil(t, nameSchema)
+		resolvedProps := resolved.Properties()
+		var nameSchema schema.Schema
+		err = resolvedProps.Get("name", &nameSchema)
+		require.NoError(t, err)
 		require.True(t, nameSchema.ContainsType(schema.StringType))
 	})
 
@@ -299,8 +301,10 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		// Verify resolved schema
 		require.True(t, resolved.ContainsType(schema.ObjectType))
 		require.True(t, resolved.Has(schema.PropertiesField))
-		nameSchema := resolved.Properties()["name"]
-		require.NotNil(t, nameSchema)
+		resolvedProps := resolved.Properties()
+		var nameSchema schema.Schema
+		err = resolvedProps.Get("name", &nameSchema)
+		require.NoError(t, err)
 		require.True(t, nameSchema.ContainsType(schema.StringType))
 		require.Equal(t, "person", resolved.Anchor())
 	})

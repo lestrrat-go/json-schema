@@ -164,14 +164,21 @@ func genObject(obj *codegen.Object) error {
 	o.L("}")
 
 	for _, field := range obj.Fields() {
-		o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
-		o.L("return ")
-		if !isNilZeroType(field) && !isInterfaceField(field) {
-			o.R("*(s.%s)", field.Name(false))
+		// Special handling for all map[string]*Schema fields to return *SchemaMap
+		if field.Type() == "map[string]*Schema" {
+			o.LL("func (s *Schema) %s() *SchemaMap {", field.Name(true))
+			o.L("return &SchemaMap{data: s.%s}", field.Name(false))
+			o.L("}")
 		} else {
-			o.R("s.%s", field.Name(false))
+			o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
+			o.L("return ")
+			if !isNilZeroType(field) && !isInterfaceField(field) {
+				o.R("*(s.%s)", field.Name(false))
+			} else {
+				o.R("s.%s", field.Name(false))
+			}
+			o.L("}")
 		}
-		o.L("}")
 	}
 
 	o.LL("func (s *Schema) ContainsType(typ PrimitiveType) bool {")

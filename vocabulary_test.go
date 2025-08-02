@@ -58,8 +58,10 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		require.Len(t, s.OneOf(), 1)
 		require.NotNil(t, s.Not())
 		require.NotNil(t, s.Items())
-		require.NotNil(t, s.Properties()["test"])
-		require.NotNil(t, s.PatternProperties()["^test"])
+		props := s.Properties()
+		require.Contains(t, props.Keys(), "test")
+		patternProps := s.PatternProperties()
+		require.Contains(t, patternProps.Keys(), "^test")
 		require.NotNil(t, s.AdditionalProperties())
 		require.NotNil(t, s.Contains())
 	})
@@ -158,8 +160,8 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		// Check properties structure
 		props := s.Properties()
-		require.NotNil(t, props["name"])
-		require.NotNil(t, props["age"])
+		require.Contains(t, props.Keys(), "name")
+		require.Contains(t, props.Keys(), "age")
 	})
 
 	t.Run("Complex Schema Serialization", func(t *testing.T) {
@@ -238,8 +240,11 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		require.Equal(t, "#/$defs/person", s.Reference())
 		require.Equal(t, "#person", s.DynamicReference())
 		defs := s.Definitions()
-		require.Contains(t, defs, "person")
-		require.Equal(t, personSchema, defs["person"])
+		require.Contains(t, defs.Keys(), "person")
+		var retrievedSchema schema.Schema
+		err = defs.Get("person", &retrievedSchema)
+		require.NoError(t, err)
+		require.Equal(t, personSchema, &retrievedSchema)
 		require.Equal(t, "person-anchor", s.Anchor())
 	})
 }

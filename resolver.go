@@ -211,20 +211,28 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 
 	// Search in definitions, but be scope-aware
 	if schema.Has(DefinitionsField) {
+		definitions := schema.Definitions()
+
 		// First pass: search definitions that don't have their own $id (same scope)
-		for _, defSchema := range schema.Definitions() {
-			if !defSchema.Has(IDField) {
-				if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
-					return found, nil
+		for _, name := range definitions.Keys() {
+			var defSchema Schema
+			if err := definitions.Get(name, &defSchema); err == nil {
+				if !defSchema.Has(IDField) {
+					if found, err := r.findSchemaByAnchor(&defSchema, anchorName); err == nil {
+						return found, nil
+					}
 				}
 			}
 		}
 
 		// Second pass: search definitions that have their own $id (different scope)
-		for _, defSchema := range schema.Definitions() {
-			if defSchema.Has(IDField) {
-				if found, err := r.findSchemaByAnchor(defSchema, anchorName); err == nil {
-					return found, nil
+		for _, name := range definitions.Keys() {
+			var defSchema Schema
+			if err := definitions.Get(name, &defSchema); err == nil {
+				if defSchema.Has(IDField) {
+					if found, err := r.findSchemaByAnchor(&defSchema, anchorName); err == nil {
+						return found, nil
+					}
 				}
 			}
 		}
@@ -232,18 +240,26 @@ func (r *Resolver) findSchemaByAnchor(schema *Schema, anchorName string) (*Schem
 
 	// Search in properties
 	if schema.Has(PropertiesField) {
-		for _, propSchema := range schema.Properties() {
-			if found, err := r.findSchemaByAnchor(propSchema, anchorName); err == nil {
-				return found, nil
+		properties := schema.Properties()
+		for _, name := range properties.Keys() {
+			var propSchema Schema
+			if err := properties.Get(name, &propSchema); err == nil {
+				if found, err := r.findSchemaByAnchor(&propSchema, anchorName); err == nil {
+					return found, nil
+				}
 			}
 		}
 	}
 
 	// Search in pattern properties
 	if schema.Has(PatternPropertiesField) {
-		for _, propSchema := range schema.PatternProperties() {
-			if found, err := r.findSchemaByAnchor(propSchema, anchorName); err == nil {
-				return found, nil
+		patternProperties := schema.PatternProperties()
+		for _, name := range patternProperties.Keys() {
+			var propSchema Schema
+			if err := patternProperties.Get(name, &propSchema); err == nil {
+				if found, err := r.findSchemaByAnchor(&propSchema, anchorName); err == nil {
+					return found, nil
+				}
 			}
 		}
 	}

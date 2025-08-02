@@ -216,7 +216,8 @@ func TestSchemaConstraints(t *testing.T) {
 			MaxProperties(10).
 			Build()
 		require.NoError(t, err)
-		require.NotNil(t, s.Properties()["name"])
+		props := s.Properties()
+		require.Contains(t, props.Keys(), "name")
 		require.Equal(t, uint(1), s.MinProperties())
 		require.Equal(t, uint(10), s.MaxProperties())
 	})
@@ -259,7 +260,8 @@ func TestAdvancedFeatures(t *testing.T) {
 			PatternProperty("^[a-z]+$", propSchema).
 			Build()
 		require.NoError(t, err)
-		require.NotNil(t, s.PatternProperties()["^[a-z]+$"])
+		patternProps := s.PatternProperties()
+		require.Contains(t, patternProps.Keys(), "^[a-z]+$")
 	})
 
 	t.Run("Additional Properties", func(t *testing.T) {
@@ -341,8 +343,11 @@ func TestSchemaBasicReferences(t *testing.T) {
 			Build()
 		require.NoError(t, err)
 		defs := s.Definitions()
-		require.Contains(t, defs, "person")
-		require.Equal(t, personSchema, defs["person"])
+		require.Contains(t, defs.Keys(), "person")
+		var retrievedSchema schema.Schema
+		err = defs.Get("person", &retrievedSchema)
+		require.NoError(t, err)
+		require.Equal(t, personSchema, &retrievedSchema)
 	})
 }
 
