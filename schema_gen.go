@@ -129,14 +129,49 @@ func New() *Schema {
 	return &Schema{}
 }
 
-// Has checks if the specified field flags are set
-// Usage: schema.Has(AnchorField | PropertiesField) returns true if both anchor and properties are set
+// Has checks if ALL of the specified field flags are set in the schema.
+// It uses bitwise AND to verify that every flag in the parameter is present.
+//
+// Single field check:
+//   if schema.Has(AnchorField) {
+//       // Schema has an anchor field set
+//   }
+//
+// Multiple field check (ALL must be present):
+//   if schema.Has(AnchorField | PropertiesField | TypesField) {
+//       // Schema has anchor AND properties AND types all set
+//   }
+//
+// Common patterns:
+//   - schema.Has(PropertiesField) - check if schema defines properties
+//   - schema.Has(TypesField) - check if schema specifies allowed types  
+//   - schema.Has(MinimumField | MaximumField) - check if both min and max constraints are set
+//   - schema.Has(AllOfField | AnyOfField | OneOfField) - check if all composition keywords are present
 func (s *Schema) Has(flags FieldFlag) bool {
 	return (s.populatedFields & flags) == flags
 }
 
-// HasAny checks if any of the specified field flags are set
-// Usage: schema.HasAny(AnchorField | PropertiesField) returns true if either anchor or properties (or both) are set
+// HasAny checks if ANY of the specified field flags are set in the schema.
+// It uses bitwise AND to verify that at least one flag in the parameter is present.
+//
+// Single field check (same as Has for single fields):
+//   if schema.HasAny(AnchorField) {
+//       // Schema has an anchor field set
+//   }
+//
+// Multiple field check (ANY can be present):
+//   if schema.HasAny(AnchorField | PropertiesField | TypesField) {
+//       // Schema has anchor OR properties OR types (or any combination)
+//   }
+//
+// Common patterns:
+//   - schema.HasAny(AllOfField | AnyOfField | OneOfField) - check if any composition is used
+//   - schema.HasAny(MinimumField | MaximumField) - check if any numeric constraint is set
+//   - schema.HasAny(MinLengthField | MaxLengthField | PatternField) - check if any string constraint exists
+//   - schema.HasAny(PropertiesField | PatternPropertiesField | AdditionalPropertiesField) - check if any property rules exist
+//
+// Use HasAny when you want to detect if a schema uses any validation from a group of related fields.
+// Use Has when you need to ensure specific combinations of fields are all present together.
 func (s *Schema) HasAny(flags FieldFlag) bool {
 	return (s.populatedFields & flags) != 0
 }
