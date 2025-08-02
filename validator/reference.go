@@ -6,6 +6,12 @@ import (
 	"sync"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/pool"
+)
+
+var resolverPool = pool.New[*schema.Resolver](
+	func() *schema.Resolver { return schema.NewResolver() },
+	func(r *schema.Resolver) *schema.Resolver { return r }, // Resolvers are stateless, no cleanup needed
 )
 
 type ReferenceValidator struct {
@@ -13,7 +19,6 @@ type ReferenceValidator struct {
 	resolvedOnce sync.Once
 	resolved     Interface
 	resolveErr   error
-	resolver     *schema.Resolver
 	rootSchema   *schema.Schema
 }
 
@@ -31,21 +36,14 @@ func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error
 }
 
 func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, error) {
-	// Use stored resolver and root schema, fall back to context if not available
-	resolver := r.resolver
-	if resolver == nil {
-		resolver = schema.ResolverFromContext(ctx)
-		if resolver == nil {
-			resolver = schema.NewResolver()
-		}
-	}
+	// Get a resolver from the pool
+	resolver := resolverPool.Get()
+	defer resolverPool.Put(resolver)
 
+	// Use the validator's stored root schema
 	rootSchema := r.rootSchema
 	if rootSchema == nil {
-		rootSchema = schema.RootSchemaFromContext(ctx)
-		if rootSchema == nil {
-			return nil, fmt.Errorf("no root schema available in context for reference resolution: %s", r.reference)
-		}
+		return nil, fmt.Errorf("no root schema available for reference resolution: %s", r.reference)
 	}
 
 	// Check for circular references by looking at context
@@ -91,7 +89,6 @@ type DynamicReferenceValidator struct {
 	resolvedOnce sync.Once
 	resolved     Interface
 	resolveErr   error
-	resolver     *schema.Resolver
 	rootSchema   *schema.Schema
 	dynamicScope []*schema.Schema // Store the dynamic scope chain from compilation
 }
@@ -117,12 +114,11 @@ func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Resul
 }
 
 func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context) (Interface, error) {
-	// Use stored resolver and root schema from compilation time
-	resolver := dr.resolver
-	if resolver == nil {
-		resolver = schema.NewResolver()
-	}
+	// Get a resolver from the pool
+	resolver := resolverPool.Get()
+	defer resolverPool.Put(resolver)
 
+	// Use the validator's stored root schema
 	rootSchema := dr.rootSchema
 	if rootSchema == nil {
 		return nil, fmt.Errorf("no root schema available for dynamic reference resolution: %s", dr.reference)

@@ -89,11 +89,10 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if reference != "" {
 		// Handle $dynamicRef with proper DynamicReferenceValidator
 		if isDynamicRef {
-			// Create dynamic reference validator with stored context
+			// Create dynamic reference validator using pooled resolvers
 			dynamicScope := schema.DynamicScopeFromContext(ctx)
 			return &DynamicReferenceValidator{
 				reference:    reference,
-				resolver:     schema.ResolverFromContext(ctx),
 				rootSchema:   schema.RootSchemaFromContext(ctx),
 				dynamicScope: dynamicScope,
 			}, nil
@@ -520,7 +519,6 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 	if s.Has(schema.ReferenceField) {
 		refValidator := &ReferenceValidator{
 			reference:  s.Reference(),
-			resolver:   schema.ResolverFromContext(ctx),
 			rootSchema: schema.RootSchemaFromContext(ctx),
 		}
 		validators = append(validators, refValidator)
