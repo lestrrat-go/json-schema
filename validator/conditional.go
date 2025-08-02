@@ -3,10 +3,8 @@ package validator
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	schema "github.com/lestrrat-go/json-schema"
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // IfThenElseValidator handles if/then/else conditional validation
@@ -28,7 +26,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	v.ifValidator = ifValidator
 
 	// Compile 'then' validator (optional)
-	if s.HasThenSchema() {
+	if s.Has(schema.ThenSchemaField) {
 		thenSchema := convertSchemaOrBool(s.ThenSchema())
 		thenValidator, err := Compile(ctx, thenSchema)
 		if err != nil {
@@ -38,7 +36,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	}
 
 	// Compile 'else' validator (optional)
-	if s.HasElseSchema() {
+	if s.Has(schema.ElseSchemaField) {
 		elseSchema := convertSchemaOrBool(s.ElseSchema())
 		elseValidator, err := Compile(ctx, elseSchema)
 		if err != nil {
@@ -97,6 +95,7 @@ type IfThenElseUnevaluatedPropertiesCompositionValidator struct {
 	schema        *schema.Schema
 }
 
+// NewIfThenElseUnevaluatedPropertiesCompositionValidator creates a new IfThenElseUnevaluatedPropertiesCompositionValidator instance.
 func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema) *IfThenElseUnevaluatedPropertiesCompositionValidator {
 	v := &IfThenElseUnevaluatedPropertiesCompositionValidator{
 		schema: s,
@@ -111,7 +110,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	v.ifValidator = ifValidator
 
 	// Compile then validator if it exists
-	if s.HasThenSchema() {
+	if s.Has(schema.ThenSchemaField) {
 		thenSchema := convertSchemaOrBool(s.ThenSchema())
 		thenValidator, err := Compile(ctx, thenSchema)
 		if err != nil {
@@ -121,7 +120,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	}
 
 	// Compile else validator if it exists
-	if s.HasElseSchema() {
+	if s.Has(schema.ElseSchemaField) {
 		elseSchema := convertSchemaOrBool(s.ElseSchema())
 		elseValidator, err := Compile(ctx, elseSchema)
 		if err != nil {
@@ -131,7 +130,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	}
 
 	// Compile base validator (everything except if/then/else)
-	baseSchema := createBaseSchema(s)
+	baseSchema := createReferenceBase(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		panic(fmt.Sprintf("failed to compile base schema: %v", err))
@@ -221,17 +220,4 @@ func (v *IfThenElseUnevaluatedPropertiesCompositionValidator) validateBaseWithCo
 	}
 
 	return v.baseValidator.Validate(ctx, in)
-}
-
-// Logging context functions
-
-// WithTraceSlog adds a trace slog logger to the context for debugging purposes
-func WithTraceSlog(ctx context.Context, logger *slog.Logger) context.Context {
-	return schemactx.WithTraceSlog(ctx, logger)
-}
-
-// TraceSlogFromContext retrieves the trace slog logger from context
-// Returns a no-op logger if no logger is associated with the context
-func TraceSlogFromContext(ctx context.Context) *slog.Logger {
-	return schemactx.TraceSlogFromContext(ctx)
 }

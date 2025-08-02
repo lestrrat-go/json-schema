@@ -54,7 +54,7 @@ func _main() error {
 	}
 
 	// Debug: Check if meta-schema has types
-	if metaSchema.HasTypes() {
+	if metaSchema.Has(TypesField) {
 		types := metaSchema.Types()
 		fmt.Printf("Meta-schema has types: %v\n", types)
 
@@ -67,7 +67,7 @@ func _main() error {
 		fmt.Printf("Type keyword enabled: %v\n", isTypeEnabled)
 
 		// Debug: Test what base schema would be created
-		fmt.Printf("Simulating createBaseSchema behavior...\n")
+		fmt.Printf("Simulating createReferenceBase behavior...\n")
 		baseBuilder := schema.NewBuilder()
 		if len(metaSchema.Types()) > 0 {
 			baseBuilder.Types(metaSchema.Types()...)
@@ -91,14 +91,14 @@ func _main() error {
 
 			// Debug: Check which allOf compilation path will be taken
 			fmt.Printf("Checking allOf compilation path...\n")
-			fmt.Printf("metaSchema.HasAllOf(): %v\n", metaSchema.HasAllOf())
+			fmt.Printf("metaSchema.Has(AllOfField): %v\n", metaSchema.Has(AllOfField))
 			fmt.Printf("hasBaseConstraints(metaSchema): %v\n", len(metaSchema.Types()) > 0) // This is what hasBaseConstraints checks for types
 
 			// Check if it has unevaluated fields that would trigger special handling
-			hasUnevaluatedProperties := metaSchema.HasUnevaluatedProperties()
-			hasUnevaluatedItems := metaSchema.HasUnevaluatedItems()
-			fmt.Printf("metaSchema.HasUnevaluatedProperties(): %v\n", hasUnevaluatedProperties)
-			fmt.Printf("metaSchema.HasUnevaluatedItems(): %v\n", hasUnevaluatedItems)
+			hasUnevaluatedProperties := metaSchema.Has(UnevaluatedPropertiesField)
+			hasUnevaluatedItems := metaSchema.Has(UnevaluatedItemsField)
+			fmt.Printf("metaSchema.Has(UnevaluatedPropertiesField): %v\n", hasUnevaluatedProperties)
+			fmt.Printf("metaSchema.Has(UnevaluatedItemsField): %v\n", hasUnevaluatedItems)
 		}
 	} else {
 		fmt.Printf("Meta-schema has NO types field!\n")
@@ -117,7 +117,7 @@ func _main() error {
 	ctx = schema.WithResolver(ctx, resolver)
 
 	// Set up base schema context for reference resolution
-	ctx = schema.WithBaseSchema(ctx, &metaSchema)
+	ctx = schema.WithReferenceBase(ctx, &metaSchema)
 
 	// Set up base URI for relative reference resolution within metaschema
 	// Use the directory base URI, not the specific schema file URI

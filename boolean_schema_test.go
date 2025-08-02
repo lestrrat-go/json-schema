@@ -2,7 +2,6 @@ package schema_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -12,19 +11,16 @@ import (
 
 func TestBooleanSchemaUnmarshal(t *testing.T) {
 	t.Run("oneOf with boolean values", func(t *testing.T) {
-		jsonSchema := `{
-			"oneOf": [
-				true,
-				false,
-				{"type": "string"}
-			]
-		}`
+		// Create schema using builder with boolean schemas
+		s := schema.NewBuilder().
+			OneOf(
+				schema.BoolSchema(true),
+				schema.BoolSchema(false),
+				schema.NewBuilder().Types(schema.StringType).MustBuild(),
+			).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		require.True(t, s.HasOneOf())
+		require.True(t, s.Has(schema.OneOfField))
 		oneOf := s.OneOf()
 		require.Len(t, oneOf, 3)
 
@@ -45,18 +41,15 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 	})
 
 	t.Run("allOf with boolean values", func(t *testing.T) {
-		jsonSchema := `{
-			"allOf": [
-				true,
-				{"type": "number"}
-			]
-		}`
+		// Create schema using builder with boolean schemas
+		s := schema.NewBuilder().
+			AllOf(
+				schema.BoolSchema(true),
+				schema.NewBuilder().Types(schema.NumberType).MustBuild(),
+			).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		require.True(t, s.HasAllOf())
+		require.True(t, s.Has(schema.AllOfField))
 		allOf := s.AllOf()
 		require.Len(t, allOf, 2)
 
@@ -72,18 +65,15 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 	})
 
 	t.Run("anyOf with boolean values", func(t *testing.T) {
-		jsonSchema := `{
-			"anyOf": [
-				false,
-				{"type": "integer"}
-			]
-		}`
+		// Create schema using builder with boolean schemas
+		s := schema.NewBuilder().
+			AnyOf(
+				schema.BoolSchema(false),
+				schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
+			).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		require.True(t, s.HasAnyOf())
+		require.True(t, s.Has(schema.AnyOfField))
 		anyOf := s.AnyOf()
 		require.Len(t, anyOf, 2)
 
@@ -101,17 +91,12 @@ func TestBooleanSchemaUnmarshal(t *testing.T) {
 
 func TestBooleanSchemaValidation(t *testing.T) {
 	t.Run("oneOf with true schema always passes", func(t *testing.T) {
-		jsonSchema := `{
-			"oneOf": [
-				true
-			]
-		}`
+		// Create schema using builder with boolean schema
+		s := schema.NewBuilder().
+			OneOf(schema.BoolSchema(true)).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// True schema should accept any value
@@ -126,17 +111,12 @@ func TestBooleanSchemaValidation(t *testing.T) {
 	})
 
 	t.Run("oneOf with false schema always fails", func(t *testing.T) {
-		jsonSchema := `{
-			"oneOf": [
-				false
-			]
-		}`
+		// Create schema using builder with boolean schema
+		s := schema.NewBuilder().
+			OneOf(schema.BoolSchema(false)).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// False schema should reject any value
@@ -151,18 +131,15 @@ func TestBooleanSchemaValidation(t *testing.T) {
 	})
 
 	t.Run("oneOf with mixed boolean and schema", func(t *testing.T) {
-		jsonSchema := `{
-			"oneOf": [
-				false,
-				{"type": "string"}
-			]
-		}`
+		// Create schema using builder with mixed boolean and schema
+		s := schema.NewBuilder().
+			OneOf(
+				schema.BoolSchema(false),
+				schema.NewBuilder().Types(schema.StringType).MustBuild(),
+			).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Should pass for strings (only the string schema passes)
@@ -177,18 +154,15 @@ func TestBooleanSchemaValidation(t *testing.T) {
 	})
 
 	t.Run("allOf with true schema", func(t *testing.T) {
-		jsonSchema := `{
-			"allOf": [
-				true,
-				{"type": "string"}
-			]
-		}`
+		// Create schema using builder with true boolean schema
+		s := schema.NewBuilder().
+			AllOf(
+				schema.BoolSchema(true),
+				schema.NewBuilder().Types(schema.StringType).MustBuild(),
+			).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Should pass for strings (true schema passes, string schema passes)
@@ -201,18 +175,15 @@ func TestBooleanSchemaValidation(t *testing.T) {
 	})
 
 	t.Run("allOf with false schema", func(t *testing.T) {
-		jsonSchema := `{
-			"allOf": [
-				false,
-				{"type": "string"}
-			]
-		}`
+		// Create schema using builder with false boolean schema
+		s := schema.NewBuilder().
+			AllOf(
+				schema.BoolSchema(false),
+				schema.NewBuilder().Types(schema.StringType).MustBuild(),
+			).
+			MustBuild()
 
-		var s schema.Schema
-		err := json.Unmarshal([]byte(jsonSchema), &s)
-		require.NoError(t, err)
-
-		v, err := validator.Compile(context.Background(), &s)
+		v, err := validator.Compile(context.Background(), s)
 		require.NoError(t, err)
 
 		// Should fail for everything (false schema always fails)

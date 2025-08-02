@@ -25,15 +25,15 @@ func compileContentValidator(ctx context.Context, s *schema.Schema) (Interface, 
 
 	cv := &contentValidator{}
 
-	if s.HasContentEncoding() {
+	if s.Has(schema.ContentEncodingField) {
 		cv.contentEncoding = s.ContentEncoding()
 	}
 
-	if s.HasContentMediaType() {
+	if s.Has(schema.ContentMediaTypeField) {
 		cv.contentMediaType = s.ContentMediaType()
 	}
 
-	if s.HasContentSchema() {
+	if s.Has(schema.ContentSchemaField) {
 		contentSchemaValidator, err := Compile(ctx, s.ContentSchema())
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile content schema validator: %w", err)

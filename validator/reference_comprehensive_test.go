@@ -12,61 +12,56 @@ import (
 func TestReferenceResolutionComprehensive(t *testing.T) {
 	t.Run("nested references", func(t *testing.T) {
 		// Schema with references that point to other references
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"user": {"$ref": "#/$defs/person"},
-				"manager": {"$ref": "#/$defs/employee"}
-			},
-			"$defs": {
-				"person": {
-					"type": "object",
-					"properties": {
-						"name": {"type": "string"},
-						"address": {"$ref": "#/$defs/address"}
-					},
-					"required": ["name"]
-				},
-				"employee": {
-					"allOf": [
-						{"$ref": "#/$defs/person"},
-						{
-							"type": "object",
-							"properties": {
-								"employeeId": {"type": "string"},
-								"department": {"$ref": "#/$defs/department"}
-							},
-							"required": ["employeeId"]
-						}
-					]
-				},
-				"address": {
-					"type": "object",
-					"properties": {
-						"street": {"type": "string"},
-						"city": {"type": "string"}
-					},
-					"required": ["street", "city"]
-				},
-				"department": {
-					"type": "object",
-					"properties": {
-						"name": {"type": "string"},
-						"budget": {"type": "number", "minimum": 0}
-					},
-					"required": ["name"]
-				}
-			}
-		}`
+		addressSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("street", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("city", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Required("street", "city").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		departmentSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("budget", schema.NewBuilder().Types(schema.NumberType).Minimum(0).MustBuild()).
+			Required("name").
+			MustBuild()
+
+		personSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("address", schema.NewBuilder().Reference("#/$defs/address").MustBuild()).
+			Required("name").
+			MustBuild()
+
+		employeeExtraSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("employeeId", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("department", schema.NewBuilder().Reference("#/$defs/department").MustBuild()).
+			Required("employeeId").
+			MustBuild()
+
+		employeeSchema := schema.NewBuilder().
+			AllOf(
+				schema.NewBuilder().Reference("#/$defs/person").MustBuild(),
+				employeeExtraSchema,
+			).
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("user", schema.NewBuilder().Reference("#/$defs/person").MustBuild()).
+			Property("manager", schema.NewBuilder().Reference("#/$defs/employee").MustBuild()).
+			Definitions("person", personSchema).
+			Definitions("employee", employeeSchema).
+			Definitions("address", addressSchema).
+			Definitions("department", departmentSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		// Valid data
@@ -112,72 +107,65 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 
 	t.Run("references in arrays and objects", func(t *testing.T) {
 		// Schema with references in various contexts
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"items": {
-					"type": "array",
-					"items": {"$ref": "#/$defs/item"}
-				},
-				"metadata": {
-					"type": "object",
-					"patternProperties": {
-						"^meta_": {"$ref": "#/$defs/metaValue"}
-					}
-				},
-				"config": {
-					"oneOf": [
-						{"$ref": "#/$defs/basicConfig"},
-						{"$ref": "#/$defs/advancedConfig"}
-					]
-				}
-			},
-			"$defs": {
-				"item": {
-					"type": "object",
-					"properties": {
-						"id": {"type": "string"},
-						"value": {"type": "number"}
-					},
-					"required": ["id"]
-				},
-				"metaValue": {
-					"oneOf": [
-						{"type": "string"},
-						{"type": "number"},
-						{"type": "boolean"}
-					]
-				},
-				"basicConfig": {
-					"type": "object",
-					"properties": {
-						"type": {"const": "basic"},
-						"enabled": {"type": "boolean"}
-					},
-					"required": ["type"]
-				},
-				"advancedConfig": {
-					"type": "object",
-					"properties": {
-						"type": {"const": "advanced"},
-						"features": {
-							"type": "array",
-							"items": {"type": "string"}
-						}
-					},
-					"required": ["type", "features"]
-				}
-			}
-		}`
+		itemSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("id", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("value", schema.NewBuilder().Types(schema.NumberType).MustBuild()).
+			Required("id").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		metaValueSchema := schema.NewBuilder().
+			OneOf(
+				schema.NewBuilder().Types(schema.StringType).MustBuild(),
+				schema.NewBuilder().Types(schema.NumberType).MustBuild(),
+				schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
+			).
+			MustBuild()
+
+		basicConfigSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Const("basic").MustBuild()).
+			Property("enabled", schema.NewBuilder().Types(schema.BooleanType).MustBuild()).
+			Required("type").
+			MustBuild()
+
+		advancedConfigSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Const("advanced").MustBuild()).
+			Property("features", schema.NewBuilder().
+				Types(schema.ArrayType).
+				Items(schema.NewBuilder().Types(schema.StringType).MustBuild()).
+				MustBuild()).
+			Required("type", "features").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("items", schema.NewBuilder().
+				Types(schema.ArrayType).
+				Items(schema.NewBuilder().Reference("#/$defs/item").MustBuild()).
+				MustBuild()).
+			Property("metadata", schema.NewBuilder().
+				Types(schema.ObjectType).
+				PatternProperty("^meta_", schema.NewBuilder().Reference("#/$defs/metaValue").MustBuild()).
+				MustBuild()).
+			Property("config", schema.NewBuilder().
+				OneOf(
+					schema.NewBuilder().Reference("#/$defs/basicConfig").MustBuild(),
+					schema.NewBuilder().Reference("#/$defs/advancedConfig").MustBuild(),
+				).
+				MustBuild()).
+			Definitions("item", itemSchema).
+			Definitions("metaValue", metaValueSchema).
+			Definitions("basicConfig", basicConfigSchema).
+			Definitions("advancedConfig", advancedConfigSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		// Valid data
@@ -213,31 +201,31 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 
 	t.Run("deep reference chains", func(t *testing.T) {
 		// Schema with multiple levels of reference indirection
-		jsonSchema := `{
-			"$ref": "#/$defs/root",
-			"$defs": {
-				"root": {"$ref": "#/$defs/level1"},
-				"level1": {"$ref": "#/$defs/level2"},
-				"level2": {"$ref": "#/$defs/level3"},
-				"level3": {"$ref": "#/$defs/actual"},
-				"actual": {
-					"type": "object",
-					"properties": {
-						"value": {"type": "string", "minLength": 1}
-					},
-					"required": ["value"]
-				}
-			}
-		}`
+		actualSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("value", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+			Required("value").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		level3Schema := schema.NewBuilder().Reference("#/$defs/actual").MustBuild()
+		level2Schema := schema.NewBuilder().Reference("#/$defs/level3").MustBuild()
+		level1Schema := schema.NewBuilder().Reference("#/$defs/level2").MustBuild()
+		rootSchema := schema.NewBuilder().Reference("#/$defs/level1").MustBuild()
+
+		s := schema.NewBuilder().
+			Reference("#/$defs/root").
+			Definitions("root", rootSchema).
+			Definitions("level1", level1Schema).
+			Definitions("level2", level2Schema).
+			Definitions("level3", level3Schema).
+			Definitions("actual", actualSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		// Valid data
@@ -259,78 +247,68 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 
 	t.Run("self-referencing schema", func(t *testing.T) {
 		// Schema that references itself directly
-		jsonSchema := `{
-			"$ref": "#/$defs/self",
-			"$defs": {
-				"self": {"$ref": "#/$defs/self"}
-			}
-		}`
+		selfSchema := schema.NewBuilder().Reference("#/$defs/self").MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Reference("#/$defs/self").
+			Definitions("self", selfSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		_, err := validator.Compile(ctx, &s)
+		_, err := validator.Compile(ctx, s)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "circular reference")
 	})
 
 	t.Run("references with complex composition", func(t *testing.T) {
 		// Schema combining references with allOf, anyOf, oneOf
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"data": {
-					"allOf": [
-						{"$ref": "#/$defs/base"},
-						{
-							"anyOf": [
-								{"$ref": "#/$defs/typeA"},
-								{"$ref": "#/$defs/typeB"}
-							]
-						}
-					]
-				}
-			},
-			"$defs": {
-				"base": {
-					"type": "object",
-					"properties": {
-						"id": {"type": "string"},
-						"timestamp": {"type": "number"}
-					},
-					"required": ["id"]
-				},
-				"typeA": {
-					"type": "object",
-					"properties": {
-						"type": {"const": "A"},
-						"valueA": {"type": "string"}
-					},
-					"required": ["type", "valueA"]
-				},
-				"typeB": {
-					"type": "object",
-					"properties": {
-						"type": {"const": "B"},
-						"valueB": {"type": "number"}
-					},
-					"required": ["type", "valueB"]
-				}
-			}
-		}`
+		baseSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("id", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("timestamp", schema.NewBuilder().Types(schema.NumberType).MustBuild()).
+			Required("id").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		typeASchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Const("A").MustBuild()).
+			Property("valueA", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Required("type", "valueA").
+			MustBuild()
+
+		typeBSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Const("B").MustBuild()).
+			Property("valueB", schema.NewBuilder().Types(schema.NumberType).MustBuild()).
+			Required("type", "valueB").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("data", schema.NewBuilder().
+				AllOf(
+					schema.NewBuilder().Reference("#/$defs/base").MustBuild(),
+					schema.NewBuilder().
+						AnyOf(
+							schema.NewBuilder().Reference("#/$defs/typeA").MustBuild(),
+							schema.NewBuilder().Reference("#/$defs/typeB").MustBuild(),
+						).
+						MustBuild(),
+				).
+				MustBuild()).
+			Definitions("base", baseSchema).
+			Definitions("typeA", typeASchema).
+			Definitions("typeB", typeBSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		// Valid data - type A
@@ -373,51 +351,44 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 
 	t.Run("references in conditional schemas", func(t *testing.T) {
 		// Schema with references in if/then/else
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"item": {
-					"if": {"$ref": "#/$defs/isDocument"},
-					"then": {"$ref": "#/$defs/documentSchema"},
-					"else": {"$ref": "#/$defs/mediaSchema"}
-				}
-			},
-			"$defs": {
-				"isDocument": {
-					"type": "object",
-					"properties": {
-						"type": {"const": "document"}
-					}
-				},
-				"documentSchema": {
-					"type": "object",
-					"properties": {
-						"type": {"type": "string"},
-						"title": {"type": "string", "minLength": 1},
-						"content": {"type": "string"}
-					},
-					"required": ["type", "title", "content"]
-				},
-				"mediaSchema": {
-					"type": "object", 
-					"properties": {
-						"type": {"type": "string"},
-						"url": {"type": "string", "format": "uri"},
-						"size": {"type": "number", "minimum": 0}
-					},
-					"required": ["type", "url"]
-				}
-			}
-		}`
+		isDocumentSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Const("document").MustBuild()).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		documentSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("title", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+			Property("content", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Required("type", "title", "content").
+			MustBuild()
+
+		mediaSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("type", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("url", schema.NewBuilder().Types(schema.StringType).Format("uri").MustBuild()).
+			Property("size", schema.NewBuilder().Types(schema.NumberType).Minimum(0).MustBuild()).
+			Required("type", "url").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("item", schema.NewBuilder().
+				IfSchema(schema.NewBuilder().Reference("#/$defs/isDocument").MustBuild()).
+				ThenSchema(schema.NewBuilder().Reference("#/$defs/documentSchema").MustBuild()).
+				ElseSchema(schema.NewBuilder().Reference("#/$defs/mediaSchema").MustBuild()).
+				MustBuild()).
+			Definitions("isDocument", isDocumentSchema).
+			Definitions("documentSchema", documentSchema).
+			Definitions("mediaSchema", mediaSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		// Valid document
@@ -460,23 +431,22 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 
 func TestCircularReferenceDetection(t *testing.T) {
 	// Schema with circular references should be detected during compilation
-	jsonSchema := `{
-		"$ref": "#/$defs/a",
-		"$defs": {
-			"a": {"$ref": "#/$defs/b"},
-			"b": {"$ref": "#/$defs/c"},
-			"c": {"$ref": "#/$defs/a"}
-		}
-	}`
+	aSchema := schema.NewBuilder().Reference("#/$defs/b").MustBuild()
+	bSchema := schema.NewBuilder().Reference("#/$defs/c").MustBuild()
+	cSchema := schema.NewBuilder().Reference("#/$defs/a").MustBuild()
 
-	var s schema.Schema
-	require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+	s := schema.NewBuilder().
+		Reference("#/$defs/a").
+		Definitions("a", aSchema).
+		Definitions("b", bSchema).
+		Definitions("c", cSchema).
+		MustBuild()
 
 	ctx := context.Background()
 	ctx = schema.WithResolver(ctx, schema.NewResolver())
-	ctx = schema.WithRootSchema(ctx, &s)
+	ctx = schema.WithRootSchema(ctx, s)
 
-	_, err := validator.Compile(ctx, &s)
+	_, err := validator.Compile(ctx, s)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "circular reference")
 }
@@ -484,25 +454,23 @@ func TestCircularReferenceDetection(t *testing.T) {
 func TestBasicReferenceResolution(t *testing.T) {
 	t.Run("local reference", func(t *testing.T) {
 		// Schema with a local reference
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"name": {"$ref": "#/$defs/stringType"}
-			},
-			"$defs": {
-				"stringType": {"type": "string", "minLength": 1}
-			}
-		}`
+		stringTypeSchema := schema.NewBuilder().
+			Types(schema.StringType).
+			MinLength(1).
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Reference("#/$defs/stringType").MustBuild()).
+			Definitions("stringType", stringTypeSchema).
+			MustBuild()
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		t.Run("valid object", func(t *testing.T) {
@@ -532,29 +500,24 @@ func TestBasicReferenceResolution(t *testing.T) {
 
 	t.Run("schema with $ref only", func(t *testing.T) {
 		// A schema that is just a reference
-		jsonSchema := `{
-			"$ref": "#/$defs/personType",
-			"$defs": {
-				"personType": {
-					"type": "object",
-					"properties": {
-						"name": {"type": "string"},
-						"age": {"type": "integer", "minimum": 0}
-					},
-					"required": ["name"]
-				}
-			}
-		}`
+		personTypeSchema := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("age", schema.NewBuilder().Types(schema.IntegerType).Minimum(0).MustBuild()).
+			Required("name").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Reference("#/$defs/personType").
+			Definitions("personType", personTypeSchema).
+			MustBuild()
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		require.NoError(t, err)
 
 		t.Run("valid person", func(t *testing.T) {

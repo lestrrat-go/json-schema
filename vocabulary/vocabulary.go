@@ -30,6 +30,7 @@ type Set struct {
 	list     []string
 }
 
+// NewSet creates a new vocabulary set with the given URI.
 func NewSet(uri string) *Set {
 	return &Set{
 		uri: uri,
@@ -260,7 +261,7 @@ func DefaultSet() *VocabularySet {
 
 // ExtractVocabularySet extracts the vocabulary set from a schema's $vocabulary declaration
 func ExtractVocabularySet(s *schema.Schema) *VocabularySet {
-	if s == nil || !s.HasVocabulary() {
+	if s == nil || !s.Has(schema.VocabularyField) {
 		return AllEnabled() // Default to all enabled if no vocabulary declaration
 	}
 
@@ -300,7 +301,7 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) 
 	// Try to resolve the metaschema
 	var metaschema schema.Schema
 	// Create context with base schema for resolver
-	resolverCtx := schema.WithBaseSchema(ctx, rootSchema)
+	resolverCtx := schema.WithReferenceBase(ctx, rootSchema)
 	if err := resolver.ResolveReference(resolverCtx, &metaschema, metaschemaURI); err != nil {
 		// If we can't resolve the metaschema, default to all enabled
 		return AllEnabled(), nil //nolint:nilerr // Intentional: fallback to default behavior on resolve error

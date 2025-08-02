@@ -6,6 +6,12 @@ import (
 	"sync"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/pool"
+)
+
+var resolverPool = pool.New[*schema.Resolver](
+	func() *schema.Resolver { return schema.NewResolver() },
+	func(r *schema.Resolver) *schema.Resolver { return r }, // Resolvers are stateless, no cleanup needed
 )
 
 type ReferenceValidator struct {
@@ -13,7 +19,6 @@ type ReferenceValidator struct {
 	resolvedOnce sync.Once
 	resolved     Interface
 	resolveErr   error
-	resolver     *schema.Resolver
 	rootSchema   *schema.Schema
 }
 
@@ -31,21 +36,14 @@ func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error
 }
 
 func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, error) {
-	// Use stored resolver and root schema, fall back to context if not available
-	resolver := r.resolver
-	if resolver == nil {
-		resolver = schema.ResolverFromContext(ctx)
-		if resolver == nil {
-			resolver = schema.NewResolver()
-		}
-	}
+	// Get a resolver from the pool
+	resolver := resolverPool.Get()
+	defer resolverPool.Put(resolver)
 
+	// Use the validator's stored root schema
 	rootSchema := r.rootSchema
 	if rootSchema == nil {
-		rootSchema = schema.RootSchemaFromContext(ctx)
-		if rootSchema == nil {
-			return nil, fmt.Errorf("no root schema available in context for reference resolution: %s", r.reference)
-		}
+		return nil, fmt.Errorf("no root schema available for reference resolution: %s", r.reference)
 	}
 
 	// Check for circular references by looking at context
@@ -74,7 +72,7 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 	}
 	// Add base schema context for reference resolution
 	if rootSchema := schema.RootSchemaFromContext(ctx); rootSchema != nil {
-		refCtx = schema.WithBaseSchema(refCtx, rootSchema)
+		refCtx = schema.WithReferenceBase(refCtx, rootSchema)
 	}
 	if err := resolver.ResolveReference(refCtx, &targetSchema, r.reference); err != nil {
 		return nil, fmt.Errorf("failed to resolve reference %s: %w", r.reference, err)
@@ -91,7 +89,6 @@ type DynamicReferenceValidator struct {
 	resolvedOnce sync.Once
 	resolved     Interface
 	resolveErr   error
-	resolver     *schema.Resolver
 	rootSchema   *schema.Schema
 	dynamicScope []*schema.Schema // Store the dynamic scope chain from compilation
 }
@@ -117,12 +114,11 @@ func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Resul
 }
 
 func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context) (Interface, error) {
-	// Use stored resolver and root schema from compilation time
-	resolver := dr.resolver
-	if resolver == nil {
-		resolver = schema.NewResolver()
-	}
+	// Get a resolver from the pool
+	resolver := resolverPool.Get()
+	defer resolverPool.Put(resolver)
 
+	// Use the validator's stored root schema
 	rootSchema := dr.rootSchema
 	if rootSchema == nil {
 		return nil, fmt.Errorf("no root schema available for dynamic reference resolution: %s", dr.reference)
@@ -163,7 +159,7 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 
 	// If the target schema has relative references, we need to ensure they're resolved
 	// against the correct base URI. For metaschema, this is crucial.
-	if targetSchema.HasID() && targetSchema.ID() != "" {
+	if targetSchema.Has(schema.IDField) && targetSchema.ID() != "" {
 		// Set the base URI from the target schema's $id
 		if baseURI := extractBaseURI(targetSchema.ID()); baseURI != "" {
 			ctxWithScope = schema.WithBaseURI(ctxWithScope, baseURI)
@@ -202,7 +198,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 		// For non-anchor dynamic refs, treat as normal reference
 		var targetSchema schema.Schema
 		baseURI := schema.BaseURIFromContext(ctx)
-		refCtx := schema.WithBaseSchema(ctx, rootSchema)
+		refCtx := schema.WithReferenceBase(ctx, rootSchema)
 		if baseURI != "" {
 			refCtx = schema.WithBaseURI(refCtx, baseURI)
 		}
@@ -224,14 +220,14 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 			currentSchema := scopeChain[i]
 
 			// Check if this schema has a matching $dynamicAnchor
-			if currentSchema.HasDynamicAnchor() && currentSchema.DynamicAnchor() == anchorName {
+			if currentSchema.Has(schema.DynamicAnchorField) && currentSchema.DynamicAnchor() == anchorName {
 				return currentSchema, nil
 			}
 		}
 
 		// No matching $dynamicAnchor found, fall back to normal JSON pointer resolution
 		var targetSchema schema.Schema
-		refCtx := schema.WithBaseSchema(ctx, rootSchema)
+		refCtx := schema.WithReferenceBase(ctx, rootSchema)
 		if err := resolver.ResolveReference(refCtx, &targetSchema, dynamicRef); err != nil {
 			return nil, fmt.Errorf("failed to resolve dynamic reference %s: %w", dynamicRef, err)
 		}
@@ -251,7 +247,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 		currentSchema := scopeChain[i]
 
 		// Check if this schema has a matching $dynamicAnchor
-		if currentSchema.HasDynamicAnchor() && currentSchema.DynamicAnchor() == anchorName {
+		if currentSchema.Has(schema.DynamicAnchorField) && currentSchema.DynamicAnchor() == anchorName {
 			return currentSchema, nil
 		}
 	}
@@ -259,7 +255,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 	// If no matching $dynamicAnchor found in dynamic scope, fall back to normal anchor resolution
 	// This is the correct behavior according to JSON Schema spec
 	var targetSchema schema.Schema
-	refCtx := schema.WithBaseSchema(ctx, rootSchema)
+	refCtx := schema.WithReferenceBase(ctx, rootSchema)
 	if err := resolver.ResolveAnchor(refCtx, &targetSchema, anchorName); err != nil {
 		return nil, fmt.Errorf("failed to resolve dynamic reference %s (no matching $dynamicAnchor in scope): %w", dynamicRef, err)
 	}

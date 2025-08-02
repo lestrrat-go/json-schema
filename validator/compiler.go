@@ -23,8 +23,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	// Set up base schema for local reference resolution if none provided
-	if schema.BaseSchemaFromContext(ctx) == nil {
-		ctx = schema.WithBaseSchema(ctx, s)
+	if schema.ReferenceBaseFromContext(ctx) == nil {
+		ctx = schema.WithReferenceBase(ctx, s)
 	}
 
 	// Set up vocabulary context if none provided
@@ -39,7 +39,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	ctx = schema.WithDynamicScope(ctx, s)
 
 	// Set up base URI context from schema's $id field if present
-	if s.HasID() {
+	if s.Has(schema.IDField) {
 		schemaID := s.ID()
 		if schemaID != "" {
 			// Extract base URI from $id for resolving relative references within this schema
@@ -56,7 +56,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if rootSchema == s {
 		// For testing, hardcode known metaschema URIs that disable validation vocabulary
 		schemaURI := ""
-		if s.HasSchema() {
+		if s.Has(schema.SchemaField) {
 			schemaURI = s.Schema()
 		}
 
@@ -79,9 +79,9 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
 	var reference string
 	var isDynamicRef bool
-	if s.HasReference() {
+	if s.Has(schema.ReferenceField) {
 		reference = s.Reference()
-	} else if s.HasDynamicReference() {
+	} else if s.Has(schema.DynamicReferenceField) {
 		reference = s.DynamicReference()
 		isDynamicRef = true
 	}
@@ -89,11 +89,10 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if reference != "" {
 		// Handle $dynamicRef with proper DynamicReferenceValidator
 		if isDynamicRef {
-			// Create dynamic reference validator with stored context
+			// Create dynamic reference validator using pooled resolvers
 			dynamicScope := schema.DynamicScopeFromContext(ctx)
 			return &DynamicReferenceValidator{
 				reference:    reference,
-				resolver:     schema.ResolverFromContext(ctx),
 				rootSchema:   schema.RootSchemaFromContext(ctx),
 				dynamicScope: dynamicScope,
 			}, nil
@@ -131,9 +130,9 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 		// Add base schema context for reference resolution if none exists
 		// Don't override existing base schema context
-		if schema.BaseSchemaFromContext(refCtx) == nil {
+		if schema.ReferenceBaseFromContext(refCtx) == nil {
 			if rootSchema := schema.RootSchemaFromContext(ctx); rootSchema != nil {
-				refCtx = schema.WithBaseSchema(refCtx, rootSchema)
+				refCtx = schema.WithReferenceBase(refCtx, rootSchema)
 			}
 		}
 
@@ -147,7 +146,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			// Create an allOf validator combining the resolved schema and additional constraints
 
 			// Set up context for the resolved schema with proper base schema context
-			resolvedCtx := schema.WithBaseSchema(ctx, &targetSchema)
+			resolvedCtx := schema.WithReferenceBase(ctx, &targetSchema)
 			resolvedValidator, err := Compile(resolvedCtx, &targetSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile resolved schema: %w", err)
@@ -157,7 +156,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			schemaWithoutRef := createSchemaWithoutRef(s)
 
 			// Check if we need unevaluated coordination
-			if schemaWithoutRef.HasUnevaluatedProperties() || schemaWithoutRef.HasUnevaluatedItems() {
+			if schemaWithoutRef.Has(schema.UnevaluatedPropertiesField) || schemaWithoutRef.Has(schema.UnevaluatedItemsField) {
 				// Create additional validator WITHOUT unevaluated constraints
 				schemaWithoutUnevaluated := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
 				additionalValidator, err := Compile(ctx, schemaWithoutUnevaluated)
@@ -189,8 +188,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Only set resolved schema as base if it has its own ID (proper schema scope)
 		// Otherwise keep existing base schema that was able to resolve the reference
 		resolvedCtx := ctx
-		if targetSchema.HasID() {
-			resolvedCtx = schema.WithBaseSchema(ctx, &targetSchema)
+		if targetSchema.Has(schema.IDField) {
+			resolvedCtx = schema.WithReferenceBase(ctx, &targetSchema)
 		}
 		return Compile(resolvedCtx, &targetSchema)
 	}
@@ -198,7 +197,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Phase 1: If schema has allOf with references, resolve and merge them into context first
 	// TEMPORARILY DISABLED to debug core issue
-	// if s.HasAllOf() {
+	// if s.Has(schema.AllOfField) {
 	// 	mergedCtx, err := createMergedContextFromAllOf(ctx, s)
 	// 	if err != nil {
 	// 		// If merging fails, fall back to standard compilation
@@ -232,7 +231,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	// Phase 4: If unevaluated constraints exist, wrap in coordinator
-	if s.HasUnevaluatedProperties() || s.HasUnevaluatedItems() {
+	if s.Has(schema.UnevaluatedPropertiesField) || s.Has(schema.UnevaluatedItemsField) {
 		return &unevaluatedCoordinator{
 			validators:       validators, // May be empty if schema only has unevaluated constraints
 			unevaluatedProps: s.UnevaluatedProperties(),
@@ -261,7 +260,7 @@ func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interf
 	var validators []Interface
 
 	// AllOf
-	if s.HasAllOf() {
+	if s.Has(schema.AllOfField) {
 		allOfValidators := make([]Interface, 0, len(s.AllOf()))
 		for _, subSchema := range s.AllOf() {
 			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
@@ -274,7 +273,7 @@ func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interf
 	}
 
 	// AnyOf
-	if s.HasAnyOf() {
+	if s.Has(schema.AnyOfField) {
 		anyOfValidators := make([]Interface, 0, len(s.AnyOf()))
 		for _, subSchema := range s.AnyOf() {
 			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
@@ -287,7 +286,7 @@ func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interf
 	}
 
 	// OneOf
-	if s.HasOneOf() {
+	if s.Has(schema.OneOfField) {
 		oneOfValidators := make([]Interface, 0, len(s.OneOf()))
 		for _, subSchema := range s.OneOf() {
 			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
@@ -307,7 +306,7 @@ func compileConditionalValidators(ctx context.Context, s *schema.Schema) ([]Inte
 	var validators []Interface
 
 	// Not
-	if s.HasNot() {
+	if s.Has(schema.NotField) {
 		notValidator, err := Compile(ctx, s.Not())
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile not validator: %w", err)
@@ -316,7 +315,7 @@ func compileConditionalValidators(ctx context.Context, s *schema.Schema) ([]Inte
 	}
 
 	// If/Then/Else
-	if s.HasIfSchema() {
+	if s.Has(schema.IfSchemaField) {
 		ifThenElseValidator, err := compileIfThenElseValidator(ctx, s)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile if/then/else validator: %w", err)
@@ -452,7 +451,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 	}
 
 	// Content validation
-	if s.HasContentEncoding() || s.HasContentMediaType() || s.HasContentSchema() {
+	if s.Has(schema.ContentEncodingField) || s.Has(schema.ContentMediaTypeField) || s.Has(schema.ContentSchemaField) {
 		contentValidator, err := compileContentValidator(ctx, s)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile content validator: %w", err)
@@ -482,7 +481,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 	}
 
 	// Dependent schemas
-	if s.HasDependentSchemas() {
+	if s.Has(schema.DependentSchemasField) {
 		dependentSchemas := s.DependentSchemas()
 		compiledDependentSchemas := make(map[string]Interface)
 		for propertyName, depSchema := range dependentSchemas {
@@ -517,10 +516,9 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 	}
 
 	// Reference validation - create ReferenceValidator directly
-	if s.HasReference() {
+	if s.Has(schema.ReferenceField) {
 		refValidator := &ReferenceValidator{
 			reference:  s.Reference(),
-			resolver:   schema.ResolverFromContext(ctx),
 			rootSchema: schema.RootSchemaFromContext(ctx),
 		}
 		validators = append(validators, refValidator)
@@ -546,11 +544,11 @@ func compileValueConstraintsValidator(_ context.Context, s *schema.Schema) (Inte
 	// Use the untyped validator builder since enum/const validation logic is the same
 	v := Untyped()
 
-	if s.HasEnum() {
+	if s.Has(schema.EnumField) {
 		v.Enum(s.Enum()...)
 	}
 
-	if s.HasConst() {
+	if s.Has(schema.ConstField) {
 		v.Const(s.Const())
 	}
 
@@ -562,10 +560,9 @@ func compileValueConstraintsValidator(_ context.Context, s *schema.Schema) (Inte
 // createSchemaWithoutUnevaluatedFields creates a copy of the schema without unevaluated constraints
 func createSchemaWithoutUnevaluatedFields(s *schema.Schema) *schema.Schema {
 	// Use the builder to clone the schema and reset unevaluated fields
-	builder := schema.NewBuilder().Clone(s)
-	builder.ResetUnevaluatedProperties()
-	builder.ResetUnevaluatedItems()
-	return builder.MustBuild()
+	return schema.NewBuilder().Clone(s).
+		Reset(schema.UnevaluatedPropertiesField | schema.UnevaluatedItemsField).
+		MustBuild()
 }
 
 func hasExplicitArrayType(s *schema.Schema) bool {

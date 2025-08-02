@@ -17,42 +17,47 @@ var _ Interface = (*objectValidator)(nil)
 func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
 	v := Object()
 
-	if s.HasMinProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
+	if s.Has(schema.MinPropertiesField) && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
 		v.MinProperties(s.MinProperties())
 	}
-	if s.HasMaxProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "maxProperties") {
+	if s.Has(schema.MaxPropertiesField) && vocabulary.IsKeywordEnabledInContext(ctx, "maxProperties") {
 		v.MaxProperties(s.MaxProperties())
 	}
-	if s.HasRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "required") {
+	if s.Has(schema.RequiredField) && vocabulary.IsKeywordEnabledInContext(ctx, "required") {
 		v.Required(s.Required())
 	}
-	if s.HasDependentRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "dependentRequired") {
+	if s.Has(schema.DependentRequiredField) && vocabulary.IsKeywordEnabledInContext(ctx, "dependentRequired") {
 		v.DependentRequired(s.DependentRequired())
 	}
-	if s.HasProperties() {
-		properties := make(map[string]Interface)
-		for name, propSchema := range s.Properties() {
-			propValidator, err := Compile(ctx, propSchema)
+	if s.Has(schema.PropertiesField) {
+		schemaProps := s.Properties()
+		props := make([]PropertyPair, 0, len(schemaProps.Keys()))
+		for _, name := range schemaProps.Keys() {
+			var propSchema schema.Schema
+			if err := schemaProps.Get(name, &propSchema); err != nil {
+				return nil, fmt.Errorf("failed to get property schema for %s: %w", name, err)
+			}
+			propValidator, err := Compile(ctx, &propSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property validator for %s: %w", name, err)
 			}
-			properties[name] = propValidator
-		}
-		// Convert map to PropertyPair slice
-		props := make([]PropertyPair, 0, len(properties))
-		for name, validator := range properties {
-			props = append(props, PropPair(name, validator))
+			props = append(props, PropPair(name, propValidator))
 		}
 		v.Properties(props...)
 	}
-	if s.HasPatternProperties() {
+	if s.Has(schema.PatternPropertiesField) {
+		schemaPatternProps := s.PatternProperties()
 		patternProperties := make(map[*regexp.Regexp]Interface)
-		for pattern, propSchema := range s.PatternProperties() {
+		for _, pattern := range schemaPatternProps.Keys() {
+			var propSchema schema.Schema
+			if err := schemaPatternProps.Get(pattern, &propSchema); err != nil {
+				return nil, fmt.Errorf("failed to get pattern property schema for %s: %w", pattern, err)
+			}
 			re, err := regexp.Compile(pattern)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern %s: %w", pattern, err)
 			}
-			propValidator, err := Compile(ctx, propSchema)
+			propValidator, err := Compile(ctx, &propSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern property validator for %s: %w", pattern, err)
 			}
@@ -60,7 +65,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 		}
 		v.PatternProperties(patternProperties)
 	}
-	if s.HasAdditionalProperties() {
+	if s.Has(schema.AdditionalPropertiesField) {
 		additionalProps := s.AdditionalProperties()
 		if additionalProps != nil {
 			// Handle SchemaOrBool types
@@ -80,7 +85,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			}
 		}
 	}
-	if s.HasPropertyNames() {
+	if s.Has(schema.PropertyNamesField) {
 		propertyNamesSchema := s.PropertyNames()
 		if propertyNamesSchema != nil {
 			propertyNamesValidator, err := Compile(ctx, propertyNamesSchema)
@@ -90,7 +95,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			v.PropertyNames(propertyNamesValidator)
 		}
 	}
-	if s.HasUnevaluatedProperties() {
+	if s.Has(schema.UnevaluatedPropertiesField) {
 		unevaluatedProps := s.UnevaluatedProperties()
 		if unevaluatedProps != nil {
 			// Handle SchemaOrBool types
@@ -140,6 +145,8 @@ type ObjectValidatorBuilder struct {
 	c   *objectValidator
 }
 
+// Object creates a new ObjectValidatorBuilder instance that can be used to build a
+// Validator for object values according to the JSON Schema specification.
 func Object() *ObjectValidatorBuilder {
 	return (&ObjectValidatorBuilder{}).Reset()
 }

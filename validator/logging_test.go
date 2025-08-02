@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/stretchr/testify/require"
 )
@@ -29,10 +30,10 @@ func TestLoggingIntegration(t *testing.T) {
 		logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}))
-		ctx := validator.WithTraceSlog(context.Background(), logger)
+		ctx := schemactx.WithTraceSlog(context.Background(), logger)
 
 		// Verify logger can be retrieved
-		retrievedLogger := validator.TraceSlogFromContext(ctx)
+		retrievedLogger := schemactx.TraceSlogFromContext(ctx)
 		require.NotNil(t, retrievedLogger, "should be able to retrieve trace logger from context")
 
 		// Use the context for validation (logging would occur within validators that use it)
@@ -47,7 +48,7 @@ func TestLoggingIntegration(t *testing.T) {
 		ctx := context.Background()
 
 		// Verify no-op logger is returned when no logger in context
-		retrievedLogger := validator.TraceSlogFromContext(ctx)
+		retrievedLogger := schemactx.TraceSlogFromContext(ctx)
 		require.NotNil(t, retrievedLogger, "should return no-op logger when no trace logger in context")
 
 		// The no-op logger should be usable (won't panic)
@@ -62,7 +63,7 @@ func TestLoggingIntegration(t *testing.T) {
 	t.Run("no-op logger behavior", func(_ *testing.T) {
 		// Test that the no-op logger can be used safely without panics
 		ctx := context.Background()
-		noopLogger := validator.TraceSlogFromContext(ctx)
+		noopLogger := schemactx.TraceSlogFromContext(ctx)
 
 		// These should not panic or cause issues
 		noopLogger.DebugContext(ctx, "debug message")

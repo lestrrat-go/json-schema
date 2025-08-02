@@ -66,6 +66,7 @@ func (n *NotValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 type nullValidator struct{}
 
+// Null creates a validator that accepts only null values.
 func Null() Interface {
 	return nullValidator{}
 }
@@ -85,6 +86,7 @@ type RefUnevaluatedPropertiesCompositionValidator struct {
 	schema        *schema.Schema
 }
 
+// NewRefUnevaluatedPropertiesCompositionValidator creates a new RefUnevaluatedPropertiesCompositionValidator instance.
 func NewRefUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, refValidator Interface) *RefUnevaluatedPropertiesCompositionValidator {
 	v := &RefUnevaluatedPropertiesCompositionValidator{
 		schema:       s,

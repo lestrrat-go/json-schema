@@ -164,17 +164,26 @@ func genObject(obj *codegen.Object) error {
 	o.L("}")
 
 	for _, field := range obj.Fields() {
-		o.LL("func (s *Schema) Has%s() bool {", field.Name(true))
-		o.L("return s.populatedFields&%sField != 0", field.Name(true))
-		o.L("}")
-		o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
-		o.L("return ")
-		if !isNilZeroType(field) && !isInterfaceField(field) {
-			o.R("*(s.%s)", field.Name(false))
+		// Special handling for all map[string]*Schema fields to return *SchemaMap
+		if field.Type() == "map[string]*Schema" {
+			o.LL("func (s *Schema) %s() *SchemaMap {", field.Name(true))
+			o.L("return &SchemaMap{data: s.%s}", field.Name(false))
+			o.L("}")
 		} else {
-			o.R("s.%s", field.Name(false))
+			o.LL("func (s *Schema) %s() %s {", field.Name(true), field.Type())
+			if !isNilZeroType(field) && !isInterfaceField(field) {
+				// For pointer fields, return zero value if nil
+				o.L("if s.%s == nil {", field.Name(false))
+				o.L("var zero %s", field.Type())
+				o.L("return zero")
+				o.L("}")
+				o.L("return *(s.%s)", field.Name(false))
+			} else {
+				// For slice/map/interface fields, can return directly (already safe)
+				o.L("return s.%s", field.Name(false))
+			}
+			o.L("}")
 		}
-		o.L("}")
 	}
 
 	o.LL("func (s *Schema) ContainsType(typ PrimitiveType) bool {")
@@ -189,14 +198,11 @@ func genObject(obj *codegen.Object) error {
 	o.L("return false")
 	o.L("}")
 
-	o.L(`type pair struct {`)
-	o.L(`Name string`)
-	o.L(`Value any`)
-	o.L(`}`)
 	o.LL(`func (s *Schema) MarshalJSON() ([]byte, error) {`)
-	o.L(`fields := make([]pair, 0, %d)`, len(obj.Fields()))
+	o.L(`fields := pool.PairSlice().GetCapacity(%d)`, len(obj.Fields()))
+	o.L(`defer pool.PairSlice().Put(fields)`)
 	for _, field := range obj.Fields() {
-		o.L(`if s.Has%s() {`, field.Name(true))
+		o.L(`if s.Has(%sField) {`, field.Name(true))
 		constName := field.Name(true)
 		switch constName {
 		case "Types":
@@ -205,9 +211,9 @@ func genObject(obj *codegen.Object) error {
 			constName = strings.TrimSuffix(constName, "Schema")
 		}
 		if !isNilZeroType(field) && !isInterfaceField(field) {
-			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
+			o.L(`fields = append(fields, pool.Pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
 		} else {
-			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
+			o.L(`fields = append(fields, pool.Pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
 		}
 		o.L(`}`)
 	}
@@ -556,13 +562,13 @@ func genBuilder(obj *codegen.Object) error {
 		switch field.Type() {
 		case `map[string]*Schema`:
 			// For map fields, we need to copy the map to propPair slices
-			o.LL("if original.Has%s() {", field.Name(true))
+			o.LL("if original.Has(%sField) {", field.Name(true))
 			o.L("for name, schema := range original.%s {", field.Name(false))
 			o.L("b.%s = append(b.%s, &propPair{Name: name, Schema: schema})", field.Name(false), field.Name(false))
 			o.L("}")
 			o.L("}")
 		default:
-			o.LL("if original.Has%s() {", field.Name(true))
+			o.LL("if original.Has(%sField) {", field.Name(true))
 			if !isNilZeroType(field) && !isInterfaceField(field) {
 				// For pointer fields, can assign the pointer directly
 				o.L("b.%s = original.%s", field.Name(false), field.Name(false))
@@ -577,19 +583,22 @@ func genBuilder(obj *codegen.Object) error {
 	o.L("return b")
 	o.L("}")
 
-	// Reset methods for clearing individual fields
+	// Generic Reset method for clearing fields using bit flags
+	o.LL("// Reset clears the specified field flags")
+	o.L("// Usage: builder.Reset(AnchorField | PropertiesField) clears both anchor and properties")
+	o.L("func (b *Builder) Reset(flags FieldFlag) *Builder {")
+	o.L("if b.err != nil {")
+	o.L("return b")
+	o.L("}")
+	o.L("")
 	for _, field := range obj.Fields() {
-		methodName := "Reset" + field.Name(true)
-		o.LL("func (b *Builder) %s() *Builder {", methodName)
-		o.L("if b.err != nil {")
-		o.L("return b")
-		o.L("}")
-
+		o.L("if (flags & %sField) != 0 {", field.Name(true))
 		o.L("b.%s = nil", field.Name(false))
-
-		o.L("return b")
 		o.L("}")
 	}
+	o.L("")
+	o.L("return b")
+	o.L("}")
 
 	o.LL("func (b *Builder) Build() (*Schema, error) {")
 	o.L("s := New()")

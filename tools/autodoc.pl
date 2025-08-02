@@ -41,7 +41,7 @@ for my $filename (@files) {
         };
         $content =~ s{^(\t+)}{"  " x length($1)}gsme;
         $output->print($content);
-        $output->print("```\n");
+        $output->print("\n```\n");
 
         $output->print("source: [$include_filename](https://github.com/lestrrat-go/json-schema/blob/$link_ref/$include_filename)\n");
     

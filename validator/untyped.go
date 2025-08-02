@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
@@ -68,11 +69,11 @@ func (b *UntypedValidatorBuilder) Reset() *UntypedValidatorBuilder {
 func compileUntypedValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Untyped()
 
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
+	if s.Has(schema.EnumField) && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
 		v.Enum(s.Enum()...)
 	}
 
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
+	if s.Has(schema.ConstField) && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
 		v.Const(s.Const())
 	}
 
@@ -102,7 +103,7 @@ func (u *untypedValidator) Validate(ctx context.Context, value any) (Result, err
 
 // validateConst checks if a value exactly matches the expected constant value
 func validateConst(ctx context.Context, value any, constValue any) error {
-	logger := TraceSlogFromContext(ctx)
+	logger := schemactx.TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "validating const constraint", "expected", constValue, "actual", value)
 
 	if !jsonSchemaEqual(value, constValue) {
@@ -113,7 +114,7 @@ func validateConst(ctx context.Context, value any, constValue any) error {
 
 // validateEnum checks if a value is found in the allowed enum values
 func validateEnum(ctx context.Context, value any, enumValues []any) error {
-	logger := TraceSlogFromContext(ctx)
+	logger := schemactx.TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "validating enum constraint", "allowed_values", enumValues, "actual", value)
 
 	for _, enumVal := range enumValues {

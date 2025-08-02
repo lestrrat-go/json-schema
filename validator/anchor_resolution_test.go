@@ -12,32 +12,25 @@ import (
 func TestAnchorResolution(t *testing.T) {
 	t.Run("basic anchor resolution", func(t *testing.T) {
 		// Schema with anchor and reference to anchor
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"user": {"$ref": "#person"}
-			},
-			"$defs": {
-				"personDef": {
-					"$anchor": "person",
-					"type": "object",
-					"properties": {
-						"name": {"type": "string", "minLength": 1},
-						"age": {"type": "number", "minimum": 0}
-					},
-					"required": ["name"]
-				}
-			}
-		}`
+		personDefSchema := schema.NewBuilder().
+			Anchor("person").
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+			Property("age", schema.NewBuilder().Types(schema.NumberType).Minimum(0).MustBuild()).
+			Required("name").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("user", schema.NewBuilder().Reference("#person").MustBuild()).
+			Definitions("personDef", personDefSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		if err != nil {
 			t.Logf("Expected anchor resolution to work, but got error: %v", err)
 			t.Skip("Anchor resolution not yet implemented")
@@ -68,43 +61,36 @@ func TestAnchorResolution(t *testing.T) {
 
 	t.Run("multiple anchors", func(t *testing.T) {
 		// Schema with multiple anchors
-		jsonSchema := `{
-			"type": "object",
-			"properties": {
-				"person": {"$ref": "#personSchema"},
-				"address": {"$ref": "#addressSchema"}
-			},
-			"$defs": {
-				"personDef": {
-					"$anchor": "personSchema",
-					"type": "object",
-					"properties": {
-						"name": {"type": "string"},
-						"email": {"type": "string", "format": "email"}
-					},
-					"required": ["name"]
-				},
-				"addressDef": {
-					"$anchor": "addressSchema",
-					"type": "object",
-					"properties": {
-						"street": {"type": "string"},
-						"city": {"type": "string"},
-						"zipcode": {"type": "string", "pattern": "^\\d{5}$"}
-					},
-					"required": ["street", "city"]
-				}
-			}
-		}`
+		personDefSchema := schema.NewBuilder().
+			Anchor("personSchema").
+			Types(schema.ObjectType).
+			Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("email", schema.NewBuilder().Types(schema.StringType).Format("email").MustBuild()).
+			Required("name").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		addressDefSchema := schema.NewBuilder().
+			Anchor("addressSchema").
+			Types(schema.ObjectType).
+			Property("street", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("city", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+			Property("zipcode", schema.NewBuilder().Types(schema.StringType).Pattern("^\\d{5}$").MustBuild()).
+			Required("street", "city").
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Types(schema.ObjectType).
+			Property("person", schema.NewBuilder().Reference("#personSchema").MustBuild()).
+			Property("address", schema.NewBuilder().Reference("#addressSchema").MustBuild()).
+			Definitions("personDef", personDefSchema).
+			Definitions("addressDef", addressDefSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		if err != nil {
 			t.Logf("Expected multiple anchor resolution to work, but got error: %v", err)
 			t.Skip("Anchor resolution not yet implemented")
@@ -129,35 +115,30 @@ func TestAnchorResolution(t *testing.T) {
 
 	t.Run("nested anchor resolution", func(t *testing.T) {
 		// Schema with nested anchor references
-		jsonSchema := `{
-			"$ref": "#rootSchema",
-			"$defs": {
-				"root": {
-					"$anchor": "rootSchema",
-					"type": "object",
-					"properties": {
-						"data": {"$ref": "#dataSchema"}
-					}
-				},
-				"data": {
-					"$anchor": "dataSchema",
-					"type": "object",
-					"properties": {
-						"value": {"type": "string", "minLength": 1}
-					},
-					"required": ["value"]
-				}
-			}
-		}`
+		dataDefSchema := schema.NewBuilder().
+			Anchor("dataSchema").
+			Types(schema.ObjectType).
+			Property("value", schema.NewBuilder().Types(schema.StringType).MinLength(1).MustBuild()).
+			Required("value").
+			MustBuild()
 
-		var s schema.Schema
-		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
+		rootDefSchema := schema.NewBuilder().
+			Anchor("rootSchema").
+			Types(schema.ObjectType).
+			Property("data", schema.NewBuilder().Reference("#dataSchema").MustBuild()).
+			MustBuild()
+
+		s := schema.NewBuilder().
+			Reference("#rootSchema").
+			Definitions("root", rootDefSchema).
+			Definitions("data", dataDefSchema).
+			MustBuild()
 
 		ctx := context.Background()
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
+		ctx = schema.WithRootSchema(ctx, s)
 
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, s)
 		if err != nil {
 			t.Logf("Expected nested anchor resolution to work, but got error: %v", err)
 			t.Skip("Anchor resolution not yet implemented")

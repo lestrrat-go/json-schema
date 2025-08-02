@@ -1,10 +1,11 @@
-package validator
+package validator_test
 
 import (
 	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,11 +129,11 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			testSchema := builder.MustBuild()
 
 			// Compile the validator
-			validator, err := Compile(ctx, testSchema)
+			v, err := validator.Compile(ctx, testSchema)
 			require.NoError(t, err, "Failed to compile validator")
 
 			// Test validation
-			_, err = validator.Validate(ctx, tt.input)
+			_, err = v.Validate(ctx, tt.input)
 			if tt.shouldPass {
 				require.NoError(t, err, "Test case: %s - %s", tt.name, tt.description)
 			} else {
@@ -140,9 +141,4 @@ func TestMinContainsZeroBehavior(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to create uint pointer
-func uintPtr(v uint) *uint {
-	return &v
 }

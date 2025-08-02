@@ -58,8 +58,10 @@ func TestJSONSchemaVocabulary(t *testing.T) {
 		require.Len(t, s.OneOf(), 1)
 		require.NotNil(t, s.Not())
 		require.NotNil(t, s.Items())
-		require.NotNil(t, s.Properties()["test"])
-		require.NotNil(t, s.PatternProperties()["^test"])
+		props := s.Properties()
+		require.Contains(t, props.Keys(), "test")
+		patternProps := s.PatternProperties()
+		require.Contains(t, patternProps.Keys(), "^test")
 		require.NotNil(t, s.AdditionalProperties())
 		require.NotNil(t, s.Contains())
 	})
@@ -150,7 +152,7 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		// Check core fields are present
 		require.Equal(t, "https://example.com/person", s.ID())
-		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
+		require.True(t, s.Has(schema.SchemaField), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.True(t, s.ContainsType(schema.ObjectType))
 		require.NotNil(t, s.Properties())
@@ -158,8 +160,8 @@ func TestSchemaJSONSerialization(t *testing.T) {
 
 		// Check properties structure
 		props := s.Properties()
-		require.NotNil(t, props["name"])
-		require.NotNil(t, props["age"])
+		require.Contains(t, props.Keys(), "name")
+		require.Contains(t, props.Keys(), "age")
 	})
 
 	t.Run("Complex Schema Serialization", func(t *testing.T) {
@@ -203,11 +205,11 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		// Check complex fields are present
 		require.Equal(t, "https://example.com/complex", s.ID())
 		require.True(t, s.ContainsType(schema.ObjectType))
-		require.True(t, s.HasAllOf())
-		require.True(t, s.HasAnyOf())
-		require.True(t, s.HasOneOf())
-		require.True(t, s.HasNot())
-		require.True(t, s.HasEnum())
+		require.True(t, s.Has(schema.AllOfField))
+		require.True(t, s.Has(schema.AnyOfField))
+		require.True(t, s.Has(schema.OneOfField))
+		require.True(t, s.Has(schema.NotField))
+		require.True(t, s.Has(schema.EnumField))
 		require.Equal(t, "constant_value", s.Const())
 		require.Equal(t, "Complex schema for testing", s.Comment())
 	})
@@ -238,8 +240,11 @@ func TestSchemaJSONSerialization(t *testing.T) {
 		require.Equal(t, "#/$defs/person", s.Reference())
 		require.Equal(t, "#person", s.DynamicReference())
 		defs := s.Definitions()
-		require.Contains(t, defs, "person")
-		require.Equal(t, personSchema, defs["person"])
+		require.Contains(t, defs.Keys(), "person")
+		var retrievedSchema schema.Schema
+		err = defs.Get("person", &retrievedSchema)
+		require.NoError(t, err)
+		require.Equal(t, personSchema, &retrievedSchema)
 		require.Equal(t, "person-anchor", s.Anchor())
 	})
 }

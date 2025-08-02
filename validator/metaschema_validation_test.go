@@ -133,11 +133,11 @@ func TestMetaschemaValidation(t *testing.T) {
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
 		// Log the schema before compilation to see if allOf is present
-		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.HasAllOf(), metaschemaRef.HasReference())
-		if metaschemaRef.HasReference() {
+		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.Has(schema.AllOfField), metaschemaRef.Has(schema.ReferenceField))
+		if metaschemaRef.Has(schema.ReferenceField) {
 			t.Logf("Reference: %s", metaschemaRef.Reference())
 		}
-		if metaschemaRef.HasAllOf() {
+		if metaschemaRef.Has(schema.AllOfField) {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
 
@@ -181,11 +181,11 @@ func TestMetaschemaValidation(t *testing.T) {
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
 		// Log the schema before compilation to see if allOf is present
-		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.HasAllOf(), metaschemaRef.HasReference())
-		if metaschemaRef.HasReference() {
+		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.Has(schema.AllOfField), metaschemaRef.Has(schema.ReferenceField))
+		if metaschemaRef.Has(schema.ReferenceField) {
 			t.Logf("Reference: %s", metaschemaRef.Reference())
 		}
-		if metaschemaRef.HasAllOf() {
+		if metaschemaRef.Has(schema.AllOfField) {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
 
@@ -230,11 +230,11 @@ func TestMetaschemaValidation(t *testing.T) {
 		require.NoError(t, metaschemaRef.UnmarshalJSON([]byte(metaschemaRefJSON)))
 
 		// Log the schema before compilation to see if allOf is present
-		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.HasAllOf(), metaschemaRef.HasReference())
-		if metaschemaRef.HasReference() {
+		t.Logf("Schema before compilation - HasAllOf: %v, HasReference: %v", metaschemaRef.Has(schema.AllOfField), metaschemaRef.Has(schema.ReferenceField))
+		if metaschemaRef.Has(schema.ReferenceField) {
 			t.Logf("Reference: %s", metaschemaRef.Reference())
 		}
-		if metaschemaRef.HasAllOf() {
+		if metaschemaRef.Has(schema.AllOfField) {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
 

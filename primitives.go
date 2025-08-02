@@ -6,16 +6,25 @@ import (
 	"fmt"
 )
 
+// PrimitiveType represents a JSON Schema primitive type
 type PrimitiveType int
 
 const (
+	// InvalidType represents an invalid or unknown type
 	InvalidType PrimitiveType = iota
+	// NullType represents the JSON null type
 	NullType
+	// IntegerType represents the JSON integer type
 	IntegerType
+	// StringType represents the JSON string type
 	StringType
+	// ObjectType represents the JSON object type
 	ObjectType
+	// ArrayType represents the JSON array type
 	ArrayType
+	// BooleanType represents the JSON boolean type
 	BooleanType
+	// NumberType represents the JSON number type
 	NumberType
 	maxPrimitiveType
 )
@@ -66,6 +75,7 @@ func (t *PrimitiveType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// IsScalarPrimitiveType returns true if the given type is a scalar type (not object or array)
 func IsScalarPrimitiveType(typ PrimitiveType) bool {
 	switch typ {
 	case StringType, IntegerType, NumberType, BooleanType, NullType:

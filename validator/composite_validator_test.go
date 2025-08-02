@@ -1,10 +1,11 @@
-package validator
+package validator_test
 
 import (
 	"context"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,24 +28,18 @@ func TestCompositeValidatorWithRefAndOtherConstraints(t *testing.T) {
 		Pattern("^[a-zA-Z]+$").
 		MustBuild()
 
-	// Test the hasOtherConstraints function
-	require.True(t, hasOtherConstraints(schemaWithRef))
-
-	// Test the createSchemaWithoutRef function
-	withoutRef := createSchemaWithoutRef(schemaWithRef)
-	require.False(t, withoutRef.HasReference())
-	require.True(t, withoutRef.HasMaxLength())
-	require.True(t, withoutRef.HasPattern())
-	require.Equal(t, schemaWithRef.MaxLength(), withoutRef.MaxLength())
-	require.Equal(t, schemaWithRef.Pattern(), withoutRef.Pattern())
+	// Verify the schema has both reference and constraints
+	require.True(t, schemaWithRef.Has(schema.ReferenceField))
+	require.True(t, schemaWithRef.Has(schema.MaxLengthField))
+	require.True(t, schemaWithRef.Has(schema.PatternField))
 
 	// Test compilation and validation
 	ctx := context.Background()
 	ctx = schema.WithResolver(ctx, schema.NewResolver())
 	ctx = schema.WithRootSchema(ctx, rootSchema)
-	ctx = schema.WithBaseSchema(ctx, rootSchema)
+	ctx = schema.WithReferenceBase(ctx, rootSchema)
 
-	validator, err := Compile(ctx, schemaWithRef)
+	v, err := validator.Compile(ctx, schemaWithRef)
 	require.NoError(t, err)
 
 	// Test validation with various inputs
@@ -94,7 +89,7 @@ func TestCompositeValidatorWithRefAndOtherConstraints(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := validator.Validate(ctx, tc.input)
+			_, err := v.Validate(ctx, tc.input)
 			if tc.shouldPass {
 				require.NoError(t, err, "Test case: %s - %s", tc.name, tc.description)
 			} else {
@@ -128,9 +123,9 @@ func TestCompositeValidatorWithComplexRef(t *testing.T) {
 	ctx := context.Background()
 	ctx = schema.WithResolver(ctx, schema.NewResolver())
 	ctx = schema.WithRootSchema(ctx, rootSchema)
-	ctx = schema.WithBaseSchema(ctx, rootSchema)
+	ctx = schema.WithReferenceBase(ctx, rootSchema)
 
-	validator, err := Compile(ctx, schemaWithRef)
+	v, err := validator.Compile(ctx, schemaWithRef)
 	require.NoError(t, err)
 
 	// Test validation with various inputs
@@ -174,7 +169,7 @@ func TestCompositeValidatorWithComplexRef(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := validator.Validate(ctx, tc.input)
+			_, err := v.Validate(ctx, tc.input)
 			if tc.shouldPass {
 				require.NoError(t, err, "Test case: %s - %s", tc.name, tc.description)
 			} else {

@@ -8,19 +8,21 @@ import (
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
-// AllOf is a convnience function to create a Validator that can handle allOf validation.
+// AllOf is a convenience function to create a Validator that can handle allOf validation.
 func AllOf(validators ...Interface) Interface {
 	return &allOfValidator{
 		validators: validators,
 	}
 }
 
+// AnyOf creates a Validator that can handle anyOf validation.
 func AnyOf(validators ...Interface) Interface {
 	return &anyOfValidator{
 		validators: validators,
 	}
 }
 
+// OneOf creates a Validator that can handle oneOf validation.
 func OneOf(validators ...Interface) Interface {
 	return &oneOfValidator{
 		validators: validators,
@@ -98,6 +100,7 @@ type AnyOfUnevaluatedPropertiesCompositionValidator struct {
 	schema          *schema.Schema
 }
 
+// NewAnyOfUnevaluatedPropertiesCompositionValidator creates a new AnyOfUnevaluatedPropertiesCompositionValidator instance.
 func NewAnyOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, anyOfValidators ...Interface) (*AnyOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &AnyOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
@@ -118,7 +121,7 @@ func NewAnyOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *s
 	}
 
 	// Compile base validator (everything except anyOf)
-	baseSchema := createBaseSchema(s)
+	baseSchema := createReferenceBase(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)
@@ -275,6 +278,7 @@ type OneOfUnevaluatedPropertiesCompositionValidator struct {
 	schema          *schema.Schema
 }
 
+// NewOneOfUnevaluatedPropertiesCompositionValidator creates a new OneOfUnevaluatedPropertiesCompositionValidator instance.
 func NewOneOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, oneOfValidators ...Interface) (*OneOfUnevaluatedPropertiesCompositionValidator, error) {
 	v := &OneOfUnevaluatedPropertiesCompositionValidator{
 		schema: s,
@@ -295,7 +299,7 @@ func NewOneOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *s
 	}
 
 	// Compile base validator (everything except oneOf)
-	baseSchema := createBaseSchema(s)
+	baseSchema := createReferenceBase(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)

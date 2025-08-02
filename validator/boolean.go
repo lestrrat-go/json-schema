@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
@@ -14,10 +15,10 @@ var _ Interface = (*booleanValidator)(nil)
 
 func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
 	v := Boolean()
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
+	if s.Has(schema.ConstField) && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
 		v.Const(s.Const())
 	}
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
+	if s.Has(schema.EnumField) && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
 		v.Enum(s.Enum()...)
 	}
 	return v.Build()
@@ -33,6 +34,8 @@ type BooleanValidatorBuilder struct {
 	c   *booleanValidator
 }
 
+// Boolean creates a new BooleanValidatorBuilder instance that can be used to build a
+// Validator for boolean values according to the JSON Schema specification.
 func Boolean() *BooleanValidatorBuilder {
 	return (&BooleanValidatorBuilder{}).Reset()
 }
@@ -75,7 +78,7 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 }
 
 func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
-	logger := TraceSlogFromContext(ctx)
+	logger := schemactx.TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "boolean validator starting", "value", v, "type", fmt.Sprintf("%T", v))
 
 	rv := reflect.ValueOf(v)

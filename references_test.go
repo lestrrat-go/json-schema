@@ -76,10 +76,13 @@ func TestSchemaDefinitions(t *testing.T) {
 			Definitions("person", personSchema).
 			Build()
 		require.NoError(t, err)
-		require.True(t, s.HasDefinitions())
+		require.True(t, s.Has(schema.DefinitionsField))
 		defs := s.Definitions()
-		require.Contains(t, defs, "person")
-		require.Equal(t, personSchema, defs["person"])
+		require.Contains(t, defs.Keys(), "person")
+		var retrievedSchema schema.Schema
+		err = defs.Get("person", &retrievedSchema)
+		require.NoError(t, err)
+		require.Equal(t, personSchema, &retrievedSchema)
 	})
 
 	t.Run("Schema with ID and Definitions", func(t *testing.T) {
@@ -94,8 +97,11 @@ func TestSchemaDefinitions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/schemas/main", s.ID())
 		defs := s.Definitions()
-		require.Contains(t, defs, "person")
-		require.Equal(t, personSchema, defs["person"])
+		require.Contains(t, defs.Keys(), "person")
+		var retrievedSchema schema.Schema
+		err = defs.Get("person", &retrievedSchema)
+		require.NoError(t, err)
+		require.Equal(t, personSchema, &retrievedSchema)
 	})
 
 	t.Run("Complex Schema with Multiple References", func(t *testing.T) {
@@ -116,8 +122,11 @@ func TestSchemaDefinitions(t *testing.T) {
 		require.Equal(t, "#/$defs/base", s.Reference())
 		require.Equal(t, "#/$defs/dynamic", s.DynamicReference())
 		defs := s.Definitions()
-		require.Contains(t, defs, "base")
-		require.Equal(t, baseSchema, defs["base"])
+		require.Contains(t, defs.Keys(), "base")
+		var retrievedSchema schema.Schema
+		err = defs.Get("base", &retrievedSchema)
+		require.NoError(t, err)
+		require.Equal(t, baseSchema, &retrievedSchema)
 		require.Equal(t, "main", s.Anchor())
 	})
 }
@@ -136,9 +145,13 @@ func TestSchemaReferenceResolution(t *testing.T) {
 
 		// Verify structure
 		require.Equal(t, "https://example.com/recursive", s.ID())
-		require.NotNil(t, s.Properties()["name"])
-		require.NotNil(t, s.Properties()["child"])
-		require.Equal(t, "#", s.Properties()["child"].Reference())
+		props := s.Properties()
+		require.Contains(t, props.Keys(), "name")
+		require.Contains(t, props.Keys(), "child")
+		var childSchema schema.Schema
+		err = props.Get("child", &childSchema)
+		require.NoError(t, err)
+		require.Equal(t, "#", childSchema.Reference())
 	})
 
 	t.Run("Cross-Reference", func(t *testing.T) {
@@ -161,7 +174,11 @@ func TestSchemaReferenceResolution(t *testing.T) {
 		// Verify cross-reference
 		require.Equal(t, "https://example.com/person", personSchema.ID())
 		require.Equal(t, "https://example.com/address", addressSchema.ID())
-		require.Equal(t, "https://example.com/person", addressSchema.Properties()["resident"].Reference())
+		addrProps := addressSchema.Properties()
+		var residentSchema schema.Schema
+		err = addrProps.Get("resident", &residentSchema)
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/person", residentSchema.Reference())
 	})
 
 	t.Run("Nested References", func(t *testing.T) {
@@ -178,8 +195,10 @@ func TestSchemaReferenceResolution(t *testing.T) {
 
 		// Verify nested reference structure
 		require.Equal(t, "https://example.com/nested", s.ID())
-		itemsProp := s.Properties()["items"]
-		require.NotNil(t, itemsProp)
+		props := s.Properties()
+		var itemsProp schema.Schema
+		err = props.Get("items", &itemsProp)
+		require.NoError(t, err)
 		require.NotNil(t, itemsProp.Items())
 		itemsSchema, ok := itemsProp.Items().(*schema.Schema)
 		require.True(t, ok, "Items should be a *Schema, not a boolean")
@@ -215,8 +234,11 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		require.Equal(t, "#/$defs/person", s.Reference())
 		require.Equal(t, "#/$defs/dynamic", s.DynamicReference())
 		defs := s.Definitions()
-		require.Contains(t, defs, "person")
-		require.True(t, defs["person"].ContainsType(schema.StringType))
+		require.Contains(t, defs.Keys(), "person")
+		var retrievedSchema schema.Schema
+		err = defs.Get("person", &retrievedSchema)
+		require.NoError(t, err)
+		require.True(t, retrievedSchema.ContainsType(schema.StringType))
 		require.Equal(t, "main", s.Anchor())
 	})
 
@@ -247,18 +269,21 @@ func TestSchemaReferencesSerialization(t *testing.T) {
 		require.NotNil(t, props)
 
 		// Check base property reference
-		baseProp := props["base"]
-		require.NotNil(t, baseProp)
+		var baseProp schema.Schema
+		err = props.Get("base", &baseProp)
+		require.NoError(t, err)
 		require.Equal(t, "#/$defs/base", baseProp.Reference())
 
 		// Check dynamic property reference
-		dynamicProp := props["dynamic"]
-		require.NotNil(t, dynamicProp)
+		var dynamicProp schema.Schema
+		err = props.Get("dynamic", &dynamicProp)
+		require.NoError(t, err)
 		require.Equal(t, "#/$defs/dynamic", dynamicProp.DynamicReference())
 
 		// Check external property reference
-		externalProp := props["external"]
-		require.NotNil(t, externalProp)
+		var externalProp schema.Schema
+		err = props.Get("external", &externalProp)
+		require.NoError(t, err)
 		require.Equal(t, "https://external.com/schema", externalProp.Reference())
 	})
 }

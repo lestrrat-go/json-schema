@@ -29,7 +29,7 @@ func TestMetaSchemaCompliance(t *testing.T) {
 		require.NoError(t, err)
 
 		// Should have default meta-schema
-		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
+		require.True(t, s.Has(schema.SchemaField), "Schema should have a meta-schema declared")
 		require.NotEmpty(t, s.Schema())
 		require.Equal(t, schema.Version, s.Schema())
 	})
@@ -59,7 +59,7 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 
 		// Check that all fields are properly structured
 		require.Equal(t, "https://example.com/valid", s.ID())
-		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
+		require.True(t, s.Has(schema.SchemaField), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, s.ContainsType(schema.ObjectType), true, `Schema should be of type Object`)
 		require.NotNil(t, s.Properties())
@@ -86,7 +86,7 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 
 		// Verify all core keywords are present
 		require.Equal(t, "https://example.com/comprehensive", s.ID())
-		require.True(t, s.HasSchema(), "Schema should have a meta-schema declared")
+		require.True(t, s.Has(schema.SchemaField), "Schema should have a meta-schema declared")
 		require.Equal(t, schema.Version, s.Schema())
 		require.Equal(t, "#/definitions/base", s.Reference())
 		require.Equal(t, "main", s.Anchor())
@@ -118,10 +118,10 @@ func TestJSONSchemaMetaValidation(t *testing.T) {
 		require.NoError(t, json.Unmarshal(jsonData, &s), `json.Unmarshal should succeed`)
 
 		// Verify composition keywords
-		require.True(t, s.HasAllOf())
-		require.True(t, s.HasAnyOf())
-		require.True(t, s.HasOneOf())
-		require.True(t, s.HasNot())
+		require.True(t, s.Has(schema.AllOfField))
+		require.True(t, s.Has(schema.AnyOfField))
+		require.True(t, s.Has(schema.OneOfField))
+		require.True(t, s.Has(schema.NotField))
 
 		// Check array lengths
 		require.Len(t, s.AllOf(), 1)
