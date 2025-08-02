@@ -373,7 +373,7 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 	return schema.NewBuilder().Clone(s).Reset(resetFlags).MustBuild()
 }
 
-// createBaseSchema creates a new schema with only the base constraints (no composition keywords).
+// createReferenceBase creates a new schema with only the base constraints (no composition keywords).
 // This function excludes ALL composition and control flow keywords:
 //   - allOf, anyOf, oneOf (composition keywords)
 //   - not (negation keyword)
@@ -381,7 +381,7 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 //   - $ref, $dynamicRef (reference keywords)
 //
 // Only basic validation constraints are copied (types, string/number/array/object constraints, enum/const).
-func createBaseSchema(s *schema.Schema) *schema.Schema {
+func createReferenceBase(s *schema.Schema) *schema.Schema {
 	// Clone all fields first, then reset the composition/control flow fields
 	return schema.NewBuilder().Clone(s).
 		Reset(schema.AllOfField | schema.AnyOfField | schema.OneOfField | schema.NotField |

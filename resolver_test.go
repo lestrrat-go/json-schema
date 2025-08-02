@@ -35,7 +35,7 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve string definition", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), base)
+		ctx := schema.WithReferenceBase(context.Background(), base)
 		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/stringType")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.StringType))
@@ -43,7 +43,7 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve integer definition", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), base)
+		ctx := schema.WithReferenceBase(context.Background(), base)
 		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/intType")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.IntegerType))
@@ -52,7 +52,7 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve non-existent reference", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), base)
+		ctx := schema.WithReferenceBase(context.Background(), base)
 		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/nonexistent")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve local reference")
@@ -263,7 +263,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Test ResolveJSONReference directly
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
+		ctx := schema.WithReferenceBase(context.Background(), baseSchema)
 		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/person")
 		require.NoError(t, err)
 
@@ -294,7 +294,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Test ResolveAnchor directly
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
+		ctx := schema.WithReferenceBase(context.Background(), baseSchema)
 		err := resolver.ResolveAnchor(ctx, &resolved, "person")
 		require.NoError(t, err)
 
@@ -327,7 +327,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Test unified API with JSON pointer reference
 		var resolvedPointer schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
+		ctx := schema.WithReferenceBase(context.Background(), baseSchema)
 		err := resolver.ResolveReference(ctx, &resolvedPointer, "#/$defs/person")
 		require.NoError(t, err)
 		require.True(t, resolvedPointer.ContainsType(schema.ObjectType))
@@ -358,7 +358,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Try to resolve non-existent anchor
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
+		ctx := schema.WithReferenceBase(context.Background(), baseSchema)
 		err := resolver.ResolveAnchor(ctx, &resolved, "nonexistent")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor nonexistent not found")
@@ -375,7 +375,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Try to resolve non-existent JSON pointer
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), baseSchema)
+		ctx := schema.WithReferenceBase(context.Background(), baseSchema)
 		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/nonexistent")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve local JSON pointer reference")

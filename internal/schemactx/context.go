@@ -95,7 +95,7 @@ type EvaluationContext struct {
 type ValidationContext struct {
 	Resolver       any
 	RootSchema     any
-	BaseSchema     any
+	ReferenceBase     any
 	BaseURI        string
 	DynamicScope   []any
 	VocabularySet  any
@@ -158,21 +158,21 @@ func RootSchemaFromContext(ctx context.Context, dst any) error {
 	return blackmagic.AssignIfCompatible(dst, vctx.RootSchema)
 }
 
-// WithBaseSchema adds a base schema to the context for reference resolution
-func WithBaseSchema(ctx context.Context, baseSchema any) context.Context {
+// WithReferenceBase adds a base schema to the context for reference resolution
+func WithReferenceBase(ctx context.Context, baseSchema any) context.Context {
 	vctx := ValidationContextFrom(ctx)
 	newVctx := *vctx // copy
-	newVctx.BaseSchema = baseSchema
+	newVctx.ReferenceBase = baseSchema
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// BaseSchemaFromContext retrieves the base schema from context, returns error if not present or incompatible
-func BaseSchemaFromContext(ctx context.Context, dst any) error {
+// ReferenceBaseFromContext retrieves the base schema from context, returns error if not present or incompatible
+func ReferenceBaseFromContext(ctx context.Context, dst any) error {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.BaseSchema == nil {
+	if vctx.ReferenceBase == nil {
 		return fmt.Errorf("base schema not found in context")
 	}
-	return blackmagic.AssignIfCompatible(dst, vctx.BaseSchema)
+	return blackmagic.AssignIfCompatible(dst, vctx.ReferenceBase)
 }
 
 // WithBaseURI adds a base URI to the context for reference resolution

@@ -121,7 +121,7 @@ func NewAnyOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *s
 	}
 
 	// Compile base validator (everything except anyOf)
-	baseSchema := createBaseSchema(s)
+	baseSchema := createReferenceBase(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)
@@ -299,7 +299,7 @@ func NewOneOfUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *s
 	}
 
 	// Compile base validator (everything except oneOf)
-	baseSchema := createBaseSchema(s)
+	baseSchema := createReferenceBase(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile base schema: %w", err)

@@ -130,7 +130,7 @@ func NewIfThenElseUnevaluatedPropertiesCompositionValidator(ctx context.Context,
 	}
 
 	// Compile base validator (everything except if/then/else)
-	baseSchema := createBaseSchema(s)
+	baseSchema := createReferenceBase(s)
 	baseValidator, err := Compile(ctx, baseSchema)
 	if err != nil {
 		panic(fmt.Sprintf("failed to compile base schema: %v", err))

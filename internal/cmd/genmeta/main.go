@@ -67,7 +67,7 @@ func _main() error {
 		fmt.Printf("Type keyword enabled: %v\n", isTypeEnabled)
 
 		// Debug: Test what base schema would be created
-		fmt.Printf("Simulating createBaseSchema behavior...\n")
+		fmt.Printf("Simulating createReferenceBase behavior...\n")
 		baseBuilder := schema.NewBuilder()
 		if len(metaSchema.Types()) > 0 {
 			baseBuilder.Types(metaSchema.Types()...)
@@ -117,7 +117,7 @@ func _main() error {
 	ctx = schema.WithResolver(ctx, resolver)
 
 	// Set up base schema context for reference resolution
-	ctx = schema.WithBaseSchema(ctx, &metaSchema)
+	ctx = schema.WithReferenceBase(ctx, &metaSchema)
 
 	// Set up base URI for relative reference resolution within metaschema
 	// Use the directory base URI, not the specific schema file URI

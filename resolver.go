@@ -40,7 +40,7 @@ func NewResolver() *Resolver {
 // This method only handles JSON pointer references, not anchor references.
 func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, reference string) error {
 	var baseSchema *Schema
-	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+	if err := schemactx.ReferenceBaseFromContext(ctx, &baseSchema); err != nil {
 		baseSchema = nil
 	}
 	// If the reference is a pure local JSON pointer reference (starts with #/)
@@ -87,7 +87,7 @@ func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, refere
 // The anchorName parameter should not include the # prefix.
 func (r *Resolver) ResolveAnchor(ctx context.Context, dst *Schema, anchorName string) error {
 	var baseSchema *Schema
-	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+	if err := schemactx.ReferenceBaseFromContext(ctx, &baseSchema); err != nil {
 		return fmt.Errorf("no base schema provided in context for resolving anchor %s: %w", anchorName, err)
 	}
 

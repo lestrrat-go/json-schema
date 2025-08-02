@@ -23,8 +23,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	// Set up base schema for local reference resolution if none provided
-	if schema.BaseSchemaFromContext(ctx) == nil {
-		ctx = schema.WithBaseSchema(ctx, s)
+	if schema.ReferenceBaseFromContext(ctx) == nil {
+		ctx = schema.WithReferenceBase(ctx, s)
 	}
 
 	// Set up vocabulary context if none provided
@@ -130,9 +130,9 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 		// Add base schema context for reference resolution if none exists
 		// Don't override existing base schema context
-		if schema.BaseSchemaFromContext(refCtx) == nil {
+		if schema.ReferenceBaseFromContext(refCtx) == nil {
 			if rootSchema := schema.RootSchemaFromContext(ctx); rootSchema != nil {
-				refCtx = schema.WithBaseSchema(refCtx, rootSchema)
+				refCtx = schema.WithReferenceBase(refCtx, rootSchema)
 			}
 		}
 
@@ -146,7 +146,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 			// Create an allOf validator combining the resolved schema and additional constraints
 
 			// Set up context for the resolved schema with proper base schema context
-			resolvedCtx := schema.WithBaseSchema(ctx, &targetSchema)
+			resolvedCtx := schema.WithReferenceBase(ctx, &targetSchema)
 			resolvedValidator, err := Compile(resolvedCtx, &targetSchema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile resolved schema: %w", err)
@@ -189,7 +189,7 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Otherwise keep existing base schema that was able to resolve the reference
 		resolvedCtx := ctx
 		if targetSchema.Has(schema.IDField) {
-			resolvedCtx = schema.WithBaseSchema(ctx, &targetSchema)
+			resolvedCtx = schema.WithReferenceBase(ctx, &targetSchema)
 		}
 		return Compile(resolvedCtx, &targetSchema)
 	}

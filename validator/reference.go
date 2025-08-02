@@ -72,7 +72,7 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 	}
 	// Add base schema context for reference resolution
 	if rootSchema := schema.RootSchemaFromContext(ctx); rootSchema != nil {
-		refCtx = schema.WithBaseSchema(refCtx, rootSchema)
+		refCtx = schema.WithReferenceBase(refCtx, rootSchema)
 	}
 	if err := resolver.ResolveReference(refCtx, &targetSchema, r.reference); err != nil {
 		return nil, fmt.Errorf("failed to resolve reference %s: %w", r.reference, err)
@@ -198,7 +198,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 		// For non-anchor dynamic refs, treat as normal reference
 		var targetSchema schema.Schema
 		baseURI := schema.BaseURIFromContext(ctx)
-		refCtx := schema.WithBaseSchema(ctx, rootSchema)
+		refCtx := schema.WithReferenceBase(ctx, rootSchema)
 		if baseURI != "" {
 			refCtx = schema.WithBaseURI(refCtx, baseURI)
 		}
@@ -227,7 +227,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 
 		// No matching $dynamicAnchor found, fall back to normal JSON pointer resolution
 		var targetSchema schema.Schema
-		refCtx := schema.WithBaseSchema(ctx, rootSchema)
+		refCtx := schema.WithReferenceBase(ctx, rootSchema)
 		if err := resolver.ResolveReference(refCtx, &targetSchema, dynamicRef); err != nil {
 			return nil, fmt.Errorf("failed to resolve dynamic reference %s: %w", dynamicRef, err)
 		}
@@ -255,7 +255,7 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, rootSchem
 	// If no matching $dynamicAnchor found in dynamic scope, fall back to normal anchor resolution
 	// This is the correct behavior according to JSON Schema spec
 	var targetSchema schema.Schema
-	refCtx := schema.WithBaseSchema(ctx, rootSchema)
+	refCtx := schema.WithReferenceBase(ctx, rootSchema)
 	if err := resolver.ResolveAnchor(refCtx, &targetSchema, anchorName); err != nil {
 		return nil, fmt.Errorf("failed to resolve dynamic reference %s (no matching $dynamicAnchor in scope): %w", dynamicRef, err)
 	}

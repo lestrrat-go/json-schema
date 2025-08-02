@@ -37,7 +37,7 @@ func TestCompositeValidatorWithRefAndOtherConstraints(t *testing.T) {
 	ctx := context.Background()
 	ctx = schema.WithResolver(ctx, schema.NewResolver())
 	ctx = schema.WithRootSchema(ctx, rootSchema)
-	ctx = schema.WithBaseSchema(ctx, rootSchema)
+	ctx = schema.WithReferenceBase(ctx, rootSchema)
 
 	v, err := validator.Compile(ctx, schemaWithRef)
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestCompositeValidatorWithComplexRef(t *testing.T) {
 	ctx := context.Background()
 	ctx = schema.WithResolver(ctx, schema.NewResolver())
 	ctx = schema.WithRootSchema(ctx, rootSchema)
-	ctx = schema.WithBaseSchema(ctx, rootSchema)
+	ctx = schema.WithReferenceBase(ctx, rootSchema)
 
 	v, err := validator.Compile(ctx, schemaWithRef)
 	require.NoError(t, err)

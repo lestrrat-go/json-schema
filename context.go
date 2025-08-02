@@ -8,15 +8,15 @@ import (
 
 // Context helper functions - these delegate to internal schemactx package
 
-// WithBaseSchema adds a base schema to the context for reference resolution
-func WithBaseSchema(ctx context.Context, baseSchema *Schema) context.Context {
-	return schemactx.WithBaseSchema(ctx, baseSchema)
+// WithReferenceBase adds a base schema to the context for reference resolution
+func WithReferenceBase(ctx context.Context, baseSchema *Schema) context.Context {
+	return schemactx.WithReferenceBase(ctx, baseSchema)
 }
 
-// BaseSchemaFromContext retrieves the base schema from context, returns nil if not found
-func BaseSchemaFromContext(ctx context.Context) *Schema {
+// ReferenceBaseFromContext retrieves the base schema from context, returns nil if not found
+func ReferenceBaseFromContext(ctx context.Context) *Schema {
 	var baseSchema *Schema
-	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+	if err := schemactx.ReferenceBaseFromContext(ctx, &baseSchema); err != nil {
 		return nil
 	}
 	return baseSchema
