@@ -193,12 +193,9 @@ func genObject(obj *codegen.Object) error {
 	o.L("return false")
 	o.L("}")
 
-	o.L(`type pair struct {`)
-	o.L(`Name string`)
-	o.L(`Value any`)
-	o.L(`}`)
 	o.LL(`func (s *Schema) MarshalJSON() ([]byte, error) {`)
-	o.L(`fields := make([]pair, 0, %d)`, len(obj.Fields()))
+	o.L(`fields := pool.PairSlice().GetCapacity(%d)`, len(obj.Fields()))
+	o.L(`defer pool.PairSlice().Put(fields)`)
 	for _, field := range obj.Fields() {
 		o.L(`if s.Has(%sField) {`, field.Name(true))
 		constName := field.Name(true)
@@ -209,9 +206,9 @@ func genObject(obj *codegen.Object) error {
 			constName = strings.TrimSuffix(constName, "Schema")
 		}
 		if !isNilZeroType(field) && !isInterfaceField(field) {
-			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
+			o.L(`fields = append(fields, pool.Pair{Name: keywords.%s, Value: *(s.%s)})`, constName, field.Name(false))
 		} else {
-			o.L(`fields = append(fields, pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
+			o.L(`fields = append(fields, pool.Pair{Name: keywords.%s, Value: s.%s})`, constName, field.Name(false))
 		}
 		o.L(`}`)
 	}

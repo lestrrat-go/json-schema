@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/lestrrat-go/json-schema/internal/field"
+	"github.com/lestrrat-go/json-schema/internal/pool"
 	"github.com/lestrrat-go/json-schema/keywords"
 )
 
@@ -360,168 +361,164 @@ func (s *Schema) ContainsType(typ PrimitiveType) bool {
 	return false
 }
 
-type pair struct {
-	Name  string
-	Value any
-}
-
 func (s *Schema) MarshalJSON() ([]byte, error) {
-	fields := make([]pair, 0, 52)
+	fields := pool.PairSlice().GetCapacity(52)
+	defer pool.PairSlice().Put(fields)
 	if s.Has(AdditionalItemsField) {
-		fields = append(fields, pair{Name: keywords.AdditionalItems, Value: s.additionalItems})
+		fields = append(fields, pool.Pair{Name: keywords.AdditionalItems, Value: s.additionalItems})
 	}
 	if s.Has(AdditionalPropertiesField) {
-		fields = append(fields, pair{Name: keywords.AdditionalProperties, Value: s.additionalProperties})
+		fields = append(fields, pool.Pair{Name: keywords.AdditionalProperties, Value: s.additionalProperties})
 	}
 	if s.Has(AllOfField) {
-		fields = append(fields, pair{Name: keywords.AllOf, Value: s.allOf})
+		fields = append(fields, pool.Pair{Name: keywords.AllOf, Value: s.allOf})
 	}
 	if s.Has(AnchorField) {
-		fields = append(fields, pair{Name: keywords.Anchor, Value: *(s.anchor)})
+		fields = append(fields, pool.Pair{Name: keywords.Anchor, Value: *(s.anchor)})
 	}
 	if s.Has(AnyOfField) {
-		fields = append(fields, pair{Name: keywords.AnyOf, Value: s.anyOf})
+		fields = append(fields, pool.Pair{Name: keywords.AnyOf, Value: s.anyOf})
 	}
 	if s.Has(CommentField) {
-		fields = append(fields, pair{Name: keywords.Comment, Value: *(s.comment)})
+		fields = append(fields, pool.Pair{Name: keywords.Comment, Value: *(s.comment)})
 	}
 	if s.Has(ConstField) {
-		fields = append(fields, pair{Name: keywords.Const, Value: *(s.constantValue)})
+		fields = append(fields, pool.Pair{Name: keywords.Const, Value: *(s.constantValue)})
 	}
 	if s.Has(ContainsField) {
-		fields = append(fields, pair{Name: keywords.Contains, Value: s.contains})
+		fields = append(fields, pool.Pair{Name: keywords.Contains, Value: s.contains})
 	}
 	if s.Has(ContentEncodingField) {
-		fields = append(fields, pair{Name: keywords.ContentEncoding, Value: *(s.contentEncoding)})
+		fields = append(fields, pool.Pair{Name: keywords.ContentEncoding, Value: *(s.contentEncoding)})
 	}
 	if s.Has(ContentMediaTypeField) {
-		fields = append(fields, pair{Name: keywords.ContentMediaType, Value: *(s.contentMediaType)})
+		fields = append(fields, pool.Pair{Name: keywords.ContentMediaType, Value: *(s.contentMediaType)})
 	}
 	if s.Has(ContentSchemaField) {
-		fields = append(fields, pair{Name: keywords.ContentSchema, Value: s.contentSchema})
+		fields = append(fields, pool.Pair{Name: keywords.ContentSchema, Value: s.contentSchema})
 	}
 	if s.Has(DefaultField) {
-		fields = append(fields, pair{Name: keywords.Default, Value: *(s.defaultValue)})
+		fields = append(fields, pool.Pair{Name: keywords.Default, Value: *(s.defaultValue)})
 	}
 	if s.Has(DefinitionsField) {
-		fields = append(fields, pair{Name: keywords.Definitions, Value: s.definitions})
+		fields = append(fields, pool.Pair{Name: keywords.Definitions, Value: s.definitions})
 	}
 	if s.Has(DependentRequiredField) {
-		fields = append(fields, pair{Name: keywords.DependentRequired, Value: s.dependentRequired})
+		fields = append(fields, pool.Pair{Name: keywords.DependentRequired, Value: s.dependentRequired})
 	}
 	if s.Has(DependentSchemasField) {
-		fields = append(fields, pair{Name: keywords.DependentSchemas, Value: s.dependentSchemas})
+		fields = append(fields, pool.Pair{Name: keywords.DependentSchemas, Value: s.dependentSchemas})
 	}
 	if s.Has(DynamicAnchorField) {
-		fields = append(fields, pair{Name: keywords.DynamicAnchor, Value: *(s.dynamicAnchor)})
+		fields = append(fields, pool.Pair{Name: keywords.DynamicAnchor, Value: *(s.dynamicAnchor)})
 	}
 	if s.Has(DynamicReferenceField) {
-		fields = append(fields, pair{Name: keywords.DynamicReference, Value: *(s.dynamicReference)})
+		fields = append(fields, pool.Pair{Name: keywords.DynamicReference, Value: *(s.dynamicReference)})
 	}
 	if s.Has(ElseSchemaField) {
-		fields = append(fields, pair{Name: keywords.Else, Value: s.elseSchema})
+		fields = append(fields, pool.Pair{Name: keywords.Else, Value: s.elseSchema})
 	}
 	if s.Has(EnumField) {
-		fields = append(fields, pair{Name: keywords.Enum, Value: s.enum})
+		fields = append(fields, pool.Pair{Name: keywords.Enum, Value: s.enum})
 	}
 	if s.Has(ExclusiveMaximumField) {
-		fields = append(fields, pair{Name: keywords.ExclusiveMaximum, Value: *(s.exclusiveMaximum)})
+		fields = append(fields, pool.Pair{Name: keywords.ExclusiveMaximum, Value: *(s.exclusiveMaximum)})
 	}
 	if s.Has(ExclusiveMinimumField) {
-		fields = append(fields, pair{Name: keywords.ExclusiveMinimum, Value: *(s.exclusiveMinimum)})
+		fields = append(fields, pool.Pair{Name: keywords.ExclusiveMinimum, Value: *(s.exclusiveMinimum)})
 	}
 	if s.Has(FormatField) {
-		fields = append(fields, pair{Name: keywords.Format, Value: *(s.format)})
+		fields = append(fields, pool.Pair{Name: keywords.Format, Value: *(s.format)})
 	}
 	if s.Has(IDField) {
-		fields = append(fields, pair{Name: keywords.ID, Value: *(s.id)})
+		fields = append(fields, pool.Pair{Name: keywords.ID, Value: *(s.id)})
 	}
 	if s.Has(IfSchemaField) {
-		fields = append(fields, pair{Name: keywords.If, Value: s.ifSchema})
+		fields = append(fields, pool.Pair{Name: keywords.If, Value: s.ifSchema})
 	}
 	if s.Has(ItemsField) {
-		fields = append(fields, pair{Name: keywords.Items, Value: s.items})
+		fields = append(fields, pool.Pair{Name: keywords.Items, Value: s.items})
 	}
 	if s.Has(MaxContainsField) {
-		fields = append(fields, pair{Name: keywords.MaxContains, Value: *(s.maxContains)})
+		fields = append(fields, pool.Pair{Name: keywords.MaxContains, Value: *(s.maxContains)})
 	}
 	if s.Has(MaxItemsField) {
-		fields = append(fields, pair{Name: keywords.MaxItems, Value: *(s.maxItems)})
+		fields = append(fields, pool.Pair{Name: keywords.MaxItems, Value: *(s.maxItems)})
 	}
 	if s.Has(MaxLengthField) {
-		fields = append(fields, pair{Name: keywords.MaxLength, Value: *(s.maxLength)})
+		fields = append(fields, pool.Pair{Name: keywords.MaxLength, Value: *(s.maxLength)})
 	}
 	if s.Has(MaxPropertiesField) {
-		fields = append(fields, pair{Name: keywords.MaxProperties, Value: *(s.maxProperties)})
+		fields = append(fields, pool.Pair{Name: keywords.MaxProperties, Value: *(s.maxProperties)})
 	}
 	if s.Has(MaximumField) {
-		fields = append(fields, pair{Name: keywords.Maximum, Value: *(s.maximum)})
+		fields = append(fields, pool.Pair{Name: keywords.Maximum, Value: *(s.maximum)})
 	}
 	if s.Has(MinContainsField) {
-		fields = append(fields, pair{Name: keywords.MinContains, Value: *(s.minContains)})
+		fields = append(fields, pool.Pair{Name: keywords.MinContains, Value: *(s.minContains)})
 	}
 	if s.Has(MinItemsField) {
-		fields = append(fields, pair{Name: keywords.MinItems, Value: *(s.minItems)})
+		fields = append(fields, pool.Pair{Name: keywords.MinItems, Value: *(s.minItems)})
 	}
 	if s.Has(MinLengthField) {
-		fields = append(fields, pair{Name: keywords.MinLength, Value: *(s.minLength)})
+		fields = append(fields, pool.Pair{Name: keywords.MinLength, Value: *(s.minLength)})
 	}
 	if s.Has(MinPropertiesField) {
-		fields = append(fields, pair{Name: keywords.MinProperties, Value: *(s.minProperties)})
+		fields = append(fields, pool.Pair{Name: keywords.MinProperties, Value: *(s.minProperties)})
 	}
 	if s.Has(MinimumField) {
-		fields = append(fields, pair{Name: keywords.Minimum, Value: *(s.minimum)})
+		fields = append(fields, pool.Pair{Name: keywords.Minimum, Value: *(s.minimum)})
 	}
 	if s.Has(MultipleOfField) {
-		fields = append(fields, pair{Name: keywords.MultipleOf, Value: *(s.multipleOf)})
+		fields = append(fields, pool.Pair{Name: keywords.MultipleOf, Value: *(s.multipleOf)})
 	}
 	if s.Has(NotField) {
-		fields = append(fields, pair{Name: keywords.Not, Value: s.not})
+		fields = append(fields, pool.Pair{Name: keywords.Not, Value: s.not})
 	}
 	if s.Has(OneOfField) {
-		fields = append(fields, pair{Name: keywords.OneOf, Value: s.oneOf})
+		fields = append(fields, pool.Pair{Name: keywords.OneOf, Value: s.oneOf})
 	}
 	if s.Has(PatternField) {
-		fields = append(fields, pair{Name: keywords.Pattern, Value: *(s.pattern)})
+		fields = append(fields, pool.Pair{Name: keywords.Pattern, Value: *(s.pattern)})
 	}
 	if s.Has(PatternPropertiesField) {
-		fields = append(fields, pair{Name: keywords.PatternProperties, Value: s.patternProperties})
+		fields = append(fields, pool.Pair{Name: keywords.PatternProperties, Value: s.patternProperties})
 	}
 	if s.Has(PrefixItemsField) {
-		fields = append(fields, pair{Name: keywords.PrefixItems, Value: s.prefixItems})
+		fields = append(fields, pool.Pair{Name: keywords.PrefixItems, Value: s.prefixItems})
 	}
 	if s.Has(PropertiesField) {
-		fields = append(fields, pair{Name: keywords.Properties, Value: s.properties})
+		fields = append(fields, pool.Pair{Name: keywords.Properties, Value: s.properties})
 	}
 	if s.Has(PropertyNamesField) {
-		fields = append(fields, pair{Name: keywords.PropertyNames, Value: s.propertyNames})
+		fields = append(fields, pool.Pair{Name: keywords.PropertyNames, Value: s.propertyNames})
 	}
 	if s.Has(ReferenceField) {
-		fields = append(fields, pair{Name: keywords.Reference, Value: *(s.reference)})
+		fields = append(fields, pool.Pair{Name: keywords.Reference, Value: *(s.reference)})
 	}
 	if s.Has(RequiredField) {
-		fields = append(fields, pair{Name: keywords.Required, Value: s.required})
+		fields = append(fields, pool.Pair{Name: keywords.Required, Value: s.required})
 	}
 	if s.Has(SchemaField) {
-		fields = append(fields, pair{Name: keywords.Schema, Value: *(s.schema)})
+		fields = append(fields, pool.Pair{Name: keywords.Schema, Value: *(s.schema)})
 	}
 	if s.Has(ThenSchemaField) {
-		fields = append(fields, pair{Name: keywords.Then, Value: s.thenSchema})
+		fields = append(fields, pool.Pair{Name: keywords.Then, Value: s.thenSchema})
 	}
 	if s.Has(TypesField) {
-		fields = append(fields, pair{Name: keywords.Type, Value: s.types})
+		fields = append(fields, pool.Pair{Name: keywords.Type, Value: s.types})
 	}
 	if s.Has(UnevaluatedItemsField) {
-		fields = append(fields, pair{Name: keywords.UnevaluatedItems, Value: s.unevaluatedItems})
+		fields = append(fields, pool.Pair{Name: keywords.UnevaluatedItems, Value: s.unevaluatedItems})
 	}
 	if s.Has(UnevaluatedPropertiesField) {
-		fields = append(fields, pair{Name: keywords.UnevaluatedProperties, Value: s.unevaluatedProperties})
+		fields = append(fields, pool.Pair{Name: keywords.UnevaluatedProperties, Value: s.unevaluatedProperties})
 	}
 	if s.Has(UniqueItemsField) {
-		fields = append(fields, pair{Name: keywords.UniqueItems, Value: *(s.uniqueItems)})
+		fields = append(fields, pool.Pair{Name: keywords.UniqueItems, Value: *(s.uniqueItems)})
 	}
 	if s.Has(VocabularyField) {
-		fields = append(fields, pair{Name: keywords.Vocabulary, Value: s.vocabulary})
+		fields = append(fields, pool.Pair{Name: keywords.Vocabulary, Value: s.vocabulary})
 	}
 	sort.Slice(fields, func(i, j int) bool {
 		return compareFieldNames(fields[i].Name, fields[j].Name)
