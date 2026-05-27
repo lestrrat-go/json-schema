@@ -312,6 +312,26 @@ func ReferenceStackFromContext(ctx context.Context) []string {
 	return stack
 }
 
+// WithRefDepths stores the per-reference data-depth map for cycle classification.
+func WithRefDepths(ctx context.Context, depths map[string]int) context.Context {
+	return schemactx.WithRefDepths(ctx, depths)
+}
+
+// RefDepthsFromContext returns the per-reference data-depth map (nil if absent).
+func RefDepthsFromContext(ctx context.Context) map[string]int {
+	return schemactx.RefDepthsFromContext(ctx)
+}
+
+// WithDataDepth sets the number of child-applying keyword boundaries crossed during compilation.
+func WithDataDepth(ctx context.Context, depth int) context.Context {
+	return schemactx.WithDataDepth(ctx, depth)
+}
+
+// DataDepthFromContext returns the current compilation data depth (0 if absent).
+func DataDepthFromContext(ctx context.Context) int {
+	return schemactx.DataDepthFromContext(ctx)
+}
+
 // Context keys for validator-specific data
 type dependentSchemasKey struct{}
 

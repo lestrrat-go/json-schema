@@ -16,6 +16,10 @@ var _ Builder = (*ObjectValidatorBuilder)(nil)
 var _ Interface = (*objectValidator)(nil)
 
 func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+	// Object keywords (properties, patternProperties, additionalProperties,
+	// propertyNames) apply their subschemas to child values, so crossing into
+	// them is a data boundary for recursion classification.
+	ctx = schema.WithDataDepth(ctx, schema.DataDepthFromContext(ctx)+1)
 	v := Object()
 
 	if s.HasMinProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {

@@ -100,6 +100,8 @@ type ValidationContext struct {
 	DynamicScope   []any
 	VocabularySet  any
 	ReferenceStack []string
+	RefDepths      map[string]int // data depth at which each active reference was entered
+	DataDepth      int            // number of child-applying keyword boundaries crossed during compilation
 	Evaluation     *EvaluationContext
 }
 
@@ -247,6 +249,33 @@ func ReferenceStackFromContext(ctx context.Context, dst any) error {
 		return fmt.Errorf("reference stack not found in context")
 	}
 	return blackmagic.AssignIfCompatible(dst, vctx.ReferenceStack)
+}
+
+// WithRefDepths stores the per-reference data-depth map used to distinguish
+// pure reference cycles from data-bounded recursion.
+func WithRefDepths(ctx context.Context, depths map[string]int) context.Context {
+	vctx := ValidationContextFrom(ctx)
+	newVctx := *vctx // copy
+	newVctx.RefDepths = depths
+	return WithValidationContext(ctx, &newVctx)
+}
+
+// RefDepthsFromContext returns the per-reference data-depth map (nil if absent).
+func RefDepthsFromContext(ctx context.Context) map[string]int {
+	return ValidationContextFrom(ctx).RefDepths
+}
+
+// WithDataDepth sets the count of child-applying keyword boundaries crossed so far.
+func WithDataDepth(ctx context.Context, depth int) context.Context {
+	vctx := ValidationContextFrom(ctx)
+	newVctx := *vctx // copy
+	newVctx.DataDepth = depth
+	return WithValidationContext(ctx, &newVctx)
+}
+
+// DataDepthFromContext returns the current data depth (0 if absent).
+func DataDepthFromContext(ctx context.Context) int {
+	return ValidationContextFrom(ctx).DataDepth
 }
 
 // WithEvaluationContext adds evaluation context to the context

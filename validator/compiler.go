@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -137,20 +138,36 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// Get root schema from context (guaranteed to be present)
 		_ = schema.RootSchemaFromContext(ctx)
 
-		// Check for circular references by looking at context
-		if stack := schema.ReferenceStackFromContext(ctx); stack != nil {
-			if slices.Contains(stack, reference) {
-				return nil, fmt.Errorf("circular reference detected: %s", reference)
+		// Circular-reference handling. A reference already on the stack is a
+		// cycle. If a data boundary (an object/array child-applying keyword) has
+		// been crossed since it was entered, it is data-bounded recursion that
+		// terminates on the instance being validated, so compile it lazily as a
+		// ReferenceValidator. Otherwise it is a pure cycle that can never
+		// terminate, which is a compile-time error.
+		curDepth := schema.DataDepthFromContext(ctx)
+		refDepths := schema.RefDepthsFromContext(ctx)
+		stack := schema.ReferenceStackFromContext(ctx)
+		if slices.Contains(stack, reference) {
+			if curDepth > refDepths[reference] {
+				return &ReferenceValidator{
+					reference:  reference,
+					resolver:   resolver,
+					rootSchema: schema.RootSchemaFromContext(ctx),
+					baseSchema: schema.BaseSchemaFromContext(ctx),
+					baseURI:    schema.BaseURIFromContext(ctx),
+				}, nil
 			}
-			// Add current reference to stack
-			newStack := make([]string, len(stack)+1)
-			copy(newStack, stack)
-			newStack[len(stack)] = reference
-			ctx = schema.WithReferenceStack(ctx, newStack)
-		} else {
-			// Start new reference stack
-			ctx = schema.WithReferenceStack(ctx, []string{reference})
+			return nil, fmt.Errorf("circular reference detected: %s", reference)
 		}
+		// Push the reference, recording the data depth at which it was entered.
+		newStack := make([]string, len(stack)+1)
+		copy(newStack, stack)
+		newStack[len(stack)] = reference
+		ctx = schema.WithReferenceStack(ctx, newStack)
+		newDepths := make(map[string]int, len(refDepths)+1)
+		maps.Copy(newDepths, refDepths)
+		newDepths[reference] = curDepth
+		ctx = schema.WithRefDepths(ctx, newDepths)
 
 		// Resolve the reference to get the target schema
 		var targetSchema schema.Schema

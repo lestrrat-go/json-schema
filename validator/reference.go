@@ -16,6 +16,8 @@ type ReferenceValidator struct {
 	resolveErr   error
 	resolver     *schema.Resolver
 	rootSchema   *schema.Schema
+	baseSchema   *schema.Schema // Enclosing resource captured at compile time (nil = use root)
+	baseURI      string         // Enclosing resource's base URI captured at compile time
 }
 
 func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
@@ -64,24 +66,45 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 		ctx = schema.WithReferenceStack(ctx, []string{r.reference})
 	}
 
-	// Resolve the reference to get the target schema
+	// Resolve the reference against the enclosing resource captured at compile
+	// time (falling back to context/root), so deferred recursive references in
+	// a nested $id resource still resolve within that resource.
 	var targetSchema schema.Schema
-	baseURI := schema.BaseURIFromContext(ctx)
+	baseURI := r.baseURI
+	if baseURI == "" {
+		baseURI = schema.BaseURIFromContext(ctx)
+	}
 	refCtx := ctx
 	if baseURI != "" {
 		refCtx = schema.WithBaseURI(ctx, baseURI)
 	}
-	// Add base schema context for reference resolution
-	if rootSchema := schema.RootSchemaFromContext(ctx); rootSchema != nil {
-		refCtx = schema.WithBaseSchema(refCtx, rootSchema)
+	baseSchema := r.baseSchema
+	if baseSchema == nil {
+		baseSchema = schema.BaseSchemaFromContext(ctx)
+	}
+	if baseSchema == nil {
+		baseSchema = rootSchema
+	}
+	if baseSchema != nil {
+		refCtx = schema.WithBaseSchema(refCtx, baseSchema)
 	}
 	if err := resolver.ResolveReference(refCtx, &targetSchema, r.reference); err != nil {
 		return nil, fmt.Errorf("failed to resolve reference %s: %w", r.reference, err)
 	}
 
-	// Compile the resolved schema into a validator
-	// IMPORTANT: Keep the original root schema context to ensure nested references can be resolved
-	return Compile(ctx, &targetSchema)
+	// Compile the resolved schema. Seed the resolver (carrying the in-document
+	// $id registry), root schema, and base schema/URI: this runs at validation
+	// time, when the incoming context generally lacks them, and without the
+	// resolver nested references would fall back to external retrieval.
+	compileCtx := schema.WithResolver(ctx, resolver)
+	compileCtx = schema.WithRootSchema(compileCtx, rootSchema)
+	if baseURI != "" {
+		compileCtx = schema.WithBaseURI(compileCtx, baseURI)
+	}
+	if baseSchema != nil {
+		compileCtx = schema.WithBaseSchema(compileCtx, baseSchema)
+	}
+	return Compile(compileCtx, &targetSchema)
 }
 
 // DynamicReferenceValidator handles $dynamicRef with proper dynamic scope resolution
