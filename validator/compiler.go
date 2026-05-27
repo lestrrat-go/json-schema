@@ -18,9 +18,22 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
 	}
 
-	// Set up context with root schema if none provided
+	// Set up context with root schema if none provided. When s is the root
+	// document (either because we just set it, or the caller pre-populated it
+	// with this same schema), index its $id resources and anchors up front:
+	// resolution is eager, so the index must exist before the first $ref is
+	// compiled.
+	isRoot := false
 	if schema.RootSchemaFromContext(ctx) == nil {
 		ctx = schema.WithRootSchema(ctx, s)
+		isRoot = true
+	} else if schema.RootSchemaFromContext(ctx) == s {
+		isRoot = true
+	}
+	if isRoot {
+		if resolver := schema.ResolverFromContext(ctx); resolver != nil {
+			resolver.RegisterRoot(s)
+		}
 	}
 
 	// Set up base schema for local reference resolution if none provided
@@ -39,15 +52,17 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Add current schema to dynamic scope chain for $dynamicRef resolution
 	ctx = schema.WithDynamicScope(ctx, s)
 
-	// Set up base URI context from schema's $id field if present
-	if s.HasID() {
-		schemaID := s.ID()
-		if schemaID != "" {
-			// Extract base URI from $id for resolving relative references within this schema
-			if baseURI := extractBaseURI(schemaID); baseURI != "" {
-				ctx = schema.WithBaseURI(ctx, baseURI)
-			}
+	// A schema with its own $id establishes a new base URI and is itself the
+	// base resource for resolving references that appear within it. Re-base both
+	// the base URI and the base schema so that this resource's relative refs
+	// (e.g. "./bar.json") and local pointers (e.g. "#/$defs/inner") resolve
+	// against this resource rather than an enclosing one.
+	if s.HasID() && s.ID() != "" {
+		parentBase := schema.BaseURIFromContext(ctx)
+		if absBase := schema.ResolveURI(parentBase, s.ID()); absBase != "" {
+			ctx = schema.WithBaseURI(ctx, absBase)
 		}
+		ctx = schema.WithBaseSchema(ctx, s)
 	}
 
 	// Handle vocabulary context - always check for root schema vocabulary resolution
@@ -96,12 +111,22 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	if reference != "" {
 		// Handle $dynamicRef with proper DynamicReferenceValidator
 		if isDynamicRef {
-			// Create dynamic reference validator with stored context
+			// Create dynamic reference validator with stored context. Capture the
+			// enclosing resource's base schema and base URI (not just the document
+			// root) so that the non-dynamic fallback — a $dynamicRef whose fragment
+			// is a JSON pointer or a plain $ref to an $anchor — resolves within the
+			// correct schema resource when nested $id re-basing is in effect.
 			dynamicScope := schema.DynamicScopeFromContext(ctx)
+			baseSchema := schema.BaseSchemaFromContext(ctx)
+			if baseSchema == nil {
+				baseSchema = schema.RootSchemaFromContext(ctx)
+			}
 			return &DynamicReferenceValidator{
 				reference:    reference,
 				resolver:     schema.ResolverFromContext(ctx),
 				rootSchema:   schema.RootSchemaFromContext(ctx),
+				baseSchema:   baseSchema,
+				baseURI:      schema.BaseURIFromContext(ctx),
 				dynamicScope: dynamicScope,
 			}, nil
 		}
