@@ -81,29 +81,6 @@ func (rm *resultMerger) ArrayResult() *ArrayResult {
 	return rm.arrayResult
 }
 
-// withEvaluatedProperties creates a new context with evaluated properties
-func withEvaluatedProperties(ctx context.Context, evaluatedProps map[string]bool) context.Context {
-	if len(evaluatedProps) == 0 {
-		return ctx
-	}
-
-	// Get existing evaluation context or create a new one
-	var ec *schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
-
-	// Mark properties as evaluated
-	for prop := range evaluatedProps {
-		if evaluatedProps[prop] {
-			ec.Properties.MarkEvaluated(prop)
-		}
-	}
-
-	return schemactx.WithEvaluationContext(ctx, ec)
-}
-
 // withEvaluatedItems creates a new context with evaluated items
 func withEvaluatedItems(ctx context.Context, evaluatedItems []bool) context.Context {
 	if len(evaluatedItems) == 0 {

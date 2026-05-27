@@ -68,16 +68,8 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateDependentSchemas(dst, validator)
 	case *inferredNumberValidator:
 		return g.generateInferredNumber(dst, validator)
-	case *AnyOfUnevaluatedPropertiesCompositionValidator:
-		return g.generateAnyOfUnevaluatedPropertiesComposition(dst, validator)
-	case *OneOfUnevaluatedPropertiesCompositionValidator:
-		return g.generateOneOfUnevaluatedPropertiesComposition(dst, validator)
-	case *RefUnevaluatedPropertiesCompositionValidator:
-		return g.generateRefUnevaluatedPropertiesComposition(dst, validator)
 	case *IfThenElseValidator:
 		return g.generateIfThenElse(dst, validator)
-	case *IfThenElseUnevaluatedPropertiesCompositionValidator:
-		return g.generateIfThenElseUnevaluatedPropertiesComposition(dst, validator)
 	default:
 		// Unsupported validator type, falling back to EmptyValidator
 		o.R("&validator.EmptyValidator{}")
