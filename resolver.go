@@ -15,11 +15,21 @@ import (
 // It uses jsref for resolving JSON references within and across schemas.
 type Resolver struct {
 	resolver *jsref.StackedResolver
+	index    *resourceIndex
 }
 
-// NewResolver creates a new schema resolver with HTTP and filesystem support.
+// NewResolver creates a new schema resolver with in-document, HTTP and
+// filesystem support.
 func NewResolver() *Resolver {
 	resolver := jsref.New()
+
+	index := newResourceIndex()
+
+	// Add the in-document resolver FIRST so references whose base URI names a
+	// known $id resource are resolved from memory before any network/filesystem
+	// access is attempted. It declines unknown URIs, falling through to the
+	// resolvers below.
+	resolver.AddResolver(&registryResolver{idx: index, obj: jsref.NewObjectResolver()})
 
 	// Add HTTP resolver for remote schema references
 	resolver.AddResolver(jsref.NewHTTPResolver())
@@ -32,7 +42,23 @@ func NewResolver() *Resolver {
 	// Add object resolver for JSON pointer resolution within map data structures
 	resolver.AddResolver(jsref.NewObjectResolver())
 
-	return &Resolver{resolver: resolver}
+	return &Resolver{resolver: resolver, index: index}
+}
+
+// RegisterRoot indexes the $id resources and anchors reachable from root so
+// that in-document references resolve without external retrieval. The root's
+// own $id (if any) establishes the base URI for the document. It is safe to
+// call multiple times and across multiple documents; entries accumulate.
+func (r *Resolver) RegisterRoot(root *Schema) {
+	if r.index == nil || root == nil {
+		return
+	}
+	base := ""
+	if root.HasID() && root.ID() != "" {
+		base, _, _ = splitFragment(root.ID())
+	}
+	allowNestedIDs := !usesDynamicReferences(root, make(map[*Schema]struct{}))
+	r.index.index(root, base, make(map[*Schema]struct{}), allowNestedIDs)
 }
 
 // ResolveJSONReference resolves JSON pointer references against a base schema from context.
@@ -43,8 +69,9 @@ func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, refere
 	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
 		baseSchema = nil
 	}
-	// If the reference is a pure local JSON pointer reference (starts with #/)
-	if len(reference) > 1 && reference[0] == '#' && reference[1] == '/' {
+	// If the reference is a pure local reference into the current document:
+	// either a JSON pointer ("#/...") or a bare "#" denoting the document root.
+	if reference == "#" || (len(reference) > 1 && reference[0] == '#' && reference[1] == '/') {
 		if baseSchema == nil {
 			return fmt.Errorf("no base schema provided in context for resolving local reference %s", reference)
 		}
@@ -55,8 +82,13 @@ func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, refere
 			return fmt.Errorf("failed to convert base schema to data: %w", err)
 		}
 
+		// Percent-decode the fragment so JSON Pointer lookups operate on the
+		// decoded key (e.g. "%25" -> "%"). JSON Pointer "~0"/"~1" escaping is
+		// left intact for the pointer evaluator.
+		localRef := "#" + unescapeFragment(reference[1:])
+
 		var resolved any
-		if err := r.resolver.Resolve(&resolved, schemaData, reference); err != nil {
+		if err := r.resolver.Resolve(&resolved, schemaData, localRef); err != nil {
 			return fmt.Errorf("failed to resolve local JSON pointer reference %s: %w", reference, err)
 		}
 
@@ -73,6 +105,10 @@ func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, refere
 	if local == "" {
 		local = "#"
 	}
+	// Percent-decode the fragment so JSON Pointer / anchor lookups operate on the
+	// decoded value (e.g. "%25" -> "%"). JSON Pointer "~0"/"~1" escaping is left
+	// intact for the pointer evaluator.
+	local = "#" + unescapeFragment(strings.TrimPrefix(local, "#"))
 
 	var resolved any
 	if err := r.resolver.Resolve(&resolved, external, local); err != nil {
@@ -110,20 +146,21 @@ func (r *Resolver) ResolveReference(ctx context.Context, dst *Schema, reference 
 		return r.ResolveAnchor(ctx, dst, anchorName)
 	}
 
-	// Handle relative references with base URI from context
+	// Pure local references ("#" or "#/...") resolve against the base schema in
+	// context; leave them untouched.
 	resolvedReference := reference
-	// Note: BaseURIFromContext is defined in validator package, but we can't import it here due to circular imports
-	// For now, we'll implement a simple version here
-	var baseURI string
-	if err := schemactx.BaseURIFromContext(ctx, &baseURI); err != nil {
-		baseURI = ""
-	}
-	if baseURI != "" && !strings.HasPrefix(reference, "http://") && !strings.HasPrefix(reference, "https://") && !strings.HasPrefix(reference, "#") {
-		// This is a relative reference that should be resolved against base URI
-		if strings.HasSuffix(baseURI, "/") {
-			resolvedReference = baseURI + reference
-		} else {
-			resolvedReference = baseURI + "/" + reference
+	if reference != "#" && !strings.HasPrefix(reference, "#/") {
+		// A reference with a URI part: resolve it against the current base URI
+		// (RFC 3986) to obtain an absolute URI. The in-document registry resolver
+		// can then recognize it as a known $id resource before any external
+		// retrieval is attempted; if it is genuinely external the absolute form
+		// is what HTTP/filesystem resolution needs anyway.
+		var baseURI string
+		if err := schemactx.BaseURIFromContext(ctx, &baseURI); err != nil {
+			baseURI = ""
+		}
+		if baseURI != "" {
+			resolvedReference = resolveURI(baseURI, reference)
 		}
 	}
 
