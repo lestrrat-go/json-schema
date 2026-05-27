@@ -742,3 +742,19 @@ func TestConstValidationComprehensive(t *testing.T) {
 		}
 	})
 }
+
+// TestEmptyEnum verifies that an empty enum ("enum": []) rejects every value,
+// as required by JSON Schema 2020-12. An empty enum is a present constraint
+// matching nothing, not the absence of a constraint.
+func TestEmptyEnum(t *testing.T) {
+	var s schema.Schema
+	require.NoError(t, s.UnmarshalJSON([]byte(`{"enum": []}`)))
+
+	v, err := validator.Compile(context.Background(), &s)
+	require.NoError(t, err)
+
+	for _, value := range []any{"foo", 42, nil, map[string]any{}, []any{}, false} {
+		_, err := v.Validate(context.Background(), value)
+		require.Error(t, err, "empty enum must reject %#v", value)
+	}
+}

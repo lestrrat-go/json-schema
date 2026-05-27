@@ -14,6 +14,7 @@ var _ Interface = (*untypedValidator)(nil)
 // untypedValidator handles enum and const validation for schemas without specific types
 type untypedValidator struct {
 	enum          []any
+	hasEnum       bool // Distinguishes an empty enum (rejects all) from no enum constraint
 	constantValue *any // Pointer distinguishes nil vs no const
 }
 
@@ -34,6 +35,7 @@ func (b *UntypedValidatorBuilder) Enum(values ...any) *UntypedValidatorBuilder {
 	}
 	b.v.enum = make([]any, len(values))
 	copy(b.v.enum, values)
+	b.v.hasEnum = true
 	return b
 }
 
@@ -89,8 +91,9 @@ func (u *untypedValidator) Validate(ctx context.Context, value any) (Result, err
 		return nil, nil
 	}
 
-	// Check enum
-	if len(u.enum) > 0 {
+	// Check enum. An empty enum is a valid constraint that rejects every value,
+	// so gate on whether enum was set rather than on its length.
+	if u.hasEnum {
 		if err := validateEnum(ctx, value, u.enum); err != nil {
 			return nil, err
 		}
