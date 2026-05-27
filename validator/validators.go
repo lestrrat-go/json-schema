@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // inferredNumberValidator validates numeric constraints only when the value is a number,
@@ -76,84 +75,4 @@ func (nullValidator) Validate(_ context.Context, v any) (Result, error) {
 		return nil, nil
 	}
 	return nil, fmt.Errorf(`invalid value passed to NullValidator: expected null, got %T`, v)
-}
-
-// RefUnevaluatedPropertiesCompositionValidator handles complex unevaluatedProperties with $ref
-type RefUnevaluatedPropertiesCompositionValidator struct {
-	refValidator  Interface
-	baseValidator Interface
-	schema        *schema.Schema
-}
-
-func NewRefUnevaluatedPropertiesCompositionValidator(ctx context.Context, s *schema.Schema, refValidator Interface) *RefUnevaluatedPropertiesCompositionValidator {
-	v := &RefUnevaluatedPropertiesCompositionValidator{
-		schema:       s,
-		refValidator: refValidator,
-	}
-
-	// Compile base validator (everything except $ref)
-	baseSchema := createSchemaWithoutRef(s)
-	baseValidator, err := Compile(ctx, baseSchema)
-	if err != nil {
-		panic(fmt.Sprintf("failed to compile base schema: %v", err))
-	}
-	v.baseValidator = baseValidator
-
-	return v
-}
-
-func (v *RefUnevaluatedPropertiesCompositionValidator) Validate(ctx context.Context, in any) (Result, error) {
-	// First, validate the $ref and collect its annotations
-	refResult, err := v.refValidator.Validate(ctx, in)
-	if err != nil {
-		return nil, fmt.Errorf("$ref validation failed: %w", err)
-	}
-
-	// Now validate base constraints, passing the evaluated properties from $ref
-	baseResult, err := v.validateBaseWithContext(ctx, in, refResult)
-	if err != nil {
-		return nil, err
-	}
-
-	// Merge the base result with $ref result
-	var finalResult *ObjectResult
-	if err := MergeResults(&finalResult, refResult, baseResult); err != nil {
-		// Fall back to simple merging if MergeResults fails
-		if objRefResult, ok := refResult.(*ObjectResult); ok {
-			if objBaseResult, ok := baseResult.(*ObjectResult); ok {
-				finalResult = mergeObjectResults(objRefResult, objBaseResult)
-			} else {
-				finalResult = objRefResult
-			}
-		} else if objBaseResult, ok := baseResult.(*ObjectResult); ok {
-			finalResult = objBaseResult
-		}
-	}
-	return finalResult, nil
-}
-
-// validateBaseWithContext validates the base schema with annotation context from $ref
-func (v *RefUnevaluatedPropertiesCompositionValidator) validateBaseWithContext(ctx context.Context, in any, refResult Result) (Result, error) {
-	// Create context with evaluated properties if we have evaluation results from $ref
-	if objResult, ok := refResult.(*ObjectResult); ok && objResult != nil {
-		if evalProps := objResult.EvaluatedProperties(); len(evalProps) > 0 {
-			// Get existing evaluation context or create a new one
-			var ec *schemactx.EvaluationContext
-			_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-			if ec == nil {
-				ec = &schemactx.EvaluationContext{}
-			}
-
-			// Mark properties as evaluated
-			for prop := range evalProps {
-				if evalProps[prop] {
-					ec.Properties.MarkEvaluated(prop)
-				}
-			}
-
-			ctx = schemactx.WithEvaluationContext(ctx, ec)
-		}
-	}
-
-	return v.baseValidator.Validate(ctx, in)
 }

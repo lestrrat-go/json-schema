@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 type PrimitiveType int
@@ -136,10 +137,5 @@ func (pt PrimitiveTypes) MarshalJSON() ([]byte, error) {
 // Contains returns true if the list of primitive types
 // contains `p`
 func (pt PrimitiveTypes) Contains(p PrimitiveType) bool {
-	for _, v := range pt {
-		if p == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(pt, p)
 }

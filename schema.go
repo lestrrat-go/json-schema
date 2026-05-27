@@ -37,8 +37,8 @@ func (s BoolSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(bool(s))
 }
 
-// The schema that this implementation supports. We use the name
-// `Version` here because `Schema` is confusin with other types
+// Version is the schema that this implementation supports. We use the name
+// Version here because Schema is confusing with other types.
 const Version = `https://json-schema.org/draft/2020-12/schema`
 
 // schemaOrBool implements the SchemaOrBool interface for Schema
@@ -161,10 +161,7 @@ func compareFieldNames(a, b string) bool {
 	runesB := []rune(b)
 
 	// Compare character by character up to the length of the longer string
-	maxLen := len(runesA)
-	if len(runesB) > maxLen {
-		maxLen = len(runesB)
-	}
+	maxLen := max(len(runesA), len(runesB))
 
 	for i := range maxLen {
 		var charA, charB rune

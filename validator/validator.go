@@ -5,10 +5,10 @@ package validator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 
-	"github.com/lestrrat-go/blackmagic"
 	schema "github.com/lestrrat-go/json-schema"
 )
 
@@ -166,9 +166,7 @@ func (r *ObjectResult) EvaluatedProperties() map[string]bool {
 		return make(map[string]bool)
 	}
 	result := make(map[string]bool, len(r.evaluatedProperties))
-	for k, v := range r.evaluatedProperties {
-		result[k] = v
-	}
+	maps.Copy(result, r.evaluatedProperties)
 	return result
 }
 
@@ -250,39 +248,6 @@ func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
 	}
 
 	return merged
-}
-
-// MergeResults merges multiple validation results and assigns the final result to dst
-// using blackmagic.AssignIfCompatible for type-safe assignment
-func MergeResults(dst any, results ...any) error {
-	var objectResults []*ObjectResult
-	var arrayResults []*ArrayResult
-
-	// Collect results by type
-	for _, result := range results {
-		switch r := result.(type) {
-		case *ObjectResult:
-			if r != nil {
-				objectResults = append(objectResults, r)
-			}
-		case *ArrayResult:
-			if r != nil {
-				arrayResults = append(arrayResults, r)
-			}
-		}
-	}
-
-	// Merge based on destination type
-	switch dst.(type) {
-	case **ObjectResult:
-		merged := mergeObjectResults(objectResults...)
-		return blackmagic.AssignIfCompatible(dst, merged)
-	case **ArrayResult:
-		merged := mergeArrayResults(arrayResults...)
-		return blackmagic.AssignIfCompatible(dst, merged)
-	default:
-		return fmt.Errorf("unsupported destination type: %T", dst)
-	}
 }
 
 // dependentSchemasKey is now handled by the public schema package
@@ -370,116 +335,6 @@ func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
 	if s.HasDynamicReference() {
 		builder = builder.ResetDynamicReference()
 	}
-	return builder.MustBuild()
-}
-
-// createBaseSchema creates a new schema with only the base constraints (no composition keywords).
-// This function excludes ALL composition and control flow keywords:
-//   - allOf, anyOf, oneOf (composition keywords)
-//   - not (negation keyword)
-//   - if/then/else (conditional keywords)
-//   - $ref, $dynamicRef (reference keywords)
-//
-// Only basic validation constraints are copied (types, string/number/array/object constraints, enum/const).
-func createBaseSchema(s *schema.Schema) *schema.Schema {
-	builder := schema.NewBuilder()
-
-	// Copy types
-	if len(s.Types()) > 0 {
-		builder.Types(s.Types()...)
-	}
-
-	// Copy string constraints
-	if s.HasMinLength() {
-		builder.MinLength(s.MinLength())
-	}
-	if s.HasMaxLength() {
-		builder.MaxLength(s.MaxLength())
-	}
-	if s.HasPattern() {
-		builder.Pattern(s.Pattern())
-	}
-
-	// Copy number constraints
-	if s.HasMinimum() {
-		builder.Minimum(s.Minimum())
-	}
-	if s.HasMaximum() {
-		builder.Maximum(s.Maximum())
-	}
-	if s.HasExclusiveMinimum() {
-		builder.ExclusiveMinimum(s.ExclusiveMinimum())
-	}
-	if s.HasExclusiveMaximum() {
-		builder.ExclusiveMaximum(s.ExclusiveMaximum())
-	}
-	if s.HasMultipleOf() {
-		builder.MultipleOf(s.MultipleOf())
-	}
-
-	// Copy array constraints
-	if s.HasMinItems() {
-		builder.MinItems(s.MinItems())
-	}
-	if s.HasMaxItems() {
-		builder.MaxItems(s.MaxItems())
-	}
-	if s.HasUniqueItems() {
-		builder.UniqueItems(s.UniqueItems())
-	}
-	if s.HasItems() {
-		builder.Items(s.Items())
-	}
-	if s.HasContains() {
-		builder.Contains(s.Contains())
-	}
-	if s.HasUnevaluatedItems() {
-		builder.UnevaluatedItems(s.UnevaluatedItems())
-	}
-
-	// Copy object constraints
-	if s.HasMinProperties() {
-		builder.MinProperties(s.MinProperties())
-	}
-	if s.HasMaxProperties() {
-		builder.MaxProperties(s.MaxProperties())
-	}
-	if s.HasRequired() {
-		for _, req := range s.Required() {
-			builder.Required(req)
-		}
-	}
-	if s.HasProperties() {
-		for name, prop := range s.Properties() {
-			builder.Property(name, prop)
-		}
-	}
-	if s.HasPatternProperties() {
-		for pattern, prop := range s.PatternProperties() {
-			builder.PatternProperty(pattern, prop)
-		}
-	}
-	if s.HasAdditionalProperties() {
-		builder.AdditionalProperties(s.AdditionalProperties())
-	}
-	if s.HasUnevaluatedProperties() {
-		builder.UnevaluatedProperties(s.UnevaluatedProperties())
-	}
-	if s.HasDependentSchemas() {
-		builder.DependentSchemas(s.DependentSchemas())
-	}
-	if s.HasPropertyNames() {
-		builder.PropertyNames(s.PropertyNames())
-	}
-
-	// Copy enum/const
-	if s.HasEnum() {
-		builder.Enum(s.Enum()...)
-	}
-	if s.HasConst() {
-		builder.Const(s.Const())
-	}
-
 	return builder.MustBuild()
 }
 

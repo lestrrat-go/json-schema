@@ -2,6 +2,7 @@ package validator // ReferenceValidator handles schema references ($ref) with la
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -50,10 +51,8 @@ func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, e
 
 	// Check for circular references by looking at context
 	if stack := schema.ReferenceStackFromContext(ctx); stack != nil {
-		for _, ref := range stack {
-			if ref == r.reference {
-				return nil, fmt.Errorf("circular reference detected: %s", r.reference)
-			}
+		if slices.Contains(stack, r.reference) {
+			return nil, fmt.Errorf("circular reference detected: %s", r.reference)
 		}
 		// Add current reference to stack
 		newStack := make([]string, len(stack)+1)
@@ -140,10 +139,8 @@ func (dr *DynamicReferenceValidator) resolveDynamicReference(ctx context.Context
 
 	// Check for circular references by looking at context
 	if stack := schema.ReferenceStackFromContext(ctxWithScope); stack != nil {
-		for _, ref := range stack {
-			if ref == dr.reference {
-				return nil, fmt.Errorf("circular reference detected: %s", dr.reference)
-			}
+		if slices.Contains(stack, dr.reference) {
+			return nil, fmt.Errorf("circular reference detected: %s", dr.reference)
 		}
 		// Add current reference to stack
 		newStack := make([]string, len(stack)+1)

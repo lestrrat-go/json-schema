@@ -1,4 +1,4 @@
-// package keywords provides constants for JSON Schema keywords, such as
+// Package keywords provides constants for JSON Schema keywords, such as
 // "type", "properties", "required", etc. These constants are used to
 // avoid hardcoding strings throughout the codebase, ensuring consistency
 // and reducing the risk of typos.
@@ -66,12 +66,14 @@ const (
 	Vocabulary            = "$vocabulary"
 	WriteOnly             = "writeOnly"
 
-	// Legacy keywords for backward compatibility
-	// These keywords were deprecated in JSON Schema 2020-12 but may still appear in older schemas
+	// Legacy keywords for backward compatibility.
+	// These keywords were deprecated in JSON Schema 2020-12 but may still appear in older schemas.
+
 	RecursiveAnchor = "$recursiveAnchor" // Deprecated: use $dynamicAnchor instead
 	RecursiveRef    = "$recursiveRef"    // Deprecated: use $dynamicRef instead
 
 	// Format constants for string validation
+
 	FormatEmail    = "email"
 	FormatDate     = "date"
 	FormatDateTime = "date-time"

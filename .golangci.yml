@@ -94,6 +94,9 @@ linters:
       - linters:
           - nilnil
         path: validator/.*_gen\.go
+      - linters:
+          - godoclint
+        path: (^|/)internal/
     paths:
       - third_party$
       - builtin$

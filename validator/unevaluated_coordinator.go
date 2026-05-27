@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -292,13 +293,9 @@ func (v *unevaluatedCoordinator) mergeAdditionalEvaluated(result Result, additio
 			evaluatedProperties: make(map[string]bool),
 		}
 		// Copy existing evaluated properties
-		for prop, eval := range result.EvaluatedProperties() {
-			newResult.evaluatedProperties[prop] = eval
-		}
+		maps.Copy(newResult.evaluatedProperties, result.EvaluatedProperties())
 		// Add additional evaluated properties
-		for prop, eval := range additional.properties {
-			newResult.evaluatedProperties[prop] = eval
-		}
+		maps.Copy(newResult.evaluatedProperties, additional.properties)
 		return newResult
 
 	case *ArrayResult:

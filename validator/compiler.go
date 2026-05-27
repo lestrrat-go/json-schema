@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
@@ -52,9 +53,15 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Handle vocabulary context - always check for root schema vocabulary resolution
 	rootSchema := schema.RootSchemaFromContext(ctx)
 
-	// For root schema compilation, resolve vocabulary from metaschema
+	// For root schema compilation, resolve vocabulary from metaschema.
+	//
+	// FIXME: This special-cases a single JSON Schema Test Suite remote fixture
+	// instead of resolving the metaschema's $vocabulary declaration. The proper
+	// implementation is vocabulary.ResolveVocabularyFromMetaschema, but wiring it
+	// in is a behavioral change (its AllEnabled() fallback enables format-assertion,
+	// unlike the DefaultSet used above) and can only be verified against the full
+	// JSON Schema Test Suite. Left as-is pending that verified change.
 	if rootSchema == s {
-		// For testing, hardcode known metaschema URIs that disable validation vocabulary
 		schemaURI := ""
 		if s.HasSchema() {
 			schemaURI = s.Schema()
@@ -107,10 +114,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 		// Check for circular references by looking at context
 		if stack := schema.ReferenceStackFromContext(ctx); stack != nil {
-			for _, ref := range stack {
-				if ref == reference {
-					return nil, fmt.Errorf("circular reference detected: %s", reference)
-				}
+			if slices.Contains(stack, reference) {
+				return nil, fmt.Errorf("circular reference detected: %s", reference)
 			}
 			// Add current reference to stack
 			newStack := make([]string, len(stack)+1)
@@ -195,18 +200,6 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		return Compile(resolvedCtx, &targetSchema)
 	}
 	var validators []Interface
-
-	// Phase 1: If schema has allOf with references, resolve and merge them into context first
-	// TEMPORARILY DISABLED to debug core issue
-	// if s.HasAllOf() {
-	// 	mergedCtx, err := createMergedContextFromAllOf(ctx, s)
-	// 	if err != nil {
-	// 		// If merging fails, fall back to standard compilation
-	// 		// Keep original context
-	// 	} else {
-	// 		ctx = mergedCtx
-	// 	}
-	// }
 
 	// Phase 2: Compile composite validators (allOf, anyOf, oneOf)
 	compositeValidators, err := compileCompositeValidators(ctx, s)

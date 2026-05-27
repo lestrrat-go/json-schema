@@ -37,7 +37,7 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 	// Handle complex properties
 	if len(v.properties) > 0 {
 		// Sort property names for deterministic output
-		var propNames []string
+		propNames := make([]string, 0, len(v.properties))
 		for propName := range v.properties {
 			propNames = append(propNames, propName)
 		}
@@ -429,7 +429,7 @@ func (g *codeGenerator) generateDependentSchemas(dst io.Writer, v *dependentSche
 		var childSetup []string
 
 		// Sort property names for deterministic output
-		var propNames []string
+		propNames := make([]string, 0, len(v.dependentSchemas))
 		for propName := range v.dependentSchemas {
 			propNames = append(propNames, propName)
 		}
@@ -646,135 +646,6 @@ func (g *codeGenerator) generateNull(dst io.Writer) error {
 	return err
 }
 
-func (g *codeGenerator) generateAnyOfUnevaluatedPropertiesComposition(dst io.Writer, v *AnyOfUnevaluatedPropertiesCompositionValidator) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-
-	// AnyOfUnevaluatedPropertiesComposition validators have anyOf validators and a base validator
-	o.L("func() validator.Interface {")
-
-	// Generate anyOf validators
-	if len(v.anyOfValidators) > 0 {
-		o.L("anyOfValidators := make([]validator.Interface, %d)", len(v.anyOfValidators))
-		for i, anyOfValidator := range v.anyOfValidators {
-			o.L("anyOfValidators[%d] = ", i)
-			if err := g.Generate(&buf, anyOfValidator); err != nil {
-				return fmt.Errorf("failed to generate anyOf validator %d: %w", i, err)
-			}
-			o.R("")
-		}
-	} else {
-		o.L("anyOfValidators := make([]validator.Interface, 0)")
-	}
-
-	// Generate base validator
-	if v.baseValidator != nil {
-		o.L("baseValidator := ")
-		if err := g.Generate(&buf, v.baseValidator); err != nil {
-			return fmt.Errorf("failed to generate base validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("baseValidator := &validator.EmptyValidator{}")
-	}
-
-	// Create the AnyOfUnevaluatedPropertiesCompositionValidator
-	o.L("return &validator.AnyOfUnevaluatedPropertiesCompositionValidator{")
-	o.L("anyOfValidators: anyOfValidators,")
-	o.L("baseValidator: baseValidator,")
-	o.L("schema: nil, // Schema not available during generation")
-	o.L("}")
-	o.L("}()")
-
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
-func (g *codeGenerator) generateOneOfUnevaluatedPropertiesComposition(dst io.Writer, v *OneOfUnevaluatedPropertiesCompositionValidator) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-
-	// OneOfUnevaluatedPropertiesComposition validators have oneOf validators and a base validator
-	o.L("func() validator.Interface {")
-
-	// Generate oneOf validators
-	if len(v.oneOfValidators) > 0 {
-		o.L("oneOfValidators := make([]validator.Interface, %d)", len(v.oneOfValidators))
-		for i, oneOfValidator := range v.oneOfValidators {
-			o.L("oneOfValidators[%d] = ", i)
-			if err := g.Generate(&buf, oneOfValidator); err != nil {
-				return fmt.Errorf("failed to generate oneOf validator %d: %w", i, err)
-			}
-			o.R("")
-		}
-	} else {
-		o.L("oneOfValidators := make([]validator.Interface, 0)")
-	}
-
-	// Generate base validator
-	if v.baseValidator != nil {
-		o.L("baseValidator := ")
-		if err := g.Generate(&buf, v.baseValidator); err != nil {
-			return fmt.Errorf("failed to generate base validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("baseValidator := &validator.EmptyValidator{}")
-	}
-
-	// Create the OneOfUnevaluatedPropertiesCompositionValidator
-	o.L("return &validator.OneOfUnevaluatedPropertiesCompositionValidator{")
-	o.L("oneOfValidators: oneOfValidators,")
-	o.L("baseValidator: baseValidator,")
-	o.L("schema: nil, // Schema not available during generation")
-	o.L("}")
-	o.L("}()")
-
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
-func (g *codeGenerator) generateRefUnevaluatedPropertiesComposition(dst io.Writer, v *RefUnevaluatedPropertiesCompositionValidator) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-
-	// RefUnevaluatedPropertiesComposition validators have a ref validator and a base validator
-	o.L("func() validator.Interface {")
-
-	// Generate ref validator
-	if v.refValidator != nil {
-		o.L("refValidator := ")
-		if err := g.Generate(&buf, v.refValidator); err != nil {
-			return fmt.Errorf("failed to generate ref validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("refValidator := &validator.EmptyValidator{}")
-	}
-
-	// Generate base validator
-	if v.baseValidator != nil {
-		o.L("baseValidator := ")
-		if err := g.Generate(&buf, v.baseValidator); err != nil {
-			return fmt.Errorf("failed to generate base validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("baseValidator := &validator.EmptyValidator{}")
-	}
-
-	// Create the RefUnevaluatedPropertiesCompositionValidator
-	o.L("return &validator.RefUnevaluatedPropertiesCompositionValidator{")
-	o.L("refValidator: refValidator,")
-	o.L("baseValidator: baseValidator,")
-	o.L("schema: nil, // Schema not available during generation")
-	o.L("}")
-	o.L("}()")
-
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
 func (g *codeGenerator) generateIfThenElse(dst io.Writer, v *IfThenElseValidator) error {
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
@@ -820,71 +691,6 @@ func (g *codeGenerator) generateIfThenElse(dst io.Writer, v *IfThenElseValidator
 	o.L("ifValidator: ifValidator,")
 	o.L("thenValidator: thenValidator,")
 	o.L("elseValidator: elseValidator,")
-	o.L("}")
-	o.L("}()")
-
-	_, err := buf.WriteTo(dst)
-	return err
-}
-
-func (g *codeGenerator) generateIfThenElseUnevaluatedPropertiesComposition(dst io.Writer, v *IfThenElseUnevaluatedPropertiesCompositionValidator) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-
-	// IfThenElseUnevaluatedPropertiesComposition validators have if/then/else validators and a base validator
-	o.L("func() validator.Interface {")
-
-	// Generate if validator
-	if v.ifValidator != nil {
-		o.L("ifValidator := ")
-		if err := g.Generate(&buf, v.ifValidator); err != nil {
-			return fmt.Errorf("failed to generate if validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("ifValidator := &validator.EmptyValidator{}")
-	}
-
-	// Generate then validator
-	if v.thenValidator != nil {
-		o.L("thenValidator := ")
-		if err := g.Generate(&buf, v.thenValidator); err != nil {
-			return fmt.Errorf("failed to generate then validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("thenValidator := &validator.EmptyValidator{}")
-	}
-
-	// Generate else validator
-	if v.elseValidator != nil {
-		o.L("elseValidator := ")
-		if err := g.Generate(&buf, v.elseValidator); err != nil {
-			return fmt.Errorf("failed to generate else validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("elseValidator := &validator.EmptyValidator{}")
-	}
-
-	// Generate base validator
-	if v.baseValidator != nil {
-		o.L("baseValidator := ")
-		if err := g.Generate(&buf, v.baseValidator); err != nil {
-			return fmt.Errorf("failed to generate base validator: %w", err)
-		}
-		o.R("")
-	} else {
-		o.L("baseValidator := &validator.EmptyValidator{}")
-	}
-
-	// Create the IfThenElseUnevaluatedPropertiesCompositionValidator
-	o.L("return &validator.IfThenElseUnevaluatedPropertiesCompositionValidator{")
-	o.L("ifValidator: ifValidator,")
-	o.L("thenValidator: thenValidator,")
-	o.L("elseValidator: elseValidator,")
-	o.L("baseValidator: baseValidator,")
-	o.L("schema: nil, // Schema not available during generation")
 	o.L("}")
 	o.L("}()")
 
