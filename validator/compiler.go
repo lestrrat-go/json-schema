@@ -362,7 +362,11 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 				// Array type validator (excluding unevaluatedItems)
 				arrayFields := schema.ArrayConstraintFields &^ schema.UnevaluatedItemsField
 				if s.HasAny(arrayFields) {
-					arrayValidator, err := compileArrayValidator(ctx, s, true) // strict type checking
+					// Strip unevaluatedItems so the array validator does not
+					// self-enforce it; the unevaluatedCoordinator owns that
+					// decision once sibling applicators' annotations are merged.
+					baseSchema := createSchemaWithoutUnevaluatedFields(s)
+					arrayValidator, err := compileArrayValidator(ctx, baseSchema, true) // strict type checking
 					if err != nil {
 						return nil, fmt.Errorf("failed to compile array validator: %w", err)
 					}
@@ -425,7 +429,8 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 		// Array constraints (excluding unevaluatedItems) without explicit type
 		arrayFields := schema.ArrayConstraintFields &^ schema.UnevaluatedItemsField
 		if s.HasAny(arrayFields) {
-			arrayValidator, err := compileArrayValidator(ctx, s, false)
+			baseSchema := createSchemaWithoutUnevaluatedFields(s)
+			arrayValidator, err := compileArrayValidator(ctx, baseSchema, false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile array validator: %w", err)
 			}

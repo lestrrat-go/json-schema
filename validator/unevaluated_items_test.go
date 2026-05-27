@@ -112,7 +112,9 @@ func TestUnevaluatedItems(t *testing.T) {
 			// Array where some items don't match contains and don't match unevaluatedItems schema
 			_, err := v.Validate(context.Background(), []any{"hello world", true})
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "unevaluated item validation failed")
+			// unevaluatedItems enforcement is owned by the unevaluatedCoordinator,
+			// which reports the failing index and the wrapped schema error.
+			require.Contains(t, err.Error(), "unevaluated item at index")
 		})
 	})
 }
