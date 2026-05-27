@@ -257,181 +257,43 @@ func (b *ArrayValidatorBuilder) Reset() *ArrayValidatorBuilder {
 	return b
 }
 
-func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
+// arrayAccessor provides uniform length/element access over an array instance,
+// backed either by a custom ArrayIndexResolver or by reflection on a slice/array.
+type arrayAccessor struct {
+	length int
+	at     func(int) (any, error)
+}
+
+// newArrayAccessor honors a custom ArrayIndexResolver first, then falls back to
+// reflection. The bool reports whether v is array-like at all.
+func newArrayAccessor(v any) (arrayAccessor, bool) {
+	if resolver, ok := v.(ArrayIndexResolver); ok {
+		return arrayAccessor{length: resolver.Len(), at: resolver.ResolveArrayIndex}, true
+	}
+
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr, reflect.Interface:
 		rv = rv.Elem()
 	}
+	switch rv.Kind() {
+	case reflect.Array, reflect.Slice:
+		return arrayAccessor{
+			length: rv.Len(),
+			at:     func(i int) (any, error) { return rv.Index(i).Interface(), nil },
+		}, true
+	default:
+		return arrayAccessor{}, false
+	}
+}
+
+func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
+	acc, isArray := newArrayAccessor(v)
 
 	var ec schemactx.EvaluationContext
 	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
 
-	switch rv.Kind() {
-	case reflect.Array, reflect.Slice:
-		length := uint(rv.Len())
-
-		// Check minItems constraint
-		if c.minItems != nil && length < *c.minItems {
-			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: array length %d is below minimum items %d`, length, *c.minItems)
-		}
-
-		// Check maxItems constraint
-		if c.maxItems != nil && length > *c.maxItems {
-			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: array length %d exceeds maximum items %d`, length, *c.maxItems)
-		}
-
-		// Check uniqueItems constraint
-		if c.uniqueItems && length > 0 {
-			for i := range rv.Len() {
-				item1 := rv.Index(i).Interface()
-				for j := i + 1; j < rv.Len(); j++ {
-					item2 := rv.Index(j).Interface()
-					if reflect.DeepEqual(item1, item2) {
-						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: duplicate items found, uniqueItems violation`)
-					}
-				}
-			}
-		}
-
-		// Initialize result for tracking evaluated items
-		result := NewArrayResult()
-
-		// Merge evaluated items from previous validators
-		var evaluatedItems schemactx.EvaluatedItems
-		evaluatedItems.Copy(&ec.Items)
-
-		// Validate items according to prefixItems and items
-		arrayLength := rv.Len()
-		prefixItemsCount := len(c.prefixItems)
-
-		// First, validate items covered by prefixItems
-		for i := 0; i < arrayLength && i < prefixItemsCount; i++ {
-			item := rv.Index(i).Interface()
-			_, err := c.prefixItems[i].Validate(ctx, item)
-			if err != nil {
-				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: prefixItems[%d] validation failed: %w`, i, err)
-			}
-			// Mark this item as evaluated by prefixItems
-			result.SetEvaluatedItem(i)
-		}
-
-		// Then, validate remaining items with the items schema (if present)
-		if c.items != nil {
-			for i := prefixItemsCount; i < arrayLength; i++ {
-				item := rv.Index(i).Interface()
-				_, err := c.items.Validate(ctx, item)
-				if err != nil {
-					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: item validation failed: %w`, err)
-				}
-				// Mark this item as evaluated by items
-				result.SetEvaluatedItem(i)
-			}
-		}
-		// Note: Items beyond prefixItems that are not validated by items remain unevaluated
-
-		// Validate contains constraint and track evaluation
-		// According to JSON Schema spec, minContains and maxContains are ignored when contains is not present
-		// No validation needed when contains schema is absent
-		if c.contains != nil {
-			containsCount := uint(0)
-			for i := range rv.Len() {
-				item := rv.Index(i).Interface()
-				_, err := c.contains.Validate(ctx, item)
-				if err == nil {
-					containsCount++
-					// Mark this item as evaluated by contains
-					result.SetEvaluatedItem(i)
-				}
-			}
-
-			// Check minContains constraint first
-			if c.minContains != nil && containsCount < *c.minContains {
-				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: minimum contains constraint failed: found %d, expected at least %d`, containsCount, *c.minContains)
-			}
-
-			// Check if any item matches the contains schema (only if minContains is not explicitly set to 0)
-			if containsCount == 0 && (c.minContains == nil || *c.minContains > 0) {
-				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: does not contain required item`)
-			}
-
-			// Check maxContains constraint
-			if c.maxContains != nil && containsCount > *c.maxContains {
-				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: maximum contains constraint failed: found %d, expected at most %d`, containsCount, *c.maxContains)
-			}
-		}
-
-		// Validate additionalItems for items beyond prefixItems
-		if c.additionalItems != nil {
-			// additionalItems only applies to indices beyond prefixItems
-			for i := prefixItemsCount; i < arrayLength; i++ {
-				// Only apply additionalItems if this item wasn't handled by items schema
-				if c.items == nil {
-					item := rv.Index(i).Interface()
-					_, err := c.additionalItems.Validate(ctx, item)
-					if err != nil {
-						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: additionalItems validation failed: %w`, err)
-					}
-					result.SetEvaluatedItem(i)
-				}
-			}
-		}
-
-		// Handle unevaluatedItems validation
-		if c.unevaluatedItems != nil {
-			// Get evaluated items from context (from previous validators) AND current result
-			contextEvaluated := evaluatedItems.Values() // From previous validators
-			currentEvaluated := result.EvaluatedItems() // From current validator
-
-			// Merge context and current evaluations
-			maxLen := max(len(contextEvaluated), len(currentEvaluated))
-
-			mergedEvaluated := make([]bool, maxLen)
-			for i := range maxLen {
-				var contextVal, currentVal bool
-				if i < len(contextEvaluated) {
-					contextVal = contextEvaluated[i]
-				}
-				if i < len(currentEvaluated) {
-					currentVal = currentEvaluated[i]
-				}
-				mergedEvaluated[i] = contextVal || currentVal
-			}
-
-			// Validate unevaluated items
-			for i := range rv.Len() {
-				// Skip items that were already evaluated (by context or current validator)
-				if i < len(mergedEvaluated) && mergedEvaluated[i] {
-					continue
-				}
-
-				item := rv.Index(i).Interface()
-
-				// Handle boolean unevaluatedItems
-				if boolVal, ok := c.unevaluatedItems.(bool); ok {
-					if !boolVal {
-						// false means unevaluated items are not allowed
-						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item at index %d not allowed`, i)
-					}
-					// true means unevaluated items are allowed - mark as evaluated
-					result.SetEvaluatedItem(i)
-					continue
-				}
-
-				// Handle schema unevaluatedItems
-				if validator, ok := c.unevaluatedItems.(Interface); ok {
-					_, err := validator.Validate(ctx, item)
-					if err != nil {
-						return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item validation failed at index %d: %w`, i, err)
-					}
-					// Mark as evaluated when schema validation passes
-					result.SetEvaluatedItem(i)
-				}
-			}
-		}
-
-		return result, nil
-	default:
+	if !isArray {
 		// Handle non-array values based on whether this is strict array type validation
 		if c.strictArrayType {
 			// When schema explicitly declares type: array, non-array values should fail
@@ -442,4 +304,188 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		//nolint: nilnil
 		return nil, nil
 	}
+
+	length := uint(acc.length)
+
+	// Check minItems constraint
+	if c.minItems != nil && length < *c.minItems {
+		return nil, fmt.Errorf(`invalid value passed to ArrayValidator: array length %d is below minimum items %d`, length, *c.minItems)
+	}
+
+	// Check maxItems constraint
+	if c.maxItems != nil && length > *c.maxItems {
+		return nil, fmt.Errorf(`invalid value passed to ArrayValidator: array length %d exceeds maximum items %d`, length, *c.maxItems)
+	}
+
+	// Check uniqueItems constraint
+	if c.uniqueItems && length > 0 {
+		for i := range acc.length {
+			item1, err := acc.at(i)
+			if err != nil {
+				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
+			}
+			for j := i + 1; j < acc.length; j++ {
+				item2, err := acc.at(j)
+				if err != nil {
+					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, j, err)
+				}
+				if reflect.DeepEqual(item1, item2) {
+					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: duplicate items found, uniqueItems violation`)
+				}
+			}
+		}
+	}
+
+	// Initialize result for tracking evaluated items
+	result := NewArrayResult()
+
+	// Merge evaluated items from previous validators
+	var evaluatedItems schemactx.EvaluatedItems
+	evaluatedItems.Copy(&ec.Items)
+
+	// Validate items according to prefixItems and items
+	arrayLength := acc.length
+	prefixItemsCount := len(c.prefixItems)
+
+	// First, validate items covered by prefixItems
+	for i := 0; i < arrayLength && i < prefixItemsCount; i++ {
+		item, err := acc.at(i)
+		if err != nil {
+			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
+		}
+		_, err = c.prefixItems[i].Validate(ctx, item)
+		if err != nil {
+			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: prefixItems[%d] validation failed: %w`, i, err)
+		}
+		// Mark this item as evaluated by prefixItems
+		result.SetEvaluatedItem(i)
+	}
+
+	// Then, validate remaining items with the items schema (if present)
+	if c.items != nil {
+		for i := prefixItemsCount; i < arrayLength; i++ {
+			item, err := acc.at(i)
+			if err != nil {
+				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
+			}
+			_, err = c.items.Validate(ctx, item)
+			if err != nil {
+				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: item validation failed: %w`, err)
+			}
+			// Mark this item as evaluated by items
+			result.SetEvaluatedItem(i)
+		}
+	}
+	// Note: Items beyond prefixItems that are not validated by items remain unevaluated
+
+	// Validate contains constraint and track evaluation
+	// According to JSON Schema spec, minContains and maxContains are ignored when contains is not present
+	// No validation needed when contains schema is absent
+	if c.contains != nil {
+		containsCount := uint(0)
+		for i := range acc.length {
+			item, err := acc.at(i)
+			if err != nil {
+				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
+			}
+			_, err = c.contains.Validate(ctx, item)
+			if err == nil {
+				containsCount++
+				// Mark this item as evaluated by contains
+				result.SetEvaluatedItem(i)
+			}
+		}
+
+		// Check minContains constraint first
+		if c.minContains != nil && containsCount < *c.minContains {
+			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: minimum contains constraint failed: found %d, expected at least %d`, containsCount, *c.minContains)
+		}
+
+		// Check if any item matches the contains schema (only if minContains is not explicitly set to 0)
+		if containsCount == 0 && (c.minContains == nil || *c.minContains > 0) {
+			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: does not contain required item`)
+		}
+
+		// Check maxContains constraint
+		if c.maxContains != nil && containsCount > *c.maxContains {
+			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: maximum contains constraint failed: found %d, expected at most %d`, containsCount, *c.maxContains)
+		}
+	}
+
+	// Validate additionalItems for items beyond prefixItems
+	if c.additionalItems != nil {
+		// additionalItems only applies to indices beyond prefixItems
+		for i := prefixItemsCount; i < arrayLength; i++ {
+			// Only apply additionalItems if this item wasn't handled by items schema
+			if c.items == nil {
+				item, err := acc.at(i)
+				if err != nil {
+					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
+				}
+				_, err = c.additionalItems.Validate(ctx, item)
+				if err != nil {
+					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: additionalItems validation failed: %w`, err)
+				}
+				result.SetEvaluatedItem(i)
+			}
+		}
+	}
+
+	// Handle unevaluatedItems validation
+	if c.unevaluatedItems != nil {
+		// Get evaluated items from context (from previous validators) AND current result
+		contextEvaluated := evaluatedItems.Values() // From previous validators
+		currentEvaluated := result.EvaluatedItems() // From current validator
+
+		// Merge context and current evaluations
+		maxLen := max(len(contextEvaluated), len(currentEvaluated))
+
+		mergedEvaluated := make([]bool, maxLen)
+		for i := range maxLen {
+			var contextVal, currentVal bool
+			if i < len(contextEvaluated) {
+				contextVal = contextEvaluated[i]
+			}
+			if i < len(currentEvaluated) {
+				currentVal = currentEvaluated[i]
+			}
+			mergedEvaluated[i] = contextVal || currentVal
+		}
+
+		// Validate unevaluated items
+		for i := range acc.length {
+			// Skip items that were already evaluated (by context or current validator)
+			if i < len(mergedEvaluated) && mergedEvaluated[i] {
+				continue
+			}
+
+			item, err := acc.at(i)
+			if err != nil {
+				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
+			}
+
+			// Handle boolean unevaluatedItems
+			if boolVal, ok := c.unevaluatedItems.(bool); ok {
+				if !boolVal {
+					// false means unevaluated items are not allowed
+					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item at index %d not allowed`, i)
+				}
+				// true means unevaluated items are allowed - mark as evaluated
+				result.SetEvaluatedItem(i)
+				continue
+			}
+
+			// Handle schema unevaluatedItems
+			if validator, ok := c.unevaluatedItems.(Interface); ok {
+				_, err := validator.Validate(ctx, item)
+				if err != nil {
+					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item validation failed at index %d: %w`, i, err)
+				}
+				// Mark as evaluated when schema validation passes
+				result.SetEvaluatedItem(i)
+			}
+		}
+	}
+
+	return result, nil
 }

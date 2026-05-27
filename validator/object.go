@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
@@ -288,6 +289,60 @@ func (b *ObjectValidatorBuilder) Reset() *ObjectValidatorBuilder {
 	return b
 }
 
+// extractObjectProperties reads v as a JSON object into a name->value map. It
+// honors a custom ObjectFieldResolver first, then handles map and struct
+// instances (using the JSON tag's name, ignoring options like ",omitempty").
+// The bool reports whether v is object-like at all.
+func extractObjectProperties(v any) (map[string]any, bool, error) {
+	if resolver, ok := v.(ObjectFieldResolver); ok {
+		props := make(map[string]any)
+		for _, name := range resolver.FieldNames() {
+			val, err := resolver.ResolveObjectField(name)
+			if err != nil {
+				return nil, true, fmt.Errorf("failed to resolve field %q: %w", name, err)
+			}
+			props[name] = val
+		}
+		return props, true, nil
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		rv = rv.Elem()
+	}
+
+	switch rv.Kind() {
+	case reflect.Map:
+		props := make(map[string]any)
+		for _, key := range rv.MapKeys() {
+			props[key.String()] = rv.MapIndex(key).Interface()
+		}
+		return props, true, nil
+	case reflect.Struct:
+		props := make(map[string]any)
+		t := rv.Type()
+		for i := range rv.NumField() {
+			field := t.Field(i)
+			if !field.IsExported() {
+				continue
+			}
+			jsonTag := field.Tag.Get("json")
+			if jsonTag == "-" {
+				continue // json:"-" excludes the field
+			}
+			fieldName := field.Name
+			if tagName, _, _ := strings.Cut(jsonTag, ","); tagName != "" {
+				fieldName = tagName
+			}
+			props[fieldName] = rv.Field(i).Interface()
+		}
+		return props, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
 // Validate implements the Interface
 func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Get previously evaluated properties from context
@@ -296,35 +351,11 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	if ec == nil {
 		ec = &schemactx.EvaluationContext{}
 	}
-	rv := reflect.ValueOf(v)
-	switch rv.Kind() {
-	case reflect.Ptr, reflect.Interface:
-		rv = rv.Elem()
+	properties, isObject, err := extractObjectProperties(v)
+	if err != nil {
+		return nil, fmt.Errorf(`invalid value passed to ObjectValidator: %w`, err)
 	}
-
-	var properties map[string]any
-
-	switch rv.Kind() {
-	case reflect.Map:
-		properties = make(map[string]any)
-		for _, key := range rv.MapKeys() {
-			keyStr := key.String()
-			properties[keyStr] = rv.MapIndex(key).Interface()
-		}
-	case reflect.Struct:
-		properties = make(map[string]any)
-		t := rv.Type()
-		for i := range rv.NumField() {
-			field := t.Field(i)
-			if field.IsExported() {
-				fieldName := field.Name
-				if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
-					fieldName = jsonTag
-				}
-				properties[fieldName] = rv.Field(i).Interface()
-			}
-		}
-	default:
+	if !isObject {
 		// Handle non-object values based on whether this is strict object type validation
 		if c.strictObjectType {
 			// When schema explicitly declares type: object, non-object values should fail
