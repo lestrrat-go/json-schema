@@ -929,6 +929,25 @@ func TestCommonPatterns(t *testing.T) {
 			valid:   []any{"abc123", "ABC", "123"},
 			invalid: []any{"hello-world", "with spaces", "special!", 123},
 		},
+		{
+			name:    "Date",
+			builder: schema.Date(),
+			valid:   []any{"2020-01-15", "1999-12-31"},
+			invalid: []any{"not-a-date", "2020-13-45", "2020/01/15", 123},
+		},
+		{
+			name:    "DateTime",
+			builder: schema.DateTime(),
+			valid:   []any{"2020-01-15T10:30:00Z", "2020-01-15T10:30:00"},
+			invalid: []any{"not-a-datetime", "2020-01-15", 123},
+		},
+		{
+			// Optional allows the wrapped schema's type or null.
+			name:    "Optional",
+			builder: schema.Optional(schema.NewBuilder().Types(schema.StringType).MustBuild()),
+			valid:   []any{"hello", nil},
+			invalid: []any{123, true},
+		},
 	}
 
 	for _, tc := range testCases {
