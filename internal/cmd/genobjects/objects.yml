@@ -47,7 +47,7 @@ objects:
         json: 'else'
         type: 'SchemaOrBool'
       - name: prefixItems
-        type: '[]*Schema'
+        type: '[]SchemaOrBool'
       - name: items
         type: 'SchemaOrBool'
       - name: additionalItems

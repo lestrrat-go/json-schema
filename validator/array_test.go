@@ -295,7 +295,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 		testCases := []struct {
 			name            string
 			value           []any
-			prefixItems     []*schema.Schema
+			prefixItems     []schema.SchemaOrBool
 			additionalItems any // bool or *schema.Schema
 			wantErr         bool
 			errMsg          string
@@ -303,7 +303,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "exact tuple match",
 				value: []any{"John", 30, true},
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
@@ -313,7 +313,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "tuple with fewer items",
 				value: []any{"John", 30},
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
@@ -323,7 +323,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "tuple type mismatch",
 				value: []any{123, 30, true}, // first should be string
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
@@ -334,7 +334,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "additional items allowed",
 				value: []any{"John", 30, true, "extra", 42},
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
@@ -345,7 +345,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "additional items forbidden",
 				value: []any{"John", 30, true, "extra"},
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
@@ -357,7 +357,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "additional items with schema - valid strings",
 				value: []any{"John", 30, true, "extra1", "extra2"},
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
@@ -368,7 +368,7 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			{
 				name:  "additional items violate schema",
 				value: []any{"John", 30, true, 123}, // additional should be string
-				prefixItems: []*schema.Schema{
+				prefixItems: []schema.SchemaOrBool{
 					schema.NewBuilder().Types(schema.StringType).MustBuild(),
 					schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 					schema.NewBuilder().Types(schema.BooleanType).MustBuild(),
