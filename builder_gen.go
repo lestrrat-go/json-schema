@@ -59,7 +59,7 @@ type Builder struct {
 	oneOf                 []SchemaOrBool
 	pattern               *string
 	patternProperties     []*propPair
-	prefixItems           []*Schema
+	prefixItems           []SchemaOrBool
 	properties            []*propPair
 	propertyNames         *Schema
 	reference             *string
@@ -480,9 +480,16 @@ func (b *Builder) PatternProperty(n string, v *Schema) *Builder {
 	return b
 }
 
-func (b *Builder) PrefixItems(v ...*Schema) *Builder {
+func (b *Builder) PrefixItems(v ...SchemaOrBool) *Builder {
 	if b.err != nil {
 		return b
+	}
+
+	for _, item := range v {
+		if err := validateSchemaOrBool(item); err != nil {
+			b.err = fmt.Errorf(`invalid value in PrefixItems: %w`, err)
+			return b
+		}
 	}
 
 	b.prefixItems = v

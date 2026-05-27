@@ -112,7 +112,7 @@ type Schema struct {
 	oneOf                 []SchemaOrBool
 	pattern               *string
 	patternProperties     map[string]*Schema
-	prefixItems           []*Schema
+	prefixItems           []SchemaOrBool
 	properties            map[string]*Schema
 	propertyNames         *Schema
 	reference             *string
@@ -466,7 +466,7 @@ func (s *Schema) HasPrefixItems() bool {
 	return s.populatedFields&PrefixItemsField != 0
 }
 
-func (s *Schema) PrefixItems() []*Schema {
+func (s *Schema) PrefixItems() []SchemaOrBool {
 	return s.prefixItems
 }
 
@@ -1227,9 +1227,9 @@ LOOP:
 				s.patternProperties = v
 				s.populatedFields |= PatternPropertiesField
 			case keywords.PrefixItems:
-				var v []*Schema
-				if err := dec.Decode(&v); err != nil {
-					return fmt.Errorf(`json-schema: failed to decode value for field "prefixItems" (attempting to unmarshal as []*Schema): %w`, err)
+				v, err := unmarshalSchemaOrBoolSlice(dec)
+				if err != nil {
+					return fmt.Errorf(`json-schema: failed to decode value for field "prefixItems" (attempting to unmarshal as []SchemaOrBool slice): %w`, err)
 				}
 				s.prefixItems = v
 				s.populatedFields |= PrefixItemsField

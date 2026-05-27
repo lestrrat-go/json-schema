@@ -29,7 +29,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 		if prefixItems := s.PrefixItems(); len(prefixItems) > 0 {
 			prefixValidators := make([]Interface, len(prefixItems))
 			for i, prefixSchema := range prefixItems {
-				prefixValidator, err := Compile(ctx, prefixSchema)
+				prefixValidator, err := Compile(ctx, convertSchemaOrBool(prefixSchema))
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile prefixItems[%d] validator: %w", i, err)
 				}
