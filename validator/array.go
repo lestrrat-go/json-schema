@@ -14,6 +14,10 @@ var _ Builder = (*ArrayValidatorBuilder)(nil)
 var _ Interface = (*arrayValidator)(nil)
 
 func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+	// Array keywords (prefixItems, items, contains) apply their subschemas to
+	// child elements, so crossing into them is a data boundary for recursion
+	// classification.
+	ctx = schema.WithDataDepth(ctx, schema.DataDepthFromContext(ctx)+1)
 	v := Array()
 
 	if s.HasMinItems() && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
