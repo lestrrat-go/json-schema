@@ -7,141 +7,105 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestValidationTargets tests the validation target resolution functionality
+// TestValidationTargets exercises the instance-access helpers that back object
+// and array validation: extractObjectProperties and newArrayAccessor.
 func TestValidationTargets(t *testing.T) {
-	t.Run("ObjectFieldResolver interface", func(t *testing.T) {
-		obj := &testObjectResolver{
-			fields: map[string]any{
-				"name": "John",
-				"age":  30,
-			},
-		}
-
-		value, err := resolveObjectField(obj, "name")
+	t.Run("ObjectFieldResolver drives extractObjectProperties", func(t *testing.T) {
+		obj := &testObjectResolver{fields: map[string]any{"name": "John", "age": 30}}
+		props, ok, err := extractObjectProperties(obj)
 		require.NoError(t, err)
-		require.Equal(t, "John", value)
+		require.True(t, ok)
+		require.Equal(t, "John", props["name"])
+		require.Equal(t, 30, props["age"])
+		_, exists := props["missing"]
+		require.False(t, exists)
+	})
 
-		value, err = resolveObjectField(obj, "age")
+	t.Run("ArrayIndexResolver drives newArrayAccessor", func(t *testing.T) {
+		arr := &testArrayResolver{items: []any{"first", "second", "third"}}
+		acc, ok := newArrayAccessor(arr)
+		require.True(t, ok)
+		require.Equal(t, 3, acc.length)
+
+		v0, err := acc.at(0)
 		require.NoError(t, err)
-		require.Equal(t, 30, value)
+		require.Equal(t, "first", v0)
 
-		_, err = resolveObjectField(obj, "missing")
+		v2, err := acc.at(2)
+		require.NoError(t, err)
+		require.Equal(t, "third", v2)
+
+		_, err = acc.at(10)
 		require.Error(t, err)
 	})
 
-	t.Run("ArrayIndexResolver interface", func(t *testing.T) {
-		arr := &testArrayResolver{
-			items: []any{"first", "second", "third"},
-		}
-
-		value, err := resolveArrayIndex(arr, 0)
+	t.Run("map object extraction", func(t *testing.T) {
+		props, ok, err := extractObjectProperties(map[string]any{"foo": "bar", "baz": 42})
 		require.NoError(t, err)
-		require.Equal(t, "first", value)
-
-		value, err = resolveArrayIndex(arr, 2)
-		require.NoError(t, err)
-		require.Equal(t, "third", value)
-
-		_, err = resolveArrayIndex(arr, 10)
-		require.Error(t, err)
+		require.True(t, ok)
+		require.Equal(t, "bar", props["foo"])
+		require.Equal(t, 42, props["baz"])
 	})
 
-	t.Run("Map object field resolution", func(t *testing.T) {
-		obj := map[string]any{
-			"foo": "bar",
-			"baz": 42,
-		}
-
-		value, err := resolveObjectField(obj, "foo")
-		require.NoError(t, err)
-		require.Equal(t, "bar", value)
-
-		value, err = resolveObjectField(obj, "baz")
-		require.NoError(t, err)
-		require.Equal(t, 42, value)
-
-		_, err = resolveObjectField(obj, "missing")
-		require.Error(t, err)
-	})
-
-	t.Run("Struct field resolution with JSON tags", func(t *testing.T) {
+	t.Run("struct extraction keys on json tag names", func(t *testing.T) {
 		type TestStruct struct {
-			Name string `json:"name"`
-			Age  int    `json:"age"`
-			Bar  string `json:"baz"` // JSON field name differs from struct field
-			Qux  string // No JSON tag, should match field name
+			Name   string `json:"name"`
+			Age    int    `json:"age"`
+			Bar    string `json:"baz"`           // renamed via tag
+			Opt    string `json:"opt,omitempty"` // tag options must be ignored
+			Hidden string `json:"-"`             // excluded entirely
+			Qux    string // no tag -> exact field name
 		}
+		obj := TestStruct{Name: "Alice", Age: 25, Bar: "hello", Opt: "o", Hidden: "secret", Qux: "world"}
 
-		obj := TestStruct{
-			Name: "Alice",
-			Age:  25,
-			Bar:  "hello",
-			Qux:  "world",
-		}
-
-		// Test JSON tag resolution
-		value, err := resolveObjectField(obj, "name")
+		props, ok, err := extractObjectProperties(obj)
 		require.NoError(t, err)
-		require.Equal(t, "Alice", value)
+		require.True(t, ok)
+		require.Equal(t, "Alice", props["name"])
+		require.Equal(t, 25, props["age"])
+		require.Equal(t, "hello", props["baz"])
+		require.Equal(t, "o", props["opt"], "tag option ,omitempty must not be part of the key")
+		require.Equal(t, "world", props["Qux"])
 
-		value, err = resolveObjectField(obj, "age")
-		require.NoError(t, err)
-		require.Equal(t, 25, value)
-
-		// Test JSON tag with different field name
-		value, err = resolveObjectField(obj, "baz")
-		require.NoError(t, err)
-		require.Equal(t, "hello", value)
-
-		// Test field name without JSON tag
-		value, err = resolveObjectField(obj, "qux")
-		require.NoError(t, err)
-		require.Equal(t, "world", value)
-
-		// Test case-insensitive matching
-		value, err = resolveObjectField(obj, "Qux")
-		require.NoError(t, err)
-		require.Equal(t, "world", value)
-
-		// Test missing field
-		_, err = resolveObjectField(obj, "missing")
-		require.Error(t, err)
+		_, hidden := props["Hidden"]
+		require.False(t, hidden, `json:"-" field must be excluded`)
 	})
 
-	t.Run("Slice array index resolution", func(t *testing.T) {
-		arr := []any{"a", "b", "c"}
-
-		value, err := resolveArrayIndex(arr, 0)
+	t.Run("slice array accessor", func(t *testing.T) {
+		acc, ok := newArrayAccessor([]any{"a", "b", "c"})
+		require.True(t, ok)
+		require.Equal(t, 3, acc.length)
+		v, err := acc.at(0)
 		require.NoError(t, err)
-		require.Equal(t, "a", value)
+		require.Equal(t, "a", v)
+	})
 
-		value, err = resolveArrayIndex(arr, 2)
+	t.Run("non-object and non-array are reported via the bool", func(t *testing.T) {
+		_, ok, err := extractObjectProperties(42)
 		require.NoError(t, err)
-		require.Equal(t, "c", value)
+		require.False(t, ok)
 
-		_, err = resolveArrayIndex(arr, 5)
-		require.Error(t, err)
-
-		_, err = resolveArrayIndex(arr, -1)
-		require.Error(t, err)
+		_, ok = newArrayAccessor(42)
+		require.False(t, ok)
 	})
 
 	t.Run("NewArrayResult with size parameter", func(t *testing.T) {
-		// Test without size parameter
-		result1 := NewArrayResult()
-		require.NotNil(t, result1)
-		require.Equal(t, 0, len(result1.EvaluatedItems()))
-
-		// Test with size parameter
-		result2 := NewArrayResult(10)
-		require.NotNil(t, result2)
-		require.Equal(t, 0, len(result2.EvaluatedItems()))
+		require.Equal(t, 0, len(NewArrayResult().EvaluatedItems()))
+		require.Equal(t, 0, len(NewArrayResult(10).EvaluatedItems()))
 	})
 }
 
 // testObjectResolver implements ObjectFieldResolver for testing
 type testObjectResolver struct {
 	fields map[string]any
+}
+
+func (t *testObjectResolver) FieldNames() []string {
+	names := make([]string, 0, len(t.fields))
+	for name := range t.fields {
+		names = append(names, name)
+	}
+	return names
 }
 
 func (t *testObjectResolver) ResolveObjectField(field string) (any, error) {
@@ -155,6 +119,8 @@ func (t *testObjectResolver) ResolveObjectField(field string) (any, error) {
 type testArrayResolver struct {
 	items []any
 }
+
+func (t *testArrayResolver) Len() int { return len(t.items) }
 
 func (t *testArrayResolver) ResolveArrayIndex(index int) (any, error) {
 	if index < 0 || index >= len(t.items) {
