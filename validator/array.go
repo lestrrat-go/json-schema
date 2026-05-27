@@ -384,10 +384,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			currentEvaluated := result.EvaluatedItems() // From current validator
 
 			// Merge context and current evaluations
-			maxLen := len(contextEvaluated)
-			if len(currentEvaluated) > maxLen {
-				maxLen = len(currentEvaluated)
-			}
+			maxLen := max(len(contextEvaluated), len(currentEvaluated))
 
 			mergedEvaluated := make([]bool, maxLen)
 			for i := range maxLen {

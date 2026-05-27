@@ -309,7 +309,6 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) 
 	return ExtractVocabularySet(&metaschema), nil
 }
 
-// Context keys for vocabulary support
 // WithSet adds a vocabulary set to the context
 func WithSet(ctx context.Context, vocabSet *VocabularySet) context.Context {
 	return schemactx.WithVocabularySet(ctx, vocabSet)

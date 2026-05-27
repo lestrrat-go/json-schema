@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
@@ -113,10 +114,8 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 		// Check for circular references by looking at context
 		if stack := schema.ReferenceStackFromContext(ctx); stack != nil {
-			for _, ref := range stack {
-				if ref == reference {
-					return nil, fmt.Errorf("circular reference detected: %s", reference)
-				}
+			if slices.Contains(stack, reference) {
+				return nil, fmt.Errorf("circular reference detected: %s", reference)
 			}
 			// Add current reference to stack
 			newStack := make([]string, len(stack)+1)

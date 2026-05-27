@@ -37,7 +37,7 @@ func (g *codeGenerator) generateObject(dst io.Writer, v *objectValidator) error 
 	// Handle complex properties
 	if len(v.properties) > 0 {
 		// Sort property names for deterministic output
-		var propNames []string
+		propNames := make([]string, 0, len(v.properties))
 		for propName := range v.properties {
 			propNames = append(propNames, propName)
 		}
@@ -429,7 +429,7 @@ func (g *codeGenerator) generateDependentSchemas(dst io.Writer, v *dependentSche
 		var childSetup []string
 
 		// Sort property names for deterministic output
-		var propNames []string
+		propNames := make([]string, 0, len(v.dependentSchemas))
 		for propName := range v.dependentSchemas {
 			propNames = append(propNames, propName)
 		}

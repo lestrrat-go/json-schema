@@ -5,6 +5,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -165,9 +166,7 @@ func (r *ObjectResult) EvaluatedProperties() map[string]bool {
 		return make(map[string]bool)
 	}
 	result := make(map[string]bool, len(r.evaluatedProperties))
-	for k, v := range r.evaluatedProperties {
-		result[k] = v
-	}
+	maps.Copy(result, r.evaluatedProperties)
 	return result
 }
 
