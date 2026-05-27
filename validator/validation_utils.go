@@ -3,8 +3,6 @@ package validator
 import (
 	"context"
 	"fmt"
-
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 )
 
 // resultMerger handles the common pattern of merging ObjectResult and ArrayResult
@@ -81,29 +79,6 @@ func (rm *resultMerger) ArrayResult() *ArrayResult {
 	return rm.arrayResult
 }
 
-// withEvaluatedItems creates a new context with evaluated items
-func withEvaluatedItems(ctx context.Context, evaluatedItems []bool) context.Context {
-	if len(evaluatedItems) == 0 {
-		return ctx
-	}
-
-	// Get existing evaluation context or create a new one
-	var ec *schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
-
-	// Copy evaluated items
-	for i, evaluated := range evaluatedItems {
-		if evaluated {
-			ec.Items.Set(i, true)
-		}
-	}
-
-	return schemactx.WithEvaluationContext(ctx, ec)
-}
-
 // executeValidatorsAndMergeResults executes all validators and merges their results
 // Returns the result merger and any error encountered
 func executeValidatorsAndMergeResults(ctx context.Context, validators []Interface, input any, validatorType string) (*resultMerger, error) {
@@ -114,32 +89,6 @@ func executeValidatorsAndMergeResults(ctx context.Context, validators []Interfac
 		if err != nil {
 			return nil, fmt.Errorf(`%s validation failed: validator #%d failed: %w`, validatorType, i, err)
 		}
-		merger.mergeResult(result)
-	}
-
-	return &merger, nil
-}
-
-// executeValidatorsWithContextFlow executes validators with context flow for array items
-// (items annotations flow between validators)
-func executeValidatorsWithContextFlow(ctx context.Context, validators []Interface, input any) (*resultMerger, error) {
-	var merger resultMerger
-	currentCtx := ctx
-
-	for i, validator := range validators {
-		// Update context with accumulated array results for context flow
-		validationCtx := currentCtx
-		if merger.ArrayResult() != nil {
-			if evalItems := merger.ArrayResult().EvaluatedItems(); len(evalItems) > 0 {
-				validationCtx = withEvaluatedItems(currentCtx, evalItems)
-			}
-		}
-
-		result, err := validator.Validate(validationCtx, input)
-		if err != nil {
-			return nil, fmt.Errorf(`validator #%d failed: %w`, i, err)
-		}
-
 		merger.mergeResult(result)
 	}
 

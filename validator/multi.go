@@ -29,13 +29,14 @@ type allOfValidator struct {
 }
 
 func (v *allOfValidator) Validate(ctx context.Context, in any) (Result, error) {
-	// Use executeValidatorsWithContextFlow with context flow for array items
-	// NOTE: We do NOT pass evaluated properties between allOf subschemas
-	// This implements the "cousin" semantics where properties evaluated by one
-	// subschema are not visible to other subschemas in the same allOf
-	merger, err := executeValidatorsWithContextFlow(ctx, v.validators, in)
+	// allOf subschemas are "cousins": each is evaluated independently and none
+	// can see the items/properties evaluated by another. Their annotations are
+	// merged upward for the parent (so a parent-level unevaluatedItems /
+	// unevaluatedProperties does see them), but they are NOT shared sideways
+	// between branches.
+	merger, err := executeValidatorsAndMergeResults(ctx, v.validators, in, "allOf")
 	if err != nil {
-		return nil, fmt.Errorf(`allOf validation failed: %w`, err)
+		return nil, err
 	}
 	return merger.FinalResult(), nil
 }
