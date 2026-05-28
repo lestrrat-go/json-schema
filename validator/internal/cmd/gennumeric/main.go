@@ -243,7 +243,7 @@ func generateValidator(def definition, outputDir string) error {
 	} else {
 		template = "f"
 	}
-	o.LL("func (v *%sValidator) Validate(_ context.Context, in any) (Result, error) {", xstrings.Snake(def.class))
+	o.LL("func (v *%sValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {", xstrings.Snake(def.class))
 	o.L("rv := reflect.ValueOf(in)")
 	if def.typ == "int" {
 		o.LL("var n int")
