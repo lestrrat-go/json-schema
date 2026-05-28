@@ -2,6 +2,7 @@ package validator_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	schema "github.com/lestrrat-go/json-schema"
@@ -711,4 +712,36 @@ func TestArrayValidatorComprehensive(t *testing.T) {
 			})
 		}
 	})
+}
+
+// BenchmarkUniqueItems measures uniqueItems validation across array sizes. The
+// worst case for a naive O(n^2) implementation is an all-unique array (no early
+// termination), so that is what we feed it. Elements are float64 to mirror
+// JSON-decoded numbers.
+func BenchmarkUniqueItems(b *testing.B) {
+	for _, n := range []int{100, 1000, 5000} {
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			s, err := schema.NewBuilder().
+				Types(schema.ArrayType).
+				UniqueItems(true).
+				Build()
+			require.NoError(b, err)
+
+			v, err := validator.Compile(b.Context(), s)
+			require.NoError(b, err)
+
+			data := make([]any, n)
+			for i := range data {
+				data[i] = float64(i)
+			}
+
+			ctx := b.Context()
+			b.ResetTimer()
+			for range b.N {
+				if _, err := v.Validate(ctx, data); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }

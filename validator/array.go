@@ -2,6 +2,7 @@ package validator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -325,25 +326,42 @@ func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Re
 		return nil, fmt.Errorf(`invalid value passed to ArrayValidator: array length %d exceeds maximum items %d`, length, *c.maxItems)
 	}
 
-	// Check uniqueItems constraint
-	if c.uniqueItems && length > 0 {
+	// Check uniqueItems constraint.
+	//
+	// Rather than the naive O(n^2) pairwise comparison, bucket items by their
+	// canonical JSON encoding and only compare within a bucket. reflect.DeepEqual
+	// implies identical json.Marshal output, so the key never yields a false
+	// negative (no missed duplicate); it may collide for DeepEqual-unequal values
+	// (e.g. native int(1) vs float64(1.0), both encode as "1"), which is why a real
+	// duplicate is still confirmed with reflect.DeepEqual to preserve existing
+	// semantics. For JSON-decoded data (the untrusted path) a shared key implies
+	// equality, so the first within-bucket comparison returns immediately and the
+	// scan stays linear.
+	if c.uniqueItems && acc.length > 1 {
+		// json.Marshal never returns empty bytes for a valid value, so this
+		// sentinel cannot collide with a real key. Items that fail to marshal
+		// (exotic non-JSON values from reflection or a custom ArrayIndexResolver)
+		// land here and are compared among themselves.
+		const unmarshalableKey = "\x00unmarshalable"
+		seen := make(map[string][]any, acc.length)
 		for i := range acc.length {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			item1, err := acc.at(i)
+			item, err := acc.at(i)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 			}
-			for j := i + 1; j < acc.length; j++ {
-				item2, err := acc.at(j)
-				if err != nil {
-					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, j, err)
-				}
-				if reflect.DeepEqual(item1, item2) {
+			key := unmarshalableKey
+			if b, err := json.Marshal(item); err == nil {
+				key = string(b)
+			}
+			for _, prev := range seen[key] {
+				if reflect.DeepEqual(prev, item) {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: duplicate items found, uniqueItems violation`)
 				}
 			}
+			seen[key] = append(seen[key], item)
 		}
 	}
 
