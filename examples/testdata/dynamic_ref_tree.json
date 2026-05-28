@@ -1,0 +1,13 @@
+{
+  "$id": "https://example.com/tree",
+  "$dynamicAnchor": "node",
+  "type": "object",
+  "properties": {
+    "value": { "type": "integer" },
+    "children": {
+      "type": "array",
+      "items": { "$dynamicRef": "#node" }
+    }
+  },
+  "required": ["value"]
+}

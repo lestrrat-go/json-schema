@@ -1,0 +1,7 @@
+{
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,6 @@
+{
+  "type": "string",
+  "minLength": 3,
+  "maxLength": 20,
+  "pattern": "^[a-z]+$"
+}
