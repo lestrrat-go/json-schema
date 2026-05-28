@@ -1,4 +1,4 @@
-# github.com/lestrrat-go/json-schema [![CI](https://github.com/lestrrat-go/json-schema/actions/workflows/ci.yml/badge.svg)](https://github.com/lestrrat-go/json-schema/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/lestrrat-go/json-schema.svg)](https://pkg.go.dev/github.com/lestrrat-go/json-schema) [![codecov.io](https://codecov.io/github/lestrrat-go/json-schema/coverage.svg?branch=main)](https://codecov.io/github/lestrrat-go/json-schema?branch=main)
+# github.com/lestrrat-go/json-schema [![CI](https://github.com/lestrrat-go/json-schema/actions/workflows/ci.yml/badge.svg)](https://github.com/lestrrat-go/json-schema/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/lestrrat-go/json-schema.svg)](https://pkg.go.dev/github.com/lestrrat-go/json-schema) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lestrrat-go/json-schema)
 
 Go module implementing JSON Schema validation following the [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema) specification.
 
