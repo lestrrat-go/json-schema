@@ -1410,6 +1410,9 @@ func (b *Builder) Reset(flags FieldFlag) *Builder {
 }
 
 func (b *Builder) Build() (*Schema, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
 	s := New()
 	if b.additionalItems != nil {
 		s.additionalItems = b.additionalItems

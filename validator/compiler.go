@@ -46,9 +46,15 @@ func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, cs c
 	if !hasOtherConstraints(s) {
 		return resolvedValidator, nil
 	}
-	schemaWithoutRef := createSchemaWithoutRef(s)
+	schemaWithoutRef, err := createSchemaWithoutRef(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build schema without reference: %w", err)
+	}
 	if schemaWithoutRef.HasUnevaluatedProperties() || schemaWithoutRef.HasUnevaluatedItems() {
-		schemaWithoutUnevaluated := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
+		schemaWithoutUnevaluated, err := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build schema without unevaluated fields: %w", err)
+		}
 		additionalValidator, err := compile(ctx, schemaWithoutUnevaluated, cs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
@@ -177,12 +183,18 @@ func compileSchema(ctx context.Context, s *schema.Schema, cs compileState) (Inte
 			}
 
 			// Create schema without reference for additional constraints
-			schemaWithoutRef := createSchemaWithoutRef(s)
+			schemaWithoutRef, err := createSchemaWithoutRef(s)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build schema without reference: %w", err)
+			}
 
 			// Check if we need unevaluated coordination
 			if schemaWithoutRef.HasUnevaluatedProperties() || schemaWithoutRef.HasUnevaluatedItems() {
 				// Create additional validator WITHOUT unevaluated constraints
-				schemaWithoutUnevaluated := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
+				schemaWithoutUnevaluated, err := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
+				if err != nil {
+					return nil, fmt.Errorf("failed to build schema without unevaluated fields: %w", err)
+				}
 				additionalValidator, err := compile(ctx, schemaWithoutUnevaluated, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
@@ -413,7 +425,10 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 					// Strip unevaluatedItems so the array validator does not
 					// self-enforce it; the unevaluatedCoordinator owns that
 					// decision once sibling applicators' annotations are merged.
-					baseSchema := createSchemaWithoutUnevaluatedFields(s)
+					baseSchema, err := createSchemaWithoutUnevaluatedFields(s)
+					if err != nil {
+						return nil, fmt.Errorf("failed to build schema without unevaluated fields: %w", err)
+					}
 					arrayValidator, err := compileArrayValidator(ctx, baseSchema, cs, true) // strict type checking
 					if err != nil {
 						return nil, fmt.Errorf("failed to compile array validator: %w", err)
@@ -428,7 +443,10 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 				// Object type validator (excluding unevaluatedProperties)
 				objectFields := schema.ObjectConstraintFields &^ schema.UnevaluatedPropertiesField
 				if s.HasAny(objectFields) {
-					baseSchema := createSchemaWithoutUnevaluatedFields(s)
+					baseSchema, err := createSchemaWithoutUnevaluatedFields(s)
+					if err != nil {
+						return nil, fmt.Errorf("failed to build schema without unevaluated fields: %w", err)
+					}
 					objectValidator, err := compileObjectValidator(ctx, baseSchema, cs, true) // strict type checking
 					if err != nil {
 						return nil, fmt.Errorf("failed to compile object validator: %w", err)
@@ -477,7 +495,10 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 		// Array constraints (excluding unevaluatedItems) without explicit type
 		arrayFields := schema.ArrayConstraintFields &^ schema.UnevaluatedItemsField
 		if s.HasAny(arrayFields) {
-			baseSchema := createSchemaWithoutUnevaluatedFields(s)
+			baseSchema, err := createSchemaWithoutUnevaluatedFields(s)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build schema without unevaluated fields: %w", err)
+			}
 			arrayValidator, err := compileArrayValidator(ctx, baseSchema, cs, false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile array validator: %w", err)
@@ -488,7 +509,10 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 		// Object constraints (excluding unevaluatedProperties) without explicit type
 		objectFields := schema.ObjectConstraintFields &^ schema.UnevaluatedPropertiesField
 		if s.HasAny(objectFields) {
-			baseSchema := createSchemaWithoutUnevaluatedFields(s)
+			baseSchema, err := createSchemaWithoutUnevaluatedFields(s)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build schema without unevaluated fields: %w", err)
+			}
 			objectValidator, err := compileObjectValidator(ctx, baseSchema, cs, false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile object validator: %w", err)
@@ -606,12 +630,12 @@ func compileValueConstraintsValidator(_ context.Context, s *schema.Schema) (Inte
 // Helper functions for schema manipulation and type strictness detection
 
 // createSchemaWithoutUnevaluatedFields creates a copy of the schema without unevaluated constraints
-func createSchemaWithoutUnevaluatedFields(s *schema.Schema) *schema.Schema {
+func createSchemaWithoutUnevaluatedFields(s *schema.Schema) (*schema.Schema, error) {
 	// Use the builder to clone the schema and reset unevaluated fields
 	builder := schema.NewBuilder().Clone(s)
 	builder.ResetUnevaluatedProperties()
 	builder.ResetUnevaluatedItems()
-	return builder.MustBuild()
+	return builder.Build()
 }
 
 func hasExplicitArrayType(s *schema.Schema) bool {
