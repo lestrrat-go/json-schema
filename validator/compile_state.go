@@ -1,6 +1,8 @@
 package validator
 
 import (
+	"maps"
+
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 	"github.com/lestrrat-go/option/v3"
@@ -127,9 +129,7 @@ func (cs compileState) pushReference(reference string) compileState {
 	cs.referenceStack = newStack
 
 	newDepths := make(map[string]int, len(cs.refDepths)+1)
-	for k, v := range cs.refDepths {
-		newDepths[k] = v
-	}
+	maps.Copy(newDepths, cs.refDepths)
 	newDepths[reference] = cs.dataDepth
 	cs.refDepths = newDepths
 

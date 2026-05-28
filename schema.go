@@ -214,4 +214,3 @@ func compareFieldNames(a, b string) bool {
 	// All characters are equal
 	return false
 }
-

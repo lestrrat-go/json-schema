@@ -148,7 +148,7 @@ func (r *Resolver) ResourceFor(uri string) *Schema {
 // ResolveJSONReference resolves JSON pointer references against the given base schema.
 // This method supports local JSON pointer references such as "#/$defs/person", relative references such as "person.json#/$defs/person", and absolute references such as "https://example.com/schemas/person.json#/$defs/person".
 // This method only handles JSON pointer references, not anchor references.
-func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, reference string, baseSchema *Schema) error {
+func (r *Resolver) ResolveJSONReference(_ context.Context, dst *Schema, reference string, baseSchema *Schema) error {
 	// If the reference is a pure local reference into the current document:
 	// either a JSON pointer ("#/...") or a bare "#" denoting the document root.
 	if reference == "#" || (len(reference) > 1 && reference[0] == '#' && reference[1] == '/') {
