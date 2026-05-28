@@ -227,8 +227,8 @@ func WithBaseSchema(ctx context.Context, baseSchema *Schema) context.Context {
 
 // BaseSchemaFromContext retrieves the base schema from context, returns nil if not found
 func BaseSchemaFromContext(ctx context.Context) *Schema {
-	var baseSchema *Schema
-	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+	baseSchema, err := schemactx.BaseSchemaFromContext[*Schema](ctx)
+	if err != nil {
 		return nil
 	}
 	return baseSchema
@@ -241,8 +241,8 @@ func WithResolver(ctx context.Context, resolver *Resolver) context.Context {
 
 // ResolverFromContext retrieves the resolver from context, returns nil if not found
 func ResolverFromContext(ctx context.Context) *Resolver {
-	var resolver *Resolver
-	if err := schemactx.ResolverFromContext(ctx, &resolver); err != nil {
+	resolver, err := schemactx.ResolverFromContext[*Resolver](ctx)
+	if err != nil {
 		return nil
 	}
 	return resolver
@@ -255,8 +255,8 @@ func WithRootSchema(ctx context.Context, rootSchema *Schema) context.Context {
 
 // RootSchemaFromContext retrieves the root schema from context, returns nil if not found
 func RootSchemaFromContext(ctx context.Context) *Schema {
-	var rootSchema *Schema
-	if err := schemactx.RootSchemaFromContext(ctx, &rootSchema); err != nil {
+	rootSchema, err := schemactx.RootSchemaFromContext[*Schema](ctx)
+	if err != nil {
 		return nil
 	}
 	return rootSchema
@@ -269,8 +269,8 @@ func WithBaseURI(ctx context.Context, baseURI string) context.Context {
 
 // BaseURIFromContext extracts the base URI from context, returns empty string if not present
 func BaseURIFromContext(ctx context.Context) string {
-	var baseURI string
-	if err := schemactx.BaseURIFromContext(ctx, &baseURI); err != nil {
+	baseURI, err := schemactx.BaseURIFromContext(ctx)
+	if err != nil {
 		return ""
 	}
 	return baseURI
@@ -283,8 +283,8 @@ func WithDynamicScope(ctx context.Context, s *Schema) context.Context {
 
 // DynamicScopeFromContext retrieves the dynamic scope chain from context, returns nil if not present
 func DynamicScopeFromContext(ctx context.Context) []*Schema {
-	var scope []any
-	if err := schemactx.DynamicScopeFromContext(ctx, &scope); err != nil {
+	scope, err := schemactx.DynamicScopeFromContext(ctx)
+	if err != nil {
 		return nil
 	}
 
@@ -305,8 +305,8 @@ func WithReferenceStack(ctx context.Context, stack []string) context.Context {
 
 // ReferenceStackFromContext retrieves the reference stack from context, returns nil if not present
 func ReferenceStackFromContext(ctx context.Context) []string {
-	var stack []string
-	if err := schemactx.ReferenceStackFromContext(ctx, &stack); err != nil {
+	stack, err := schemactx.ReferenceStackFromContext(ctx)
+	if err != nil {
 		return nil
 	}
 	return stack

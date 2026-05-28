@@ -112,8 +112,7 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 
 	// Set up vocabulary context if none provided
 	// Default to JSON Schema 2020-12 default vocabulary (format-assertion disabled)
-	var vocabSet *vocabulary.VocabularySet
-	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
+	if _, err := schemactx.VocabularySetFromContext[*vocabulary.VocabularySet](ctx); err != nil {
 		// No vocabulary set in context, use default vocabulary per JSON Schema spec
 		ctx = vocabulary.WithSet(ctx, vocabulary.DefaultSet())
 	}

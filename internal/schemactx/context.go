@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-
-	"github.com/lestrrat-go/blackmagic"
 )
 
 type EvaluatedProperties struct {
@@ -124,6 +122,42 @@ func ValidationContextFrom(ctx context.Context) *ValidationContext {
 	return &ValidationContext{}
 }
 
+// valueFromContext is the shared core of every typed accessor below. It takes
+// the raw field value, a flag reporting whether that field is actually present
+// (each field carries its own emptiness rule — nil pointer, "" string, empty
+// slice), and a human-readable name for error messages. It returns the value
+// asserted to the caller-requested type T.
+//
+// PROGRESSION NOTE: when Go gains parameterized methods this helper, together
+// with the per-field accessors, collapses into methods on *ValidationContext,
+// e.g.
+//
+//	func (v *ValidationContext) Resolver[T any]() (T, error)
+//	func (v *ValidationContext) BaseURI() (string, error)
+//
+// At that point a call like
+//
+//	schemactx.ResolverFromContext[*Resolver](ctx)
+//
+// becomes
+//
+//	schemactx.ValidationContextFrom(ctx).Resolver[*Resolver]()
+//
+// which is a mechanical, type-preserving change. The public schema.go wrappers
+// (ResolverFromContext(ctx) *Resolver, ...) do not change in either step, so
+// callers outside this package are insulated from the migration.
+func valueFromContext[T any](raw any, present bool, what string) (T, error) {
+	var zero T
+	if !present {
+		return zero, fmt.Errorf("%s not found in context", what)
+	}
+	v, ok := raw.(T)
+	if !ok {
+		return zero, fmt.Errorf("%s in context has incompatible type %T", what, raw)
+	}
+	return v, nil
+}
+
 // Consolidated context functions using ValidationContext
 
 // WithResolver adds a resolver to the consolidated validation context
@@ -134,13 +168,11 @@ func WithResolver(ctx context.Context, resolver any) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// ResolverFromContext retrieves the resolver from context, returns error if not present or incompatible
-func ResolverFromContext(ctx context.Context, dst any) error {
+// ResolverFromContext retrieves the resolver from context, returns error if not present or incompatible.
+// Generic because the concrete resolver type lives in the parent package and cannot be named here.
+func ResolverFromContext[T any](ctx context.Context) (T, error) {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.Resolver == nil {
-		return fmt.Errorf("resolver not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.Resolver)
+	return valueFromContext[T](vctx.Resolver, vctx.Resolver != nil, "resolver")
 }
 
 // WithRootSchema adds a root schema to the context
@@ -151,13 +183,11 @@ func WithRootSchema(ctx context.Context, rootSchema any) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// RootSchemaFromContext retrieves the root schema from context, returns error if not present or incompatible
-func RootSchemaFromContext(ctx context.Context, dst any) error {
+// RootSchemaFromContext retrieves the root schema from context, returns error if not present or incompatible.
+// Generic because the concrete schema type lives in the parent package and cannot be named here.
+func RootSchemaFromContext[T any](ctx context.Context) (T, error) {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.RootSchema == nil {
-		return fmt.Errorf("root schema not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.RootSchema)
+	return valueFromContext[T](vctx.RootSchema, vctx.RootSchema != nil, "root schema")
 }
 
 // WithBaseSchema adds a base schema to the context for reference resolution
@@ -168,13 +198,11 @@ func WithBaseSchema(ctx context.Context, baseSchema any) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// BaseSchemaFromContext retrieves the base schema from context, returns error if not present or incompatible
-func BaseSchemaFromContext(ctx context.Context, dst any) error {
+// BaseSchemaFromContext retrieves the base schema from context, returns error if not present or incompatible.
+// Generic because the concrete schema type lives in the parent package and cannot be named here.
+func BaseSchemaFromContext[T any](ctx context.Context) (T, error) {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.BaseSchema == nil {
-		return fmt.Errorf("base schema not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.BaseSchema)
+	return valueFromContext[T](vctx.BaseSchema, vctx.BaseSchema != nil, "base schema")
 }
 
 // WithBaseURI adds a base URI to the context for reference resolution
@@ -185,13 +213,11 @@ func WithBaseURI(ctx context.Context, baseURI string) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// BaseURIFromContext extracts the base URI from context, returns error if not present or incompatible
-func BaseURIFromContext(ctx context.Context, dst any) error {
+// BaseURIFromContext extracts the base URI from context, returns error if not present.
+// Concrete return type: string is nameable here, so no type parameter is needed.
+func BaseURIFromContext(ctx context.Context) (string, error) {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.BaseURI == "" {
-		return fmt.Errorf("base URI not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.BaseURI)
+	return valueFromContext[string](vctx.BaseURI, vctx.BaseURI != "", "base URI")
 }
 
 // WithDynamicScope adds a schema to the dynamic scope chain in the context
@@ -208,13 +234,12 @@ func WithDynamicScope(ctx context.Context, s any) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// DynamicScopeFromContext retrieves the dynamic scope chain from context, returns error if not present or incompatible
-func DynamicScopeFromContext(ctx context.Context, dst any) error {
+// DynamicScopeFromContext retrieves the dynamic scope chain from context, returns error if not present.
+// The chain is stored as []any (its elements are schemas from the parent package); callers convert
+// the elements to their concrete type.
+func DynamicScopeFromContext(ctx context.Context) ([]any, error) {
 	vctx := ValidationContextFrom(ctx)
-	if len(vctx.DynamicScope) == 0 {
-		return fmt.Errorf("dynamic scope not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.DynamicScope)
+	return valueFromContext[[]any](vctx.DynamicScope, len(vctx.DynamicScope) > 0, "dynamic scope")
 }
 
 // WithVocabularySet adds a vocabulary set to the context
@@ -225,13 +250,11 @@ func WithVocabularySet(ctx context.Context, vocabSet any) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// VocabularySetFromContext retrieves the vocabulary set from context, returns error if not present or incompatible
-func VocabularySetFromContext(ctx context.Context, dst any) error {
+// VocabularySetFromContext retrieves the vocabulary set from context, returns error if not present or incompatible.
+// Generic because the concrete vocabulary type lives in the vocabulary package and cannot be named here.
+func VocabularySetFromContext[T any](ctx context.Context) (T, error) {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.VocabularySet == nil {
-		return fmt.Errorf("vocabulary set not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.VocabularySet)
+	return valueFromContext[T](vctx.VocabularySet, vctx.VocabularySet != nil, "vocabulary set")
 }
 
 // WithReferenceStack adds a reference stack to the context for circular reference detection
@@ -242,13 +265,11 @@ func WithReferenceStack(ctx context.Context, stack []string) context.Context {
 	return WithValidationContext(ctx, &newVctx)
 }
 
-// ReferenceStackFromContext retrieves the reference stack from context, returns error if not present or incompatible
-func ReferenceStackFromContext(ctx context.Context, dst any) error {
+// ReferenceStackFromContext retrieves the reference stack from context, returns error if not present.
+// Concrete return type: []string is nameable here, so no type parameter is needed.
+func ReferenceStackFromContext(ctx context.Context) ([]string, error) {
 	vctx := ValidationContextFrom(ctx)
-	if len(vctx.ReferenceStack) == 0 {
-		return fmt.Errorf("reference stack not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.ReferenceStack)
+	return valueFromContext[[]string](vctx.ReferenceStack, len(vctx.ReferenceStack) > 0, "reference stack")
 }
 
 // WithRefDepths stores the per-reference data-depth map used to distinguish
@@ -286,12 +307,11 @@ func WithEvaluationContext(ctx context.Context, ec *EvaluationContext) context.C
 	return WithValidationContext(ctx, &newVctx)
 }
 
-func EvaluationContextFromContext(ctx context.Context, dst any) error {
+// EvaluationContextFromContext retrieves the evaluation context, returns error if not present.
+// Concrete return type: *EvaluationContext is defined in this package, so no type parameter is needed.
+func EvaluationContextFromContext(ctx context.Context) (*EvaluationContext, error) {
 	vctx := ValidationContextFrom(ctx)
-	if vctx.Evaluation == nil {
-		return fmt.Errorf("evaluated items not found in context")
-	}
-	return blackmagic.AssignIfCompatible(dst, vctx.Evaluation)
+	return valueFromContext[*EvaluationContext](vctx.Evaluation, vctx.Evaluation != nil, "evaluation context")
 }
 
 // Logging context functions

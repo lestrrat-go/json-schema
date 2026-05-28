@@ -150,10 +150,7 @@ func (r *Resolver) ResourceFor(uri string) *Schema {
 // This method supports local JSON pointer references such as "#/$defs/person", relative references such as "person.json#/$defs/person", and absolute references such as "https://example.com/schemas/person.json#/$defs/person".
 // This method only handles JSON pointer references, not anchor references.
 func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, reference string) error {
-	var baseSchema *Schema
-	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
-		baseSchema = nil
-	}
+	baseSchema, _ := schemactx.BaseSchemaFromContext[*Schema](ctx)
 	// If the reference is a pure local reference into the current document:
 	// either a JSON pointer ("#/...") or a bare "#" denoting the document root.
 	if reference == "#" || (len(reference) > 1 && reference[0] == '#' && reference[1] == '/') {
@@ -207,8 +204,8 @@ func (r *Resolver) ResolveJSONReference(ctx context.Context, dst *Schema, refere
 // It searches for schemas with the specified $anchor value within the base schema.
 // The anchorName parameter should not include the # prefix.
 func (r *Resolver) ResolveAnchor(ctx context.Context, dst *Schema, anchorName string) error {
-	var baseSchema *Schema
-	if err := schemactx.BaseSchemaFromContext(ctx, &baseSchema); err != nil {
+	baseSchema, err := schemactx.BaseSchemaFromContext[*Schema](ctx)
+	if err != nil {
 		return fmt.Errorf("no base schema provided in context for resolving anchor %s: %w", anchorName, err)
 	}
 
@@ -240,10 +237,7 @@ func (r *Resolver) ResolveReference(ctx context.Context, dst *Schema, reference 
 		// can then recognize it as a known $id resource before any external
 		// retrieval is attempted; if it is genuinely external the absolute form
 		// is what HTTP/filesystem resolution needs anyway.
-		var baseURI string
-		if err := schemactx.BaseURIFromContext(ctx, &baseURI); err != nil {
-			baseURI = ""
-		}
+		baseURI, _ := schemactx.BaseURIFromContext(ctx)
 		if baseURI != "" {
 			resolvedReference = resolveURI(baseURI, reference)
 		}
