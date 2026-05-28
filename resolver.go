@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"strings"
 	"sync"
@@ -76,6 +77,60 @@ func (r *Resolver) RegisterRoot(root *Schema) {
 	}
 	r.index.index(root, base, make(map[*Schema]struct{}))
 	r.mu.Unlock()
+}
+
+// RegisterDocument registers a document retrieved from (or identified by) an
+// explicit URI, so references to that URI resolve from memory instead of being
+// fetched. The document is addressable both by uri and by its own canonical $id
+// (resolved against uri), and its nested $id resources and anchors are indexed.
+// This is how callers preload remote/bundled schemas without network access.
+func (r *Resolver) RegisterDocument(uri string, root *Schema) {
+	if r.index == nil || root == nil || uri == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.registered == nil {
+		r.registered = make(map[*Schema]struct{})
+	}
+	r.registered[root] = struct{}{}
+
+	retrieval, _, _ := splitFragment(uri)
+	base := retrieval
+	if root.HasID() && root.ID() != "" {
+		base, _, _ = splitFragment(resolveURI(retrieval, root.ID()))
+	}
+	// Address the document by its retrieval URI even when it has no $id of its own.
+	r.index.byURI[retrieval] = root
+	r.index.index(root, base, make(map[*Schema]struct{}))
+}
+
+// RegisterFS walks fsys and registers every ".json" file as a document via
+// RegisterDocument, addressed at baseURI joined with the file's (slash-separated)
+// path. It lets a whole tree of schemas — an embed.FS, os.DirFS, zip, etc. — be
+// preloaded for offline resolution in one call. Files that do not parse as an
+// object schema (e.g. a boolean schema document) are skipped; read/walk errors
+// are returned.
+func (r *Resolver) RegisterFS(baseURI string, fsys fs.FS) error {
+	prefix := strings.TrimSuffix(baseURI, "/")
+	return fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".json") {
+			return nil
+		}
+		data, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return err
+		}
+		var s Schema
+		if s.UnmarshalJSON(data) != nil {
+			return nil //nolint:nilerr // not an object schema (e.g. boolean document): skip it
+		}
+		r.RegisterDocument(prefix+"/"+path, &s)
+		return nil
+	})
 }
 
 // ResourceFor returns the schema resource registered under the given absolute

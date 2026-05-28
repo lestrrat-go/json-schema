@@ -13,6 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// newSuiteResolver returns a resolver preloaded with the JSON Schema Test Suite
+// remote documents (tests/remotes, served at http://localhost:1234/...), so that
+// remote references resolve from memory instead of the network.
+func newSuiteResolver(t *testing.T) *schema.Resolver {
+	t.Helper()
+	r := schema.NewResolver()
+	require.NoError(t, r.RegisterFS("http://localhost:1234", os.DirFS(filepath.Join("tests", "remotes"))))
+	return r
+}
+
 // Test JSON Schema 2020-12 Core Specification Compliance
 func TestJSONSchema2020_12_CoreCompliance(t *testing.T) {
 	t.Parallel()
@@ -474,8 +484,10 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 		}
 	}
 
-	// Compile the schema to a validator
-	v, err := validator.Compile(context.Background(), s)
+	// Compile the schema to a validator, with the suite's remote documents
+	// preloaded so http://localhost:1234/... references resolve offline.
+	ctx := schema.WithResolver(context.Background(), newSuiteResolver(t))
+	v, err := validator.Compile(ctx, s)
 	if err != nil {
 		t.Skipf("Failed to compile schema: %v", err)
 		return
