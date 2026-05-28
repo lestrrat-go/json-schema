@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
@@ -59,8 +60,28 @@ func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, reso
 	return AllOf(resolvedValidator, additionalValidator), nil
 }
 
+// skipIDRebaseKey marks that the caller already set the base URI to the target
+// resource's canonical URI (from the registry), so compileSchema must not
+// re-base the target's $id again (which would double a path segment).
+type skipIDRebaseKey struct{}
+
+func withSkipIDRebase(ctx context.Context) context.Context {
+	return context.WithValue(ctx, skipIDRebaseKey{}, true)
+}
+
+// consumeSkipIDRebase reports whether the skip flag is set and returns a context
+// with it cleared, so the suppression applies only to the immediate schema and
+// not to its nested subschemas.
+func consumeSkipIDRebase(ctx context.Context) (context.Context, bool) {
+	if v, _ := ctx.Value(skipIDRebaseKey{}).(bool); v {
+		return context.WithValue(ctx, skipIDRebaseKey{}, false), true
+	}
+	return ctx, false
+}
+
 // compileSchema implements the simplified compilation approach using UnevaluatedCoordinator.
 func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
+	ctx, skipIDRebase := consumeSkipIDRebase(ctx)
 	// Set up context with default resolver if none provided
 	if schema.ResolverFromContext(ctx) == nil {
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
@@ -105,7 +126,7 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// the base URI and the base schema so that this resource's relative refs
 	// (e.g. "./bar.json") and local pointers (e.g. "#/$defs/inner") resolve
 	// against this resource rather than an enclosing one.
-	if s.HasID() && s.ID() != "" {
+	if s.HasID() && s.ID() != "" && !skipIDRebase {
 		parentBase := schema.BaseURIFromContext(ctx)
 		if absBase := schema.ResolveURI(parentBase, s.ID()); absBase != "" {
 			ctx = schema.WithBaseURI(ctx, absBase)
@@ -277,14 +298,35 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 			return AllOf(resolvedValidator, additionalValidator), nil
 		}
 
-		// Schema has only $ref, recursively compile the resolved schema
-		// Set up context for the resolved schema with proper base schema context
-
-		// Only set resolved schema as base if it has its own ID (proper schema scope)
-		// Otherwise keep existing base schema that was able to resolve the reference
+		// Schema has only $ref: recursively compile the resolved schema.
 		resolvedCtx := ctx
-		if targetSchema.HasID() {
-			resolvedCtx = schema.WithBaseSchema(ctx, &targetSchema)
+		var resource *schema.Schema
+		if strings.HasPrefix(reference, "#") {
+			// Local reference: the target lives in the current resource, so the
+			// base URI must not change. Re-base only if the target carries its own
+			// $id.
+			if targetSchema.HasID() {
+				resolvedCtx = schema.WithBaseSchema(ctx, &targetSchema)
+			}
+		} else {
+			// A reference into another document/resource. Its base URI is the
+			// reference's absolute (retrieval) URI, so the target's own relative
+			// references (e.g. "string.json") resolve against where it lives, and
+			// its local "#/..." pointers resolve within the enclosing resource.
+			absBase, _, _ := strings.Cut(schema.ResolveURI(baseURI, reference), "#")
+			resource = resolver.ResourceFor(absBase)
+			if absBase != "" {
+				resolvedCtx = schema.WithBaseURI(resolvedCtx, absBase)
+			}
+			switch {
+			case resource != nil:
+				// absBase is the resource's canonical registry URI, so suppress the
+				// $id re-base in compileSchema (it would double a path segment).
+				resolvedCtx = schema.WithBaseSchema(resolvedCtx, resource)
+				resolvedCtx = withSkipIDRebase(resolvedCtx)
+			case targetSchema.HasID():
+				resolvedCtx = schema.WithBaseSchema(resolvedCtx, &targetSchema)
+			}
 		}
 		compiled, err := Compile(resolvedCtx, &targetSchema)
 		if err != nil {
@@ -292,7 +334,7 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 		// Following the $ref enters the target's resource; record it on the
 		// dynamic scope so a $dynamicRef deeper in the target can find it.
-		if resource := resolver.ResourceFor(schema.ResolveURI(baseURI, reference)); resource != nil && resource != &targetSchema {
+		if resource != nil && resource != &targetSchema {
 			compiled = &dynamicScopeValidator{schema: resource, inner: compiled}
 		}
 		return compiled, nil
