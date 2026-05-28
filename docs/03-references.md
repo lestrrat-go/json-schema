@@ -6,19 +6,49 @@ JSON Schema lets you reuse and cross-link sub-schemas with `$ref` and `$dynamicR
 
 Define a schema once under `$defs` and reference it with `$ref`:
 
+<!-- INCLUDE(examples/doc_refdefs_test.go) -->
 ```go
-nameDef := schema.NonEmptyString().MustBuild()
+package examples_test
 
-s := schema.NewBuilder().
-	Types(schema.ObjectType).
-	Definitions("name", nameDef).
-	Property("firstName", schema.NewBuilder().Reference("#/$defs/name").MustBuild()).
-	Property("lastName", schema.NewBuilder().Reference("#/$defs/name").MustBuild()).
-	Required("firstName", "lastName").
-	MustBuild()
+import (
+  "context"
+  "fmt"
+
+  schema "github.com/lestrrat-go/json-schema"
+  "github.com/lestrrat-go/json-schema/validator"
+)
+
+// Example_docRefDefs defines a subschema under $defs once and references it from
+// two properties with $ref. References within a document resolve automatically at
+// Compile time — no resolver setup needed.
+func Example_docRefDefs() {
+  nameDef := schema.NonEmptyString().MustBuild()
+  s := schema.NewBuilder().
+    Types(schema.ObjectType).
+    Definitions("name", nameDef).
+    Property("firstName", schema.NewBuilder().Reference("#/$defs/name").MustBuild()).
+    Property("lastName", schema.NewBuilder().Reference("#/$defs/name").MustBuild()).
+    Required("firstName", "lastName").
+    MustBuild()
+
+  ctx := context.Background()
+  v, _ := validator.Compile(ctx, s)
+  check := func(data map[string]any) bool {
+    _, err := v.Validate(ctx, data)
+    return err == nil
+  }
+
+  fmt.Println("both names:  ", check(map[string]any{"firstName": "Ada", "lastName": "Lovelace"}))
+  fmt.Println("empty first: ", check(map[string]any{"firstName": "", "lastName": "Lovelace"}))
+  // Output:
+  // both names:   true
+  // empty first:  false
+}
 ```
+source: [examples/doc_refdefs_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/doc_refdefs_test.go)
+<!-- END INCLUDE -->
 
-`Definitions(name, schema)` adds an entry under `$defs`; `Reference("#/$defs/name")` is a JSON-Pointer `$ref` to it. Both `firstName` and `lastName` now validate against the same `name` definition. The equivalent JSON is:
+`Definitions(name, schema)` adds an entry under `$defs`; `Reference("#/$defs/name")` is a JSON-Pointer `$ref` to it. Both `firstName` and `lastName` validate against the same `name` definition. The equivalent JSON is:
 
 ```json
 {
@@ -36,48 +66,68 @@ References within a document resolve automatically when you `Compile` — no ext
 
 ## External references and the Resolver
 
-When a `$ref` points at *another document* (an absolute URI, not a `#`-fragment of the current schema), the validator needs to find that document. That is the job of `schema.Resolver`. Create one, register the documents it should know about, and put it on the context:
-
-```go
-import "context"
-
-r := schema.NewResolver()
-// ... register documents (below) ...
-
-ctx := schema.WithResolver(context.Background(), r)
-v, err := validator.Compile(ctx, mainSchema)
-// validate with the SAME ctx
-_, err = v.Validate(ctx, data)
-```
+When a `$ref` points at *another document* (an absolute URI, not a `#`-fragment of the current schema), the validator needs to find that document. That is the job of `schema.Resolver`: create one with `schema.NewResolver()`, register the documents it should know about, put it on the context with `schema.WithResolver`, and use that **same** context for both `Compile` and `Validate`.
 
 ### Preloading a tree of files: `RegisterFS`
 
 `RegisterFS(baseURI, fsys)` walks any `fs.FS` and registers every `.json` file under `baseURI` joined with its path. This works with `embed.FS`, `os.DirFS`, or an in-memory `fstest.MapFS`:
 
+<!-- INCLUDE(examples/doc_registerfs_test.go) -->
 ```go
-fsys := fstest.MapFS{
-	"address.json": &fstest.MapFile{Data: []byte(
-		`{"type":"object","properties":{"city":{"type":"string","minLength":1}},"required":["city"]}`,
-	)},
+package examples_test
+
+import (
+  "context"
+  "fmt"
+  "testing/fstest"
+
+  schema "github.com/lestrrat-go/json-schema"
+  "github.com/lestrrat-go/json-schema/validator"
+)
+
+// Example_docRegisterFS preloads schema documents from a filesystem with
+// Resolver.RegisterFS, so a $ref to an external URI resolves offline. Each ".json"
+// file is registered under the base URI joined with its path. The fs.FS here is an
+// in-memory fstest.MapFS, but an embed.FS or os.DirFS works the same way.
+func Example_docRegisterFS() {
+  fsys := fstest.MapFS{
+    "address.json": &fstest.MapFile{Data: []byte(
+      `{"type":"object","properties":{"city":{"type":"string","minLength":1}},"required":["city"]}`,
+    )},
+  }
+
+  main := schema.NewBuilder().
+    Types(schema.ObjectType).
+    Property("home", schema.NewBuilder().Reference("https://example.com/schemas/address.json").MustBuild()).
+    Required("home").
+    MustBuild()
+
+  r := schema.NewResolver()
+  if err := r.RegisterFS("https://example.com/schemas/", fsys); err != nil {
+    fmt.Println("register failed:", err)
+    return
+  }
+
+  ctx := schema.WithResolver(context.Background(), r)
+  v, err := validator.Compile(ctx, main)
+  if err != nil {
+    fmt.Println("compile failed:", err)
+    return
+  }
+
+  _, err = v.Validate(ctx, map[string]any{"home": map[string]any{"city": "Kyoto"}})
+  fmt.Println("with city:   ", err == nil)
+  _, err = v.Validate(ctx, map[string]any{"home": map[string]any{}})
+  fmt.Println("without city:", err == nil)
+  // Output:
+  // with city:    true
+  // without city: false
 }
-
-main := schema.NewBuilder().
-	Types(schema.ObjectType).
-	Property("home", schema.NewBuilder().Reference("https://example.com/schemas/address.json").MustBuild()).
-	Required("home").
-	MustBuild()
-
-r := schema.NewResolver()
-if err := r.RegisterFS("https://example.com/schemas/", fsys); err != nil {
-	panic(err)
-}
-
-ctx := schema.WithResolver(context.Background(), r)
-v, _ := validator.Compile(ctx, main)
-_, err := v.Validate(ctx, map[string]any{"home": map[string]any{"city": "Kyoto"}})
 ```
+source: [examples/doc_registerfs_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/doc_registerfs_test.go)
+<!-- END INCLUDE -->
 
-Now a `$ref` to `https://example.com/schemas/address.json` resolves offline against the registered file.
+The `$ref` to `https://example.com/schemas/address.json` resolves offline against the registered file.
 
 ### Registering a single document: `RegisterDocument` / `RegisterRoot`
 
