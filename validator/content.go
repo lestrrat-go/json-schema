@@ -45,6 +45,10 @@ func compileContentValidator(ctx context.Context, s *schema.Schema, cs compileSt
 }
 
 func (cv *contentValidator) Validate(ctx context.Context, v any) (Result, error) {
+	return cv.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (cv *contentValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	// Content validation only applies to strings
 	str, ok := v.(string)
 	if !ok {
@@ -81,7 +85,7 @@ func (cv *contentValidator) Validate(ctx context.Context, v any) (Result, error)
 	// is for annotation purposes only and should not affect validation results
 	if cv.contentSchema != nil {
 		// We could store annotations here in the future, but for now just ignore the result
-		_, _ = cv.contentSchema.Validate(ctx, parsedData)
+		_, _ = evalChild(ctx, cv.contentSchema, parsedData, st)
 	}
 
 	return nil, nil //nolint:nilnil // Intentional: JSON Schema spec allows validators to return nil result

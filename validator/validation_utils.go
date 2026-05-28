@@ -81,11 +81,11 @@ func (rm *resultMerger) ArrayResult() *ArrayResult {
 
 // executeValidatorsAndMergeResults executes all validators and merges their results
 // Returns the result merger and any error encountered
-func executeValidatorsAndMergeResults(ctx context.Context, validators []Interface, input any, validatorType string) (*resultMerger, error) {
+func executeValidatorsAndMergeResults(ctx context.Context, validators []Interface, input any, st *evalState, validatorType string) (*resultMerger, error) {
 	var merger resultMerger
 
 	for i, validator := range validators {
-		result, err := validator.Validate(ctx, input)
+		result, err := evalChild(ctx, validator, input, st)
 		if err != nil {
 			return nil, fmt.Errorf(`%s validation failed: validator #%d failed: %w`, validatorType, i, err)
 		}

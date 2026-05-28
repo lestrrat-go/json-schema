@@ -21,6 +21,10 @@ type ReferenceValidator struct {
 }
 
 func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
+	return r.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (r *ReferenceValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	// Lazy resolution - only resolve when actually needed for validation
 	r.resolvedOnce.Do(func() {
 		r.resolved, r.resolveErr = r.resolveReference(ctx)
@@ -30,7 +34,7 @@ func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error
 		return nil, fmt.Errorf("reference resolution failed for %s: %w", r.reference, r.resolveErr)
 	}
 
-	return r.resolved.Validate(ctx, v)
+	return evalChild(ctx, r.resolved, v, st)
 }
 
 func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, error) {
@@ -128,8 +132,11 @@ type dynamicScopeValidator struct {
 }
 
 func (d *dynamicScopeValidator) Validate(ctx context.Context, v any) (Result, error) {
-	ctx = schema.WithDynamicScope(ctx, d.schema)
-	return d.inner.Validate(ctx, v)
+	return d.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (d *dynamicScopeValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
+	return evalChild(ctx, d.inner, v, st.pushDynamicScope(d.schema))
 }
 
 // DynamicReferenceValidator handles $dynamicRef. Unlike $ref, a $dynamicRef can
@@ -154,19 +161,24 @@ func NewDynamicReferenceValidator(reference string) *DynamicReferenceValidator {
 }
 
 func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
+	return dr.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (dr *DynamicReferenceValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	// When the fragment is a plain $dynamicAnchor name and a validator has been
 	// registered for it in the context, the registered validator stands in for
 	// the outermost dynamic-scope resource declaring that anchor. This is how the
 	// precompiled meta-schema validator satisfies "$dynamicRef": "#meta" — it
 	// registers itself under "meta" and recurses, since no schema document is
-	// available to resolve against at validation time.
+	// available to resolve against at validation time. The registered validator
+	// represents an outermost resource, so it re-enters with fresh state.
 	if name := plainAnchorFragment(dr.reference); name != "" {
 		if rv, ok := schema.DynamicAnchorValidatorFromContext(ctx, name).(Interface); ok && rv != nil {
 			return rv.Validate(ctx, v)
 		}
 	}
 
-	target, err := dr.resolveTarget(ctx)
+	target, err := dr.resolveTarget(ctx, st)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic reference resolution failed for %s: %w", dr.reference, err)
 	}
@@ -174,12 +186,12 @@ func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Resul
 	if err != nil {
 		return nil, fmt.Errorf("dynamic reference resolution failed for %s: %w", dr.reference, err)
 	}
-	return validator.Validate(ctx, v)
+	return evalChild(ctx, validator, v, st)
 }
 
 // resolveTarget resolves the $dynamicRef against the current runtime dynamic
-// scope carried in ctx.
-func (dr *DynamicReferenceValidator) resolveTarget(ctx context.Context) (*schema.Schema, error) {
+// scope carried in st.
+func (dr *DynamicReferenceValidator) resolveTarget(ctx context.Context, st *evalState) (*schema.Schema, error) {
 	resolver := dr.resolver
 	if resolver == nil {
 		if resolver = schema.ResolverFromContext(ctx); resolver == nil {
@@ -204,7 +216,7 @@ func (dr *DynamicReferenceValidator) resolveTarget(ctx context.Context) (*schema
 	if baseSchema != nil {
 		refCtx = schema.WithBaseSchema(refCtx, baseSchema)
 	}
-	return resolveDynamicRef(refCtx, resolver, baseSchema, dr.reference)
+	return resolveDynamicRef(refCtx, resolver, baseSchema, dr.reference, st.dynamicScope)
 }
 
 // validatorFor compiles (and caches) the validator for a resolved target schema.
@@ -276,7 +288,7 @@ func plainAnchorFragment(ref string) string {
 // declares a $dynamicAnchor of the same name — the bookending requirement — the
 // reference instead resolves to the same $dynamicAnchor in the FIRST (outermost)
 // resource of the runtime dynamic scope. Otherwise it behaves exactly like $ref.
-func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchema *schema.Schema, dynamicRef string) (*schema.Schema, error) {
+func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchema *schema.Schema, dynamicRef string, scopeChain []*schema.Schema) (*schema.Schema, error) {
 	baseURI := schema.BaseURIFromContext(ctx)
 	// Only seed the base schema when one is actually available. A nil *Schema
 	// boxed into the context's any-typed slot would defeat the presence check in
@@ -305,7 +317,6 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchem
 	// Bookending: only consult the dynamic scope when the lexical target declares
 	// a $dynamicAnchor matching the fragment.
 	if anchorName != "" && lexErr == nil && lexical.HasDynamicAnchor() && lexical.DynamicAnchor() == anchorName {
-		scopeChain := schema.DynamicScopeFromContext(ctx)
 		for i := range scopeChain {
 			if found := schema.FindDynamicAnchor(scopeChain[i], anchorName); found != nil {
 				return found, nil

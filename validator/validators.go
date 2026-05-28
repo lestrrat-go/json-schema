@@ -55,7 +55,11 @@ type NotValidator struct {
 }
 
 func (n *NotValidator) Validate(ctx context.Context, v any) (Result, error) {
-	_, err := n.validator.Validate(ctx, v)
+	return n.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (n *NotValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
+	_, err := evalChild(ctx, n.validator, v, st)
 	if err == nil {
 		return nil, fmt.Errorf(`not validation failed: value should not validate against the schema`)
 	}

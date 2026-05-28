@@ -23,15 +23,19 @@ type unevaluatedCoordinator struct {
 
 // Validate orchestrates validation phases: execute all child validators, then apply unevaluated constraints
 func (v *unevaluatedCoordinator) Validate(ctx context.Context, in any) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx))
+}
+
+func (v *unevaluatedCoordinator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {
 	// Phase 1: Execute all child validators and collect their annotations
-	merger, err := executeValidatorsAndMergeResults(ctx, v.validators, in, "unevaluated coordinator")
+	merger, err := executeValidatorsAndMergeResults(ctx, v.validators, in, st, "unevaluated coordinator")
 	if err != nil {
 		return nil, err
 	}
 
 	// Phase 2: Apply unevaluated constraints with complete annotation context
 	// This returns additional properties/items that were evaluated by unevaluated constraints
-	additionalEvaluated, err := v.applyUnevaluatedConstraints(ctx, in, merger)
+	additionalEvaluated, err := v.applyUnevaluatedConstraints(ctx, in, merger, st)
 	if err != nil {
 		return nil, err
 	}
@@ -52,14 +56,14 @@ type additionalEvaluations struct {
 }
 
 // applyUnevaluatedConstraints applies unevaluatedProperties and unevaluatedItems with annotation context
-func (v *unevaluatedCoordinator) applyUnevaluatedConstraints(ctx context.Context, in any, merger *resultMerger) (*additionalEvaluations, error) {
+func (v *unevaluatedCoordinator) applyUnevaluatedConstraints(ctx context.Context, in any, merger *resultMerger, st *evalState) (*additionalEvaluations, error) {
 	additional := &additionalEvaluations{
 		properties: make(map[string]bool),
 		items:      make([]bool, 0),
 	}
 	// Apply unevaluatedProperties if present
 	if v.unevaluatedProps != nil {
-		err := v.validateUnevaluatedProperties(ctx, in, merger.ObjectResult(), additional)
+		err := v.validateUnevaluatedProperties(ctx, in, merger.ObjectResult(), additional, st)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +71,7 @@ func (v *unevaluatedCoordinator) applyUnevaluatedConstraints(ctx context.Context
 
 	// Apply unevaluatedItems if present
 	if v.unevaluatedItems != nil {
-		err := v.validateUnevaluatedItems(ctx, in, merger.ArrayResult(), additional)
+		err := v.validateUnevaluatedItems(ctx, in, merger.ArrayResult(), additional, st)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +81,7 @@ func (v *unevaluatedCoordinator) applyUnevaluatedConstraints(ctx context.Context
 }
 
 // validateUnevaluatedProperties validates unevaluated object properties
-func (v *unevaluatedCoordinator) validateUnevaluatedProperties(ctx context.Context, in any, objectResult *ObjectResult, additional *additionalEvaluations) error {
+func (v *unevaluatedCoordinator) validateUnevaluatedProperties(ctx context.Context, in any, objectResult *ObjectResult, additional *additionalEvaluations, st *evalState) error {
 	// Handle different input types - only apply to objects/maps
 	obj, ok := resolveToObjectMap(in)
 	if !ok {
@@ -115,7 +119,7 @@ func (v *unevaluatedCoordinator) validateUnevaluatedProperties(ctx context.Conte
 	for propName := range obj {
 		if _, evaluated := evaluatedProps[propName]; !evaluated {
 			// This property was not evaluated by any validator
-			err := v.handleUnevaluatedProperty(ctx, propName, obj[propName], additional)
+			err := v.handleUnevaluatedProperty(ctx, propName, obj[propName], additional, st)
 			if err != nil {
 				return fmt.Errorf("unevaluated property %q: %w", propName, err)
 			}
@@ -126,7 +130,7 @@ func (v *unevaluatedCoordinator) validateUnevaluatedProperties(ctx context.Conte
 }
 
 // handleUnevaluatedProperty handles a single unevaluated property based on unevaluatedProperties constraint
-func (v *unevaluatedCoordinator) handleUnevaluatedProperty(ctx context.Context, propName string, propValue any, additional *additionalEvaluations) error {
+func (v *unevaluatedCoordinator) handleUnevaluatedProperty(ctx context.Context, propName string, propValue any, additional *additionalEvaluations, st *evalState) error {
 	switch constraint := v.unevaluatedProps.(type) {
 	case schema.BoolSchema:
 		if !bool(constraint) {
@@ -145,7 +149,7 @@ func (v *unevaluatedCoordinator) handleUnevaluatedProperty(ctx context.Context, 
 			return fmt.Errorf("failed to compile unevaluatedProperties schema: %w", err)
 		}
 
-		_, err = validator.Validate(ctx, propValue)
+		_, err = evalChild(ctx, validator, propValue, st)
 		if err != nil {
 			return fmt.Errorf("validation failed: %w", err)
 		}
@@ -159,7 +163,7 @@ func (v *unevaluatedCoordinator) handleUnevaluatedProperty(ctx context.Context, 
 }
 
 // validateUnevaluatedItems validates unevaluated array items
-func (v *unevaluatedCoordinator) validateUnevaluatedItems(ctx context.Context, in any, arrayResult *ArrayResult, additional *additionalEvaluations) error {
+func (v *unevaluatedCoordinator) validateUnevaluatedItems(ctx context.Context, in any, arrayResult *ArrayResult, additional *additionalEvaluations, st *evalState) error {
 	// Handle different input types - only apply to arrays/slices
 	arr, length, ok := resolveToArray(in)
 	if !ok {
@@ -204,7 +208,7 @@ func (v *unevaluatedCoordinator) validateUnevaluatedItems(ctx context.Context, i
 		if i >= len(mergedEvaluated) || !mergedEvaluated[i] {
 			// This item was not evaluated by any validator
 			itemValue := arr.Index(i).Interface()
-			err := v.handleUnevaluatedItem(ctx, i, itemValue, additional)
+			err := v.handleUnevaluatedItem(ctx, i, itemValue, additional, st)
 			if err != nil {
 				return fmt.Errorf("unevaluated item at index %d: %w", i, err)
 			}
@@ -215,7 +219,7 @@ func (v *unevaluatedCoordinator) validateUnevaluatedItems(ctx context.Context, i
 }
 
 // handleUnevaluatedItem handles a single unevaluated item based on unevaluatedItems constraint
-func (v *unevaluatedCoordinator) handleUnevaluatedItem(ctx context.Context, index int, itemValue any, additional *additionalEvaluations) error {
+func (v *unevaluatedCoordinator) handleUnevaluatedItem(ctx context.Context, index int, itemValue any, additional *additionalEvaluations, st *evalState) error {
 	switch constraint := v.unevaluatedItems.(type) {
 	case schema.BoolSchema:
 		if !bool(constraint) {
@@ -238,7 +242,7 @@ func (v *unevaluatedCoordinator) handleUnevaluatedItem(ctx context.Context, inde
 			return fmt.Errorf("failed to compile unevaluatedItems schema: %w", err)
 		}
 
-		_, err = validator.Validate(ctx, itemValue)
+		_, err = evalChild(ctx, validator, itemValue, st)
 		if err != nil {
 			return fmt.Errorf("validation failed: %w", err)
 		}

@@ -292,6 +292,10 @@ func newArrayAccessor(v any) (arrayAccessor, bool) {
 }
 
 func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
+	return c.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	acc, isArray := newArrayAccessor(v)
 
 	var ec schemactx.EvaluationContext
@@ -359,7 +363,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		if err != nil {
 			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 		}
-		_, err = c.prefixItems[i].Validate(ctx, item)
+		_, err = evalChild(ctx, c.prefixItems[i], item, st)
 		if err != nil {
 			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: prefixItems[%d] validation failed: %w`, i, err)
 		}
@@ -374,7 +378,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 			}
-			_, err = c.items.Validate(ctx, item)
+			_, err = evalChild(ctx, c.items, item, st)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: item validation failed: %w`, err)
 			}
@@ -394,7 +398,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 			}
-			_, err = c.contains.Validate(ctx, item)
+			_, err = evalChild(ctx, c.contains, item, st)
 			if err == nil {
 				containsCount++
 				// Mark this item as evaluated by contains
@@ -428,7 +432,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 				}
-				_, err = c.additionalItems.Validate(ctx, item)
+				_, err = evalChild(ctx, c.additionalItems, item, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: additionalItems validation failed: %w`, err)
 				}
@@ -483,7 +487,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 			// Handle schema unevaluatedItems
 			if validator, ok := c.unevaluatedItems.(Interface); ok {
-				_, err := validator.Validate(ctx, item)
+				_, err := evalChild(ctx, validator, item, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item validation failed at index %d: %w`, i, err)
 				}

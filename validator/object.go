@@ -349,6 +349,10 @@ func extractObjectProperties(v any) (map[string]any, bool, error) {
 
 // Validate implements the Interface
 func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
+	return c.evaluate(ctx, v, newEvalState(ctx))
+}
+
+func (c *objectValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	// Get previously evaluated properties from context
 	ec, _ := schemactx.EvaluationContextFromContext(ctx)
 	if ec == nil {
@@ -402,7 +406,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Validate property names
 	if c.propertyNames != nil {
 		for propName := range properties {
-			_, err := c.propertyNames.Validate(ctx, propName)
+			_, err := evalChild(ctx, c.propertyNames, propName, st)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ObjectValidator: property name validation failed for %s: %w`, propName, err)
 			}
@@ -431,7 +435,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Check explicit properties
 		if c.properties != nil {
 			if propValidator, exists := c.properties[propName]; exists {
-				_, err := propValidator.Validate(ctx, propValue)
+				_, err := evalChild(ctx, propValidator, propValue, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: property validation failed for %s: %w`, propName, err)
 				}
@@ -444,7 +448,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		if c.patternProperties != nil {
 			for pattern, propValidator := range c.patternProperties {
 				if pattern.MatchString(propName) {
-					_, err := propValidator.Validate(ctx, propValue)
+					_, err := evalChild(ctx, propValidator, propValue, st)
 					if err != nil {
 						return nil, fmt.Errorf(`invalid value passed to ObjectValidator: pattern property validation failed for %s: %w`, propName, err)
 					}
@@ -464,7 +468,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				validated = true
 				evaluatedProperties.MarkEvaluated(propName)
 			} else if propValidator, ok := c.additionalProperties.(Interface); ok {
-				_, err := propValidator.Validate(ctx, propValue)
+				_, err := evalChild(ctx, propValidator, propValue, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: additional property validation failed for %s: %w`, propName, err)
 				}
@@ -488,7 +492,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		for propertyName, depValidator := range c.dependentSchemas {
 			// If the property exists in the object, validate the entire object with the dependent schema
 			if _, exists := properties[propertyName]; exists {
-				result, err := depValidator.Validate(depCtx, v)
+				result, err := evalChild(depCtx, depValidator, v, st)
 				if err != nil {
 					return nil, fmt.Errorf("dependent schema validation failed for property %s: %w", propertyName, err)
 				}
@@ -522,7 +526,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				// If unevaluatedProperties is true, mark this property as evaluated
 				evaluatedProperties.MarkEvaluated(propName)
 			} else if propValidator, ok := c.unevaluatedProperties.(Interface); ok {
-				_, err := propValidator.Validate(ctx, propValue)
+				_, err := evalChild(ctx, propValidator, propValue, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: unevaluated property validation failed for %s: %w`, propName, err)
 				}
