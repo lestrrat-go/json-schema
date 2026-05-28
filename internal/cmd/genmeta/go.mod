@@ -7,7 +7,7 @@ replace github.com/lestrrat-go/json-schema => ../../..
 require github.com/lestrrat-go/json-schema v0.0.0-00010101000000-000000000000
 
 require (
-	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/codegen v1.0.4 // indirect
 	github.com/lestrrat-go/jsptr v0.0.0-20250712081548-ece4951ef7eb // indirect
