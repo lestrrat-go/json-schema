@@ -18,7 +18,7 @@ type contentValidator struct {
 	contentSchema    Interface
 }
 
-func compileContentValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileContentValidator(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
 	if !s.HasAny(schema.ContentFields) {
 		return nil, nil //nolint:nilnil // Intentional: JSON Schema spec allows validators to return nil result
 	}
@@ -34,7 +34,7 @@ func compileContentValidator(ctx context.Context, s *schema.Schema) (Interface, 
 	}
 
 	if s.HasContentSchema() {
-		contentSchemaValidator, err := Compile(ctx, s.ContentSchema())
+		contentSchemaValidator, err := compile(ctx, s.ContentSchema(), cs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile content schema validator: %w", err)
 		}

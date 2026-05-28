@@ -3,27 +3,35 @@ package validator
 import (
 	"context"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 
 	schema "github.com/lestrrat-go/json-schema"
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 // Compile builds a validator for s. A schema that declares a $dynamicAnchor is
 // a potential bookend target for $dynamicRef, so its validator is wrapped to
 // push the schema onto the runtime dynamic scope when validation enters it.
+//
+// Compilation state (resolver, root/base schema, base URI, reference stack,
+// recursion depths) is carried explicitly in a compileState rather than through
+// the context. For backward compatibility, any such values placed on ctx via the
+// public schema.With* / vocabulary.WithSet helpers seed the initial state.
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
-	v, err := compileSchema(ctx, s)
+	return compile(ctx, s, newCompileStateFromContext(ctx, s))
+}
+
+// compile is the internal entry point that threads an explicit compileState. It
+// compiles s and, when s is a schema resource ($id) or declares a
+// $dynamicAnchor, wraps the result so entering it during validation records it
+// on the runtime dynamic scope (letting $dynamicRef find the outermost in-scope
+// $dynamicAnchor).
+func compile(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
+	v, err := compileSchema(ctx, s, cs)
 	if err != nil {
 		return nil, err
 	}
-	// A schema resource (one bearing $id) or any schema declaring a
-	// $dynamicAnchor participates in the dynamic scope: wrap it so entering it
-	// during validation records it, letting $dynamicRef find the outermost
-	// in-scope $dynamicAnchor.
 	if s != nil && (s.HasID() || s.HasDynamicAnchor()) {
 		return &dynamicScopeValidator{schema: s, inner: v}, nil
 	}
@@ -34,14 +42,14 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 // with any sibling keywords present on the same schema, mirroring $ref handling
 // so that keywords like unevaluatedProperties alongside a $dynamicRef are still
 // applied (and can see the reference target's annotations).
-func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, resolvedValidator Interface) (Interface, error) {
+func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, cs compileState, resolvedValidator Interface) (Interface, error) {
 	if !hasOtherConstraints(s) {
 		return resolvedValidator, nil
 	}
 	schemaWithoutRef := createSchemaWithoutRef(s)
 	if schemaWithoutRef.HasUnevaluatedProperties() || schemaWithoutRef.HasUnevaluatedItems() {
 		schemaWithoutUnevaluated := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
-		additionalValidator, err := Compile(ctx, schemaWithoutUnevaluated)
+		additionalValidator, err := compile(ctx, schemaWithoutUnevaluated, cs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
 		}
@@ -53,72 +61,17 @@ func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, reso
 			strictObjectType: hasExplicitObjectType(schemaWithoutRef),
 		}, nil
 	}
-	additionalValidator, err := Compile(ctx, schemaWithoutRef)
+	additionalValidator, err := compile(ctx, schemaWithoutRef, cs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
 	}
 	return AllOf(resolvedValidator, additionalValidator), nil
 }
 
-// skipIDRebaseKey marks that the caller already set the base URI to the target
-// resource's canonical URI (from the registry), so compileSchema must not
-// re-base the target's $id again (which would double a path segment).
-type skipIDRebaseKey struct{}
-
-func withSkipIDRebase(ctx context.Context) context.Context {
-	return context.WithValue(ctx, skipIDRebaseKey{}, true)
-}
-
-// consumeSkipIDRebase reports whether the skip flag is set and returns a context
-// with it cleared, so the suppression applies only to the immediate schema and
-// not to its nested subschemas.
-func consumeSkipIDRebase(ctx context.Context) (context.Context, bool) {
-	if v, _ := ctx.Value(skipIDRebaseKey{}).(bool); v {
-		return context.WithValue(ctx, skipIDRebaseKey{}, false), true
-	}
-	return ctx, false
-}
-
 // compileSchema implements the simplified compilation approach using UnevaluatedCoordinator.
-func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
-	ctx, skipIDRebase := consumeSkipIDRebase(ctx)
-	// Set up context with default resolver if none provided
-	if schema.ResolverFromContext(ctx) == nil {
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-	}
-
-	// Set up context with root schema if none provided. When s is the root
-	// document (either because we just set it, or the caller pre-populated it
-	// with this same schema), index its $id resources and anchors up front:
-	// resolution is eager, so the index must exist before the first $ref is
-	// compiled.
-	isRoot := false
-	if schema.RootSchemaFromContext(ctx) == nil {
-		ctx = schema.WithRootSchema(ctx, s)
-		isRoot = true
-	} else if schema.RootSchemaFromContext(ctx) == s {
-		isRoot = true
-	}
-	if isRoot {
-		if resolver := schema.ResolverFromContext(ctx); resolver != nil {
-			resolver.RegisterRoot(s)
-		}
-	}
-
-	// Set up base schema for local reference resolution if none provided
-	if schema.BaseSchemaFromContext(ctx) == nil {
-		ctx = schema.WithBaseSchema(ctx, s)
-	}
-
-	// Set up vocabulary context if none provided
-	// Default to JSON Schema 2020-12 default vocabulary (format-assertion disabled)
-	if _, err := schemactx.VocabularySetFromContext[*vocabulary.VocabularySet](ctx); err != nil {
-		// No vocabulary set in context, use default vocabulary per JSON Schema spec
-		ctx = vocabulary.WithSet(ctx, vocabulary.DefaultSet())
-	}
-
-	// Add current schema to dynamic scope chain for $dynamicRef resolution
-	ctx = schema.WithDynamicScope(ctx, s)
+func compileSchema(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
+	skipIDRebase := cs.skipIDRebase
+	cs.skipIDRebase = false // applies only to the immediate schema, not its subschemas
 
 	// A schema with its own $id establishes a new base URI and is itself the
 	// base resource for resolving references that appear within it. Re-base both
@@ -126,15 +79,12 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// (e.g. "./bar.json") and local pointers (e.g. "#/$defs/inner") resolve
 	// against this resource rather than an enclosing one.
 	if s.HasID() && s.ID() != "" && !skipIDRebase {
-		parentBase := schema.BaseURIFromContext(ctx)
-		if absBase := schema.ResolveURI(parentBase, s.ID()); absBase != "" {
-			ctx = schema.WithBaseURI(ctx, absBase)
+		newBaseURI := cs.baseURI
+		if absBase := schema.ResolveURI(cs.baseURI, s.ID()); absBase != "" {
+			newBaseURI = absBase
 		}
-		ctx = schema.WithBaseSchema(ctx, s)
+		cs = cs.withBase(s, newBaseURI)
 	}
-
-	// Handle vocabulary context - always check for root schema vocabulary resolution
-	rootSchema := schema.RootSchemaFromContext(ctx)
 
 	// For root schema compilation, resolve vocabulary from metaschema.
 	//
@@ -142,29 +92,19 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// instead of resolving the metaschema's $vocabulary declaration. The proper
 	// implementation is vocabulary.ResolveVocabularyFromMetaschema, but wiring it
 	// in is a behavioral change (its AllEnabled() fallback enables format-assertion,
-	// unlike the DefaultSet used above) and can only be verified against the full
+	// unlike the DefaultSet) and can only be verified against the full
 	// JSON Schema Test Suite. Left as-is pending that verified change.
-	if rootSchema == s {
-		schemaURI := ""
-		if s.HasSchema() {
-			schemaURI = s.Schema()
-		}
-
-		if schemaURI != "" {
-			if schemaURI == "http://localhost:1234/draft2020-12/metaschema-no-validation.json" {
-				// This specific metaschema disables validation vocabulary
-				// Create vocabulary set with validation disabled using VocabularySet
-				vocabSet := vocabulary.AllEnabled()
-				vocabSet.Disable(vocabulary.ValidationURL)
-				ctx = vocabulary.WithSet(ctx, vocabSet)
-			}
-		}
+	if cs.rootSchema == s && s.HasSchema() && s.Schema() == "http://localhost:1234/draft2020-12/metaschema-no-validation.json" {
+		// This specific metaschema disables validation vocabulary.
+		vocabSet := vocabulary.AllEnabled()
+		vocabSet.Disable(vocabulary.ValidationURL)
+		cs.cfg = &compileConfig{resolver: cs.cfg.resolver, vocab: vocabSet}
 	}
 
-	// Ensure vocabulary context is set (fallback to all enabled if not set)
-	if vocabulary.SetFromContext(ctx) == nil {
-		ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
-	}
+	// Seed the vocabulary onto ctx so the leaf constraint validators (string,
+	// numeric, boolean, untyped), which still read it from context, gate their
+	// keywords against the effective vocabulary for this schema.
+	ctx = vocabulary.WithSet(ctx, cs.cfg.vocab)
 
 	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
 	var reference string
@@ -183,27 +123,23 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// JSON pointer or a plain $ref to an $anchor — resolves within the correct
 		// schema resource. The dynamic scope itself is read at validation time.
 		if isDynamicRef {
-			baseSchema := schema.BaseSchemaFromContext(ctx)
+			baseSchema := cs.baseSchema
 			if baseSchema == nil {
-				baseSchema = schema.RootSchemaFromContext(ctx)
+				baseSchema = cs.rootSchema
 			}
 			drv := &DynamicReferenceValidator{
 				reference:  reference,
-				resolver:   schema.ResolverFromContext(ctx),
-				rootSchema: schema.RootSchemaFromContext(ctx),
+				resolver:   cs.cfg.resolver,
+				rootSchema: cs.rootSchema,
 				baseSchema: baseSchema,
-				baseURI:    schema.BaseURIFromContext(ctx),
+				baseURI:    cs.baseURI,
 			}
 			// Combine with any sibling keywords (e.g. unevaluatedProperties), the
 			// same way $ref does, so they are not silently dropped.
-			return combineReferenceWithConstraints(ctx, s, drv)
+			return combineReferenceWithConstraints(ctx, s, cs, drv)
 		}
 
-		// Get resolver from context (guaranteed to be present)
-		resolver := schema.ResolverFromContext(ctx)
-
-		// Get root schema from context (guaranteed to be present)
-		_ = schema.RootSchemaFromContext(ctx)
+		resolver := cs.cfg.resolver
 
 		// Circular-reference handling. A reference already on the stack is a
 		// cycle. If a data boundary (an object/array child-applying keyword) has
@@ -211,58 +147,33 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 		// terminates on the instance being validated, so compile it lazily as a
 		// ReferenceValidator. Otherwise it is a pure cycle that can never
 		// terminate, which is a compile-time error.
-		curDepth := schema.DataDepthFromContext(ctx)
-		refDepths := schema.RefDepthsFromContext(ctx)
-		stack := schema.ReferenceStackFromContext(ctx)
-		if slices.Contains(stack, reference) {
-			if curDepth > refDepths[reference] {
+		if slices.Contains(cs.referenceStack, reference) {
+			if cs.dataDepth > cs.refDepths[reference] {
 				return &ReferenceValidator{
 					reference:  reference,
 					resolver:   resolver,
-					rootSchema: schema.RootSchemaFromContext(ctx),
-					baseSchema: schema.BaseSchemaFromContext(ctx),
-					baseURI:    schema.BaseURIFromContext(ctx),
+					rootSchema: cs.rootSchema,
+					baseSchema: cs.baseSchema,
+					baseURI:    cs.baseURI,
 				}, nil
 			}
 			return nil, fmt.Errorf("circular reference detected: %s", reference)
 		}
 		// Push the reference, recording the data depth at which it was entered.
-		newStack := make([]string, len(stack)+1)
-		copy(newStack, stack)
-		newStack[len(stack)] = reference
-		ctx = schema.WithReferenceStack(ctx, newStack)
-		newDepths := make(map[string]int, len(refDepths)+1)
-		maps.Copy(newDepths, refDepths)
-		newDepths[reference] = curDepth
-		ctx = schema.WithRefDepths(ctx, newDepths)
+		cs = cs.pushReference(reference)
 
-		// Resolve the reference to get the target schema
+		// Resolve the reference to get the target schema. The resolver still reads
+		// the base schema and base URI from context; bridge them from cs.
 		var targetSchema schema.Schema
-		baseURI := schema.BaseURIFromContext(ctx)
-		refCtx := ctx
-		if baseURI != "" {
-			refCtx = schema.WithBaseURI(ctx, baseURI)
-		}
-		// Add base schema context for reference resolution if none exists
-		// Don't override existing base schema context
-		if schema.BaseSchemaFromContext(refCtx) == nil {
-			if rootSchema := schema.RootSchemaFromContext(ctx); rootSchema != nil {
-				refCtx = schema.WithBaseSchema(refCtx, rootSchema)
-			}
-		}
-
-		if err := resolver.ResolveReference(refCtx, &targetSchema, reference); err != nil {
+		if err := resolver.ResolveReference(cs.resolveScopeContext(ctx), &targetSchema, reference); err != nil {
 			return nil, fmt.Errorf("reference resolution failed for %s: %w", reference, err)
 		}
 
 		// Check if schema has other constraints beyond the reference
 		if hasOtherConstraints(s) {
-			// Schema has both $ref and additional constraints
-			// Create an allOf validator combining the resolved schema and additional constraints
-
-			// Set up context for the resolved schema with proper base schema context
-			resolvedCtx := schema.WithBaseSchema(ctx, &targetSchema)
-			resolvedValidator, err := Compile(resolvedCtx, &targetSchema)
+			// Schema has both $ref and additional constraints: combine the resolved
+			// schema and additional constraints.
+			resolvedValidator, err := compile(ctx, &targetSchema, cs.withBaseSchema(&targetSchema))
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile resolved schema: %w", err)
 			}
@@ -274,7 +185,7 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 			if schemaWithoutRef.HasUnevaluatedProperties() || schemaWithoutRef.HasUnevaluatedItems() {
 				// Create additional validator WITHOUT unevaluated constraints
 				schemaWithoutUnevaluated := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
-				additionalValidator, err := Compile(ctx, schemaWithoutUnevaluated)
+				additionalValidator, err := compile(ctx, schemaWithoutUnevaluated, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
 				}
@@ -290,7 +201,7 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 			}
 
 			// Regular allOf for cases without unevaluated constraints
-			additionalValidator, err := Compile(ctx, schemaWithoutRef)
+			additionalValidator, err := compile(ctx, schemaWithoutRef, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
 			}
@@ -298,36 +209,36 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 		}
 
 		// Schema has only $ref: recursively compile the resolved schema.
-		resolvedCtx := ctx
+		resolvedCs := cs
 		var resource *schema.Schema
 		if strings.HasPrefix(reference, "#") {
 			// Local reference: the target lives in the current resource, so the
 			// base URI must not change. Re-base only if the target carries its own
 			// $id.
 			if targetSchema.HasID() {
-				resolvedCtx = schema.WithBaseSchema(ctx, &targetSchema)
+				resolvedCs = cs.withBaseSchema(&targetSchema)
 			}
 		} else {
 			// A reference into another document/resource. Its base URI is the
 			// reference's absolute (retrieval) URI, so the target's own relative
 			// references (e.g. "string.json") resolve against where it lives, and
 			// its local "#/..." pointers resolve within the enclosing resource.
-			absBase, _, _ := strings.Cut(schema.ResolveURI(baseURI, reference), "#")
+			absBase, _, _ := strings.Cut(schema.ResolveURI(cs.baseURI, reference), "#")
 			resource = resolver.ResourceFor(absBase)
 			if absBase != "" {
-				resolvedCtx = schema.WithBaseURI(resolvedCtx, absBase)
+				resolvedCs = resolvedCs.withBaseURI(absBase)
 			}
 			switch {
 			case resource != nil:
 				// absBase is the resource's canonical registry URI, so suppress the
 				// $id re-base in compileSchema (it would double a path segment).
-				resolvedCtx = schema.WithBaseSchema(resolvedCtx, resource)
-				resolvedCtx = withSkipIDRebase(resolvedCtx)
+				resolvedCs = resolvedCs.withBaseSchema(resource)
+				resolvedCs.skipIDRebase = true
 			case targetSchema.HasID():
-				resolvedCtx = schema.WithBaseSchema(resolvedCtx, &targetSchema)
+				resolvedCs = resolvedCs.withBaseSchema(&targetSchema)
 			}
 		}
-		compiled, err := Compile(resolvedCtx, &targetSchema)
+		compiled, err := compile(ctx, &targetSchema, resolvedCs)
 		if err != nil {
 			return nil, err
 		}
@@ -341,21 +252,21 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 	var validators []Interface
 
 	// Phase 2: Compile composite validators (allOf, anyOf, oneOf)
-	compositeValidators, err := compileCompositeValidators(ctx, s)
+	compositeValidators, err := compileCompositeValidators(ctx, s, cs)
 	if err != nil {
 		return nil, err
 	}
 	validators = append(validators, compositeValidators...)
 
 	// Phase 3: Compile conditional validators (if/then/else, not)
-	conditionalValidators, err := compileConditionalValidators(ctx, s)
+	conditionalValidators, err := compileConditionalValidators(ctx, s, cs)
 	if err != nil {
 		return nil, err
 	}
 	validators = append(validators, conditionalValidators...)
 
 	// Phase 4: Compile base constraint validators (properties, items, type, etc.)
-	baseValidator, err := compileBaseConstraints(ctx, s)
+	baseValidator, err := compileBaseConstraints(ctx, s, cs)
 	if err != nil {
 		return nil, err
 	}
@@ -389,14 +300,14 @@ func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 }
 
 // compileCompositeValidators handles allOf, anyOf, oneOf compilation
-func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interface, error) {
+func compileCompositeValidators(ctx context.Context, s *schema.Schema, cs compileState) ([]Interface, error) {
 	var validators []Interface
 
 	// AllOf
 	if s.HasAllOf() {
 		allOfValidators := make([]Interface, 0, len(s.AllOf()))
 		for _, subSchema := range s.AllOf() {
-			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
+			v, err := compile(ctx, convertSchemaOrBool(subSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile allOf validator: %w", err)
 			}
@@ -409,7 +320,7 @@ func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interf
 	if s.HasAnyOf() {
 		anyOfValidators := make([]Interface, 0, len(s.AnyOf()))
 		for _, subSchema := range s.AnyOf() {
-			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
+			v, err := compile(ctx, convertSchemaOrBool(subSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile anyOf validator: %w", err)
 			}
@@ -422,7 +333,7 @@ func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interf
 	if s.HasOneOf() {
 		oneOfValidators := make([]Interface, 0, len(s.OneOf()))
 		for _, subSchema := range s.OneOf() {
-			v, err := Compile(ctx, convertSchemaOrBool(subSchema))
+			v, err := compile(ctx, convertSchemaOrBool(subSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile oneOf validator: %w", err)
 			}
@@ -435,12 +346,12 @@ func compileCompositeValidators(ctx context.Context, s *schema.Schema) ([]Interf
 }
 
 // compileConditionalValidators handles if/then/else, not compilation
-func compileConditionalValidators(ctx context.Context, s *schema.Schema) ([]Interface, error) {
+func compileConditionalValidators(ctx context.Context, s *schema.Schema, cs compileState) ([]Interface, error) {
 	var validators []Interface
 
 	// Not
 	if s.HasNot() {
-		notValidator, err := Compile(ctx, s.Not())
+		notValidator, err := compile(ctx, s.Not(), cs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile not validator: %w", err)
 		}
@@ -449,7 +360,7 @@ func compileConditionalValidators(ctx context.Context, s *schema.Schema) ([]Inte
 
 	// If/Then/Else
 	if s.HasIfSchema() {
-		ifThenElseValidator, err := compileIfThenElseValidator(ctx, s)
+		ifThenElseValidator, err := compileIfThenElseValidator(ctx, s, cs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile if/then/else validator: %w", err)
 		}
@@ -461,7 +372,7 @@ func compileConditionalValidators(ctx context.Context, s *schema.Schema) ([]Inte
 
 // compileBaseConstraints compiles all base constraint validators (properties, items, type, etc.)
 // This function excludes composition keywords and unevaluated constraints which are handled separately
-func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
 	var validators []Interface
 
 	// Type validators - handle explicit type declarations
@@ -505,7 +416,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 					// self-enforce it; the unevaluatedCoordinator owns that
 					// decision once sibling applicators' annotations are merged.
 					baseSchema := createSchemaWithoutUnevaluatedFields(s)
-					arrayValidator, err := compileArrayValidator(ctx, baseSchema, true) // strict type checking
+					arrayValidator, err := compileArrayValidator(ctx, baseSchema, cs, true) // strict type checking
 					if err != nil {
 						return nil, fmt.Errorf("failed to compile array validator: %w", err)
 					}
@@ -520,7 +431,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 				objectFields := schema.ObjectConstraintFields &^ schema.UnevaluatedPropertiesField
 				if s.HasAny(objectFields) {
 					baseSchema := createSchemaWithoutUnevaluatedFields(s)
-					objectValidator, err := compileObjectValidator(ctx, baseSchema, true) // strict type checking
+					objectValidator, err := compileObjectValidator(ctx, baseSchema, cs, true) // strict type checking
 					if err != nil {
 						return nil, fmt.Errorf("failed to compile object validator: %w", err)
 					}
@@ -569,7 +480,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 		arrayFields := schema.ArrayConstraintFields &^ schema.UnevaluatedItemsField
 		if s.HasAny(arrayFields) {
 			baseSchema := createSchemaWithoutUnevaluatedFields(s)
-			arrayValidator, err := compileArrayValidator(ctx, baseSchema, false)
+			arrayValidator, err := compileArrayValidator(ctx, baseSchema, cs, false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile array validator: %w", err)
 			}
@@ -580,7 +491,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 		objectFields := schema.ObjectConstraintFields &^ schema.UnevaluatedPropertiesField
 		if s.HasAny(objectFields) {
 			baseSchema := createSchemaWithoutUnevaluatedFields(s)
-			objectValidator, err := compileObjectValidator(ctx, baseSchema, false)
+			objectValidator, err := compileObjectValidator(ctx, baseSchema, cs, false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile object validator: %w", err)
 			}
@@ -590,7 +501,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 
 	// Content validation
 	if s.HasContentEncoding() || s.HasContentMediaType() || s.HasContentSchema() {
-		contentValidator, err := compileContentValidator(ctx, s)
+		contentValidator, err := compileContentValidator(ctx, s, cs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile content validator: %w", err)
 		}
@@ -634,7 +545,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 				}
 			case *schema.Schema:
 				// Regular schema object
-				depValidator, err := Compile(ctx, val)
+				depValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile dependent schema for property %s: %w", propertyName, err)
 				}
@@ -657,8 +568,8 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema) (Interface, e
 	if s.HasReference() {
 		refValidator := &ReferenceValidator{
 			reference:  s.Reference(),
-			resolver:   schema.ResolverFromContext(ctx),
-			rootSchema: schema.RootSchemaFromContext(ctx),
+			resolver:   cs.cfg.resolver,
+			rootSchema: cs.rootSchema,
 		}
 		validators = append(validators, refValidator)
 	}

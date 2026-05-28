@@ -16,12 +16,12 @@ type IfThenElseValidator struct {
 	elseValidator Interface
 }
 
-func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileIfThenElseValidator(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
 	v := &IfThenElseValidator{}
 
 	// Compile 'if' validator (required)
 	ifSchema := convertSchemaOrBool(s.IfSchema())
-	ifValidator, err := Compile(ctx, ifSchema)
+	ifValidator, err := compile(ctx, ifSchema, cs)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to compile if validator: %w`, err)
 	}
@@ -30,7 +30,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	// Compile 'then' validator (optional)
 	if s.HasThenSchema() {
 		thenSchema := convertSchemaOrBool(s.ThenSchema())
-		thenValidator, err := Compile(ctx, thenSchema)
+		thenValidator, err := compile(ctx, thenSchema, cs)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile then validator: %w`, err)
 		}
@@ -40,7 +40,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	// Compile 'else' validator (optional)
 	if s.HasElseSchema() {
 		elseSchema := convertSchemaOrBool(s.ElseSchema())
-		elseValidator, err := Compile(ctx, elseSchema)
+		elseValidator, err := compile(ctx, elseSchema, cs)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile else validator: %w`, err)
 		}

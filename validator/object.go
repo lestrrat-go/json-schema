@@ -15,11 +15,11 @@ import (
 var _ Builder = (*ObjectValidatorBuilder)(nil)
 var _ Interface = (*objectValidator)(nil)
 
-func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+func compileObjectValidator(ctx context.Context, s *schema.Schema, cs compileState, strictType bool) (Interface, error) {
 	// Object keywords (properties, patternProperties, additionalProperties,
 	// propertyNames) apply their subschemas to child values, so crossing into
 	// them is a data boundary for recursion classification.
-	ctx = schema.WithDataDepth(ctx, schema.DataDepthFromContext(ctx)+1)
+	cs = cs.incDataDepth()
 	v := Object()
 
 	if s.HasMinProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
@@ -37,7 +37,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 	if s.HasProperties() {
 		properties := make(map[string]Interface)
 		for name, propSchema := range s.Properties() {
-			propValidator, err := Compile(ctx, propSchema)
+			propValidator, err := compile(ctx, propSchema, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property validator for %s: %w", name, err)
 			}
@@ -57,7 +57,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern %s: %w", pattern, err)
 			}
-			propValidator, err := Compile(ctx, propSchema)
+			propValidator, err := compile(ctx, propSchema, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern property validator for %s: %w", pattern, err)
 			}
@@ -75,7 +75,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 				v.AdditionalProperties(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate additional properties with this schema
-				propValidator, err := Compile(ctx, val)
+				propValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile additional properties validator: %w", err)
 				}
@@ -88,7 +88,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 	if s.HasPropertyNames() {
 		propertyNamesSchema := s.PropertyNames()
 		if propertyNamesSchema != nil {
-			propertyNamesValidator, err := Compile(ctx, propertyNamesSchema)
+			propertyNamesValidator, err := compile(ctx, propertyNamesSchema, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property names validator: %w", err)
 			}
@@ -105,7 +105,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 				v.UnevaluatedProperties(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate unevaluated properties with this schema
-				propValidator, err := Compile(ctx, val)
+				propValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile unevaluated properties validator: %w", err)
 				}

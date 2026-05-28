@@ -13,11 +13,11 @@ import (
 var _ Builder = (*ArrayValidatorBuilder)(nil)
 var _ Interface = (*arrayValidator)(nil)
 
-func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+func compileArrayValidator(ctx context.Context, s *schema.Schema, cs compileState, strictType bool) (Interface, error) {
 	// Array keywords (prefixItems, items, contains) apply their subschemas to
 	// child elements, so crossing into them is a data boundary for recursion
 	// classification.
-	ctx = schema.WithDataDepth(ctx, schema.DataDepthFromContext(ctx)+1)
+	cs = cs.incDataDepth()
 	v := Array()
 
 	if s.HasMinItems() && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
@@ -33,7 +33,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 		if prefixItems := s.PrefixItems(); len(prefixItems) > 0 {
 			prefixValidators := make([]Interface, len(prefixItems))
 			for i, prefixSchema := range prefixItems {
-				prefixValidator, err := Compile(ctx, convertSchemaOrBool(prefixSchema))
+				prefixValidator, err := compile(ctx, convertSchemaOrBool(prefixSchema), cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile prefixItems[%d] validator: %w", i, err)
 				}
@@ -45,7 +45,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasItems() {
 		itemsSchema := s.Items()
 		if itemsSchema != nil {
-			itemValidator, err := Compile(ctx, convertSchemaOrBool(itemsSchema))
+			itemValidator, err := compile(ctx, convertSchemaOrBool(itemsSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile items validator: %w", err)
 			}
@@ -55,7 +55,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasAdditionalItems() {
 		additionalItemsSchema := s.AdditionalItems()
 		if additionalItemsSchema != nil {
-			additionalItemsValidator, err := Compile(ctx, convertSchemaOrBool(additionalItemsSchema))
+			additionalItemsValidator, err := compile(ctx, convertSchemaOrBool(additionalItemsSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile additionalItems validator: %w", err)
 			}
@@ -80,7 +80,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				}
 			case *schema.Schema:
 				// Regular schema object
-				containsValidator, err := Compile(ctx, val)
+				containsValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile contains validator: %w", err)
 				}
@@ -106,7 +106,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				v.UnevaluatedItemsBool(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate unevaluated items with this schema
-				itemValidator, err := Compile(ctx, val)
+				itemValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile unevaluated items validator: %w", err)
 				}
