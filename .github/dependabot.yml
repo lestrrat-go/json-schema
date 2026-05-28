@@ -1,0 +1,34 @@
+version: 2
+updates:
+  # Go modules: the root module plus the standalone code-generator modules.
+  - package-ecosystem: gomod
+    directories:
+      - "/"
+      - "/internal/cmd/genmeta"
+      - "/internal/cmd/genobjects"
+      - "/validator/internal/cmd/gennumeric"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore
+    groups:
+      # Group minor/patch bumps into one PR per directory; majors stay separate
+      # so breaking upgrades get individual review.
+      go-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Pinned action SHAs in .github/workflows/*.yml.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
