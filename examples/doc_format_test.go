@@ -27,8 +27,8 @@ func Example_docFormatAssertion() {
 	fmt.Println("default set: valid:", err == nil)
 
 	// All vocabularies enabled: format-assertion is on, so this fails.
-	strict := vocabulary.WithSet(context.Background(), vocabulary.AllEnabled())
-	vs, _ := validator.Compile(strict, s)
+	strict := context.Background()
+	vs, _ := validator.Compile(strict, s, validator.WithVocabularySet(vocabulary.AllEnabled()))
 	_, err = vs.Validate(strict, data)
 	fmt.Println("all enabled: valid:", err == nil)
 	// Output:
