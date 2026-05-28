@@ -31,16 +31,7 @@ func newResourceIndex() *resourceIndex {
 // with its own $id re-bases the subtree beneath it (resolved against the
 // enclosing base per RFC 3986), which is how nested/bundled resources are made
 // addressable by their canonical absolute URIs.
-//
-// When allowNestedIDs is false, nested resources (subschemas with their own
-// $id) are left unregistered and unwalked. This deliberately preserves the
-// pre-registry resolution behavior for documents that use $dynamicRef /
-// $dynamicAnchor: correct $dynamicRef resolution requires runtime dynamic-scope
-// tracking that is not yet implemented, so making such documents newly
-// resolvable would yield incorrect results rather than the prior (conservative)
-// resolution failure. The document's own root $id and root-scope anchors are
-// still registered.
-func (idx *resourceIndex) index(s *Schema, baseURI string, visited map[*Schema]struct{}, allowNestedIDs bool) {
+func (idx *resourceIndex) index(s *Schema, baseURI string, visited map[*Schema]struct{}) {
 	if s == nil {
 		return
 	}
@@ -64,34 +55,29 @@ func (idx *resourceIndex) index(s *Schema, baseURI string, visited map[*Schema]s
 	}
 
 	for _, child := range childSchemas(s) {
-		if !allowNestedIDs && child.HasID() && child.ID() != "" {
-			continue
-		}
-		idx.index(child, current, visited, allowNestedIDs)
+		idx.index(child, current, visited)
 	}
 }
 
-// usesDynamicReferences reports whether any schema in the tree declares a
-// $dynamicAnchor or $dynamicRef, indicating the document relies on dynamic-scope
-// resolution.
-func usesDynamicReferences(s *Schema, visited map[*Schema]struct{}) bool {
-	if s == nil {
-		return false
+// FindDynamicAnchor searches a schema resource for a subschema declaring
+// $dynamicAnchor == name, without crossing into nested $id resources (which are
+// distinct resources with their own dynamic scope). It returns nil if not found.
+func FindDynamicAnchor(resource *Schema, name string) *Schema {
+	if resource == nil {
+		return nil
 	}
-	if _, seen := visited[s]; seen {
-		return false
+	if resource.HasDynamicAnchor() && resource.DynamicAnchor() == name {
+		return resource
 	}
-	visited[s] = struct{}{}
-
-	if s.HasDynamicAnchor() || s.HasDynamicReference() {
-		return true
-	}
-	for _, child := range childSchemas(s) {
-		if usesDynamicReferences(child, visited) {
-			return true
+	for _, child := range childSchemas(resource) {
+		if child.HasID() && child.ID() != "" {
+			continue // a nested $id starts a separate resource
+		}
+		if found := FindDynamicAnchor(child, name); found != nil {
+			return found
 		}
 	}
-	return false
+	return nil
 }
 
 // childSchemas returns the immediate subschemas of s across every keyword that

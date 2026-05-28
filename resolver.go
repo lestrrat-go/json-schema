@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/jsref/v2"
@@ -16,6 +17,9 @@ import (
 type Resolver struct {
 	resolver *jsref.StackedResolver
 	index    *resourceIndex
+
+	mu         sync.Mutex
+	registered map[*Schema]struct{} // roots already indexed, to avoid re-indexing
 }
 
 // NewResolver creates a new schema resolver with in-document, HTTP and
@@ -53,12 +57,38 @@ func (r *Resolver) RegisterRoot(root *Schema) {
 	if r.index == nil || root == nil {
 		return
 	}
+	// Index each root at most once. Compilation happens before validation, so
+	// once indexed there are no further writes to the index; this also prevents
+	// a data race where validation-time compilation of a target that happens to
+	// be the root would re-index concurrently with registry lookups.
+	r.mu.Lock()
+	if r.registered == nil {
+		r.registered = make(map[*Schema]struct{})
+	}
+	if _, done := r.registered[root]; done {
+		r.mu.Unlock()
+		return
+	}
+	r.registered[root] = struct{}{}
 	base := ""
 	if root.HasID() && root.ID() != "" {
 		base, _, _ = splitFragment(root.ID())
 	}
-	allowNestedIDs := !usesDynamicReferences(root, make(map[*Schema]struct{}))
-	r.index.index(root, base, make(map[*Schema]struct{}), allowNestedIDs)
+	r.index.index(root, base, make(map[*Schema]struct{}))
+	r.mu.Unlock()
+}
+
+// ResourceFor returns the schema resource registered under the given absolute
+// base URI (no fragment), or nil if none. It lets reference resolution record
+// which resource an instance enters for $dynamicRef dynamic-scope tracking.
+func (r *Resolver) ResourceFor(uri string) *Schema {
+	if r.index == nil || uri == "" {
+		return nil
+	}
+	base, _, _ := splitFragment(uri)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.index.byURI[base]
 }
 
 // ResolveJSONReference resolves JSON pointer references against a base schema from context.

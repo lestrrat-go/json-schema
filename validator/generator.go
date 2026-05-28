@@ -356,23 +356,9 @@ func (g *codeGenerator) generateDynamicReference(dst io.Writer, v *DynamicRefere
 	var buf bytes.Buffer
 	o := codegen.NewOutput(&buf)
 
-	// If the dynamic reference has been resolved, generate the resolved validator
-	if v.resolved != nil {
-		// Generate the resolved validator, but watch out for circular references
-		if v.resolved == v {
-			// Self-reference - create EmptyValidator to avoid infinite recursion
-			o.R("&validator.EmptyValidator{}")
-		} else {
-			if err := g.Generate(&buf, v.resolved); err != nil {
-				// If we can't generate the resolved validator, fall back to EmptyValidator
-				o.R("&validator.EmptyValidator{}")
-			}
-		}
-	} else {
-		// For unresolved dynamic references, create a runtime-resolved validator
-		// This preserves the dynamic resolution behavior while generating valid code
-		o.R("validator.NewDynamicReferenceValidator(%q)", v.reference)
-	}
+	// $dynamicRef resolves against the runtime dynamic scope, which differs per
+	// validation, so always emit a runtime-resolved validator.
+	o.R("validator.NewDynamicReferenceValidator(%q)", v.reference)
 
 	_, err := buf.WriteTo(dst)
 	return err
