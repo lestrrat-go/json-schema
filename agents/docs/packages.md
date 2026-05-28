@@ -18,8 +18,8 @@ JSON Schema data type + fluent builder + reference resolver + context helpers. P
 - Convenience constructors → `*Builder` (patterns.go): `Email()`, `URL()`, `UUID()`, `Date()`, `DateTime()`, `NonEmptyString()`, `AlphanumericString()`, `PositiveNumber()`, `PositiveInteger()`, `Enum(...any)`, `OneOf(...*Schema)`, `AnyOf(...*Schema)`, `AllOf(...*Schema)`, `Optional(*Schema)` (schema-or-null).
 - Field bitfield: `FieldFlag` constants `XxxField` (one per keyword) + grouped sets `StringConstraintFields`, `NumericConstraintFields`, `ObjectConstraintFields`, `ArrayConstraintFields`, `CompositionFields`, `ConditionalFields`, `ContentFields`, etc. `(*Schema).Has(FieldFlag) bool`, `HasAny(FieldFlag) bool`, plus `HasXxx()` per keyword.
 - URI: **ResolveURI(base, ref string) string** (uri.go, RFC 3986).
-- Resolver: **NewResolver() \*Resolver**; methods `RegisterRoot(*Schema)`, `RegisterDocument(uri string, root *Schema)`, `RegisterFS(baseURI string, fs.FS) error`, `ResourceFor(uri string) *Schema`, `ResolveReference(ctx, dst any, ref string) error` (resolver.go). **FindDynamicAnchor(resource *Schema, name string) *Schema** (registry.go).
-- Context helpers (schema.go): `WithBaseURI`/`BaseURIFromContext`, `WithBaseSchema`/`BaseSchemaFromContext`, `WithResolver`/`ResolverFromContext`, `WithRootSchema`/`RootSchemaFromContext`, `WithDynamicScope`/`DynamicScopeFromContext`, `WithDynamicAnchorValidator`/`DynamicAnchorValidatorFromContext`.
+- Resolver: **NewResolver(...ResolverOption) \*Resolver** (external access is opt-in; bare resolver is in-memory only); methods `RegisterRoot(*Schema)`, `RegisterDocument(uri string, root *Schema)`, `RegisterFS(baseURI string, fs.FS) error`, `ResourceFor(uri string) *Schema`, `ResolveReference(ctx, dst any, ref string) error` (resolver.go). **FindDynamicAnchor(resource *Schema, name string) *Schema** (registry.go).
+- Resolver options (resolver_options.go): **ResolverOption**, **WithResolver(jsref.Resolver)**, and opt-in resolver factories **HTTPResolver() jsref.Resolver**, **FSResolver(fs.FS) jsref.Resolver**, **DirResolver(dir string) jsref.Resolver**.
 
 ## validator/
 

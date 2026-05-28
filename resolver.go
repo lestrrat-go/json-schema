@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/lestrrat-go/jsref/v2"
+	"github.com/lestrrat-go/option/v3"
 )
 
 // Resolver provides JSON Schema reference resolution capabilities.
@@ -22,28 +23,37 @@ type Resolver struct {
 	registered map[*Schema]struct{} // roots already indexed, to avoid re-indexing
 }
 
-// NewResolver creates a new schema resolver with in-document, HTTP and
-// filesystem support.
-func NewResolver() *Resolver {
+// NewResolver creates a new schema resolver. By default it resolves references
+// only from memory: in-document $id resources/anchors and documents preloaded
+// via RegisterRoot/RegisterDocument/RegisterFS.
+//
+// Access to system resources is opt-in. To let references reach the network or
+// the filesystem, pass resolvers explicitly with WithResolver — for example
+// WithResolver(HTTPResolver()) for HTTP/HTTPS or WithResolver(DirResolver("."))
+// for local files. Without those, an external $ref that is not preloaded fails
+// to resolve rather than silently fetching it.
+func NewResolver(options ...ResolverOption) *Resolver {
 	resolver := jsref.New()
 
 	index := newResourceIndex()
 
 	// Add the in-document resolver FIRST so references whose base URI names a
-	// known $id resource are resolved from memory before any network/filesystem
-	// access is attempted. It declines unknown URIs, falling through to the
-	// resolvers below.
+	// known $id resource are resolved from memory before any opt-in network/
+	// filesystem access is attempted. It declines unknown URIs, falling through
+	// to the resolvers below.
 	resolver.AddResolver(&registryResolver{idx: index, obj: jsref.NewObjectResolver()})
 
-	// Add HTTP resolver for remote schema references
-	resolver.AddResolver(jsref.NewHTTPResolver())
-
-	// Add filesystem resolver rooted at current directory for local files
-	if fsResolver, err := jsref.NewFSResolver("."); err == nil {
-		resolver.AddResolver(fsResolver)
+	// Add caller-supplied resolvers (HTTP, filesystem, custom) in order. These
+	// sit between the in-document registry and the final JSON-pointer fallback.
+	for _, o := range options {
+		if o.Ident() == (identResolver{}) {
+			resolver.AddResolver(option.MustGet[jsref.Resolver](o))
+		}
 	}
 
-	// Add object resolver for JSON pointer resolution within map data structures
+	// Add object resolver LAST for JSON pointer resolution within map data
+	// structures. Its CanResolve accepts everything, so it must stay last or it
+	// would shadow the resolvers above.
 	resolver.AddResolver(jsref.NewObjectResolver())
 
 	return &Resolver{resolver: resolver, index: index}

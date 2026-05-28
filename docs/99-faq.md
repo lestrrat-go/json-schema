@@ -22,11 +22,16 @@ Use the `meta` package: `meta.Validate(ctx, document)` or `meta.Validator()`. It
 
 ### My `$ref` to an external URL won't resolve.
 
-External references need a resolver that knows about the target document. Create a `schema.Resolver`, register the document(s) with `RegisterFS`/`RegisterDocument`, put it on the context with `schema.WithResolver`, and use that context for both `Compile` and `Validate`. See [References](./03-references.md).
+By design, a resolver **resolves only from memory by default** — it will not fetch over the network or read the filesystem unless you opt in. You have two choices:
 
-### I configured the context but nothing changed.
+- **Preload (recommended):** create a `schema.Resolver`, register the target document(s) with `RegisterFS`/`RegisterDocument`, and pass it to `Compile` with `validator.WithResolver(r)`.
+- **Opt into live access:** `schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))` for HTTP/HTTPS, or `schema.WithResolver(schema.DirResolver("."))` / `schema.WithResolver(schema.FSResolver(fsys))` for files.
 
-Optional behavior (resolver, vocabularies, tracing) is read from the context at **both** compile and validate time. Pass the *same* configured context to `Compile` and to `Validate`. Configuring one but not the other is the most common cause of "it didn't take effect".
+See [References](./03-references.md).
+
+### I configured something but nothing changed.
+
+The resolver and vocabulary set are **`Compile` options** — pass them to `validator.Compile(ctx, schema, validator.WithResolver(r), validator.WithVocabularySet(vs))`, not after the fact. The trace logger is carried on the `context.Context` (`validator.WithTraceSlog`) and read while validating. Configuring the wrong stage is the most common cause of "it didn't take effect". See [Validating Data](./02-validating.md#configuring-compile-and-validate).
 
 ### Why did my recursive schema fail to compile with a circular-reference error?
 
