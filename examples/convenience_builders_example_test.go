@@ -6,10 +6,10 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_convenienceBuilders composes several of the package's one-line helper
+// Example_convenience_builders composes several of the package's one-line helper
 // constructors — PositiveInteger, Optional, NonEmptyString and Enum — into a
 // single object schema. Optional(s) accepts either s or null.
-func Example_convenienceBuilders() {
+func Example_convenience_builders() {
 	built := schema.NewBuilder().
 		Types(schema.ObjectType).
 		Property("id", schema.PositiveInteger().MustBuild()).

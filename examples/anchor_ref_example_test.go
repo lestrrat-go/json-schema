@@ -6,9 +6,9 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_anchorRef labels a subschema with $anchor and references it by name
+// Example_anchor_ref labels a subschema with $anchor and references it by name
 // with "#name" (as opposed to a JSON pointer like "#/$defs/name").
-func Example_anchorRef() {
+func Example_anchor_ref() {
 	nameDef := schema.NewBuilder().
 		Anchor("name").
 		Types(schema.StringType).

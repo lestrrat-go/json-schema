@@ -6,9 +6,9 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_refDefs reuses a subschema defined under $defs via $ref. Both
+// Example_ref_defs reuses a subschema defined under $defs via $ref. Both
 // firstName and lastName point at the same "name" definition.
-func Example_refDefs() {
+func Example_ref_defs() {
 	nameDef := schema.NonEmptyString().MustBuild()
 	built := schema.NewBuilder().
 		Types(schema.ObjectType).

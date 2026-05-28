@@ -8,12 +8,12 @@ import (
 	"github.com/lestrrat-go/json-schema/validator"
 )
 
-// Example_externalResolver resolves a $ref that points at a separate schema
+// Example_external_resolver resolves a $ref that points at a separate schema
 // document. A schema.Resolver holds the external document (keyed by its URI) and
 // is passed to Compile so the compiler can follow the reference. The same
 // wiring is used whether the documents are built programmatically or loaded from
 // JSON files.
-func Example_externalResolver() {
+func Example_external_resolver() {
 	// Built programmatically.
 	address := schema.NewBuilder().
 		Types(schema.ObjectType).

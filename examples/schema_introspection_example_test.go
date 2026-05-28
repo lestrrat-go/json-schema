@@ -6,12 +6,12 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_schemaIntrospection reads a schema's constraints back out through its
+// Example_schema_introspection reads a schema's constraints back out through its
 // accessors. Every keyword has a Has<Keyword> presence check and a getter, and
 // HasAny tests a group of fields at once using the package's field-flag
 // constants. A built schema and the equivalent loaded-from-JSON schema report
 // the same structure.
-func Example_schemaIntrospection() {
+func Example_schema_introspection() {
 	built := schema.NewBuilder().
 		Types(schema.StringType).
 		MinLength(3).

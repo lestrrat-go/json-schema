@@ -6,10 +6,10 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_dynamicRef validates a recursive structure. The schema marks itself
+// Example_dynamic_ref validates a recursive structure. The schema marks itself
 // with $dynamicAnchor "node" and, for each child, refers back to "#node" via
 // $dynamicRef — so the same schema applies at every level of the tree.
-func Example_dynamicRef() {
+func Example_dynamic_ref() {
 	built := schema.NewBuilder().
 		ID("https://example.com/tree").
 		DynamicAnchor("node").

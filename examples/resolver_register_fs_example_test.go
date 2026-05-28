@@ -9,12 +9,12 @@ import (
 	"github.com/lestrrat-go/json-schema/validator"
 )
 
-// Example_resolverRegisterFS preloads a whole tree of schema documents from a
+// Example_resolver_register_fs preloads a whole tree of schema documents from a
 // filesystem with Resolver.RegisterFS. Each ".json" file is registered under the
 // base URI joined with its path, so a $ref to that URI resolves offline. The
 // fs.FS here is an in-memory fstest.MapFS, but an embed.FS or os.DirFS works the
 // same way.
-func Example_resolverRegisterFS() {
+func Example_resolver_register_fs() {
 	fsys := fstest.MapFS{
 		"address.json": &fstest.MapFile{Data: []byte(
 			`{"type":"object","properties":{"city":{"type":"string","minLength":1}},"required":["city"]}`,

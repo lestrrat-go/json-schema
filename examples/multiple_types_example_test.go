@@ -6,9 +6,9 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_multipleTypes allows a value to be any of several primitive types by
+// Example_multiple_types allows a value to be any of several primitive types by
 // passing more than one type to Types (which serializes as a JSON "type" array).
-func Example_multipleTypes() {
+func Example_multiple_types() {
 	built := schema.NewBuilder().
 		Types(schema.StringType, schema.IntegerType).
 		MustBuild()

@@ -6,10 +6,10 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_ifThenElse applies one subschema when the "if" subschema matches and
+// Example_if_then_else applies one subschema when the "if" subschema matches and
 // another when it does not. Here: integers must be non-negative, and anything
 // that is not an integer must be a string.
-func Example_ifThenElse() {
+func Example_if_then_else() {
 	built := schema.NewBuilder().
 		IfSchema(schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
 		ThenSchema(schema.NewBuilder().Minimum(0).MustBuild()).

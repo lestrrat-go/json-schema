@@ -7,11 +7,11 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_schemaBuilderMarshal builds a schema with the fluent builder and shows
+// Example_schema_builder_marshal builds a schema with the fluent builder and shows
 // that it marshals to the same canonical JSON as the equivalent schema authored
 // as JSON. The library emits object keys in a stable, sorted order, so a
 // round trip (build -> JSON, or JSON -> *Schema -> JSON) is deterministic.
-func Example_schemaBuilderMarshal() {
+func Example_schema_builder_marshal() {
 	// Programmatic.
 	built := schema.NewBuilder().
 		Schema(schema.Version).

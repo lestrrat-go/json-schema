@@ -6,12 +6,12 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-// Example_cloneAndReset derives a new schema from an existing one. Builder.Clone
+// Example_clone_and_reset derives a new schema from an existing one. Builder.Clone
 // copies all of a schema's fields into a builder, and Builder.Reset clears the
 // named fields (identified by field-flag constants). Here a "relaxed" variant of
 // a string schema is produced by cloning the base and dropping its maxLength —
 // equivalent to building the relaxed schema directly.
-func Example_cloneAndReset() {
+func Example_clone_and_reset() {
 	// The base schema authored as JSON: string, length 3..8.
 	base := loadSchemaJSON(`{
 		"type": "string",
