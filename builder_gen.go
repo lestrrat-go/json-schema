@@ -1244,6 +1244,171 @@ func (b *Builder) ResetVocabulary() *Builder {
 	return b
 }
 
+// Reset clears the builder fields identified by the given flags.
+// For example, b.Reset(AnchorField | PropertiesField) clears both anchor and properties.
+func (b *Builder) Reset(flags FieldFlag) *Builder {
+	if b.err != nil {
+		return b
+	}
+	if (flags & AdditionalItemsField) != 0 {
+		b.additionalItems = nil
+	}
+	if (flags & AdditionalPropertiesField) != 0 {
+		b.additionalProperties = nil
+	}
+	if (flags & AllOfField) != 0 {
+		b.allOf = nil
+	}
+	if (flags & AnchorField) != 0 {
+		b.anchor = nil
+	}
+	if (flags & AnyOfField) != 0 {
+		b.anyOf = nil
+	}
+	if (flags & CommentField) != 0 {
+		b.comment = nil
+	}
+	if (flags & ConstField) != 0 {
+		b.constantValue = nil
+	}
+	if (flags & ContainsField) != 0 {
+		b.contains = nil
+	}
+	if (flags & ContentEncodingField) != 0 {
+		b.contentEncoding = nil
+	}
+	if (flags & ContentMediaTypeField) != 0 {
+		b.contentMediaType = nil
+	}
+	if (flags & ContentSchemaField) != 0 {
+		b.contentSchema = nil
+	}
+	if (flags & DefaultField) != 0 {
+		b.defaultValue = nil
+	}
+	if (flags & DefinitionsField) != 0 {
+		b.definitions = nil
+	}
+	if (flags & DependentRequiredField) != 0 {
+		b.dependentRequired = nil
+	}
+	if (flags & DependentSchemasField) != 0 {
+		b.dependentSchemas = nil
+	}
+	if (flags & DynamicAnchorField) != 0 {
+		b.dynamicAnchor = nil
+	}
+	if (flags & DynamicReferenceField) != 0 {
+		b.dynamicReference = nil
+	}
+	if (flags & ElseSchemaField) != 0 {
+		b.elseSchema = nil
+	}
+	if (flags & EnumField) != 0 {
+		b.enum = nil
+	}
+	if (flags & ExclusiveMaximumField) != 0 {
+		b.exclusiveMaximum = nil
+	}
+	if (flags & ExclusiveMinimumField) != 0 {
+		b.exclusiveMinimum = nil
+	}
+	if (flags & FormatField) != 0 {
+		b.format = nil
+	}
+	if (flags & IDField) != 0 {
+		b.id = nil
+	}
+	if (flags & IfSchemaField) != 0 {
+		b.ifSchema = nil
+	}
+	if (flags & ItemsField) != 0 {
+		b.items = nil
+	}
+	if (flags & MaxContainsField) != 0 {
+		b.maxContains = nil
+	}
+	if (flags & MaxItemsField) != 0 {
+		b.maxItems = nil
+	}
+	if (flags & MaxLengthField) != 0 {
+		b.maxLength = nil
+	}
+	if (flags & MaxPropertiesField) != 0 {
+		b.maxProperties = nil
+	}
+	if (flags & MaximumField) != 0 {
+		b.maximum = nil
+	}
+	if (flags & MinContainsField) != 0 {
+		b.minContains = nil
+	}
+	if (flags & MinItemsField) != 0 {
+		b.minItems = nil
+	}
+	if (flags & MinLengthField) != 0 {
+		b.minLength = nil
+	}
+	if (flags & MinPropertiesField) != 0 {
+		b.minProperties = nil
+	}
+	if (flags & MinimumField) != 0 {
+		b.minimum = nil
+	}
+	if (flags & MultipleOfField) != 0 {
+		b.multipleOf = nil
+	}
+	if (flags & NotField) != 0 {
+		b.not = nil
+	}
+	if (flags & OneOfField) != 0 {
+		b.oneOf = nil
+	}
+	if (flags & PatternField) != 0 {
+		b.pattern = nil
+	}
+	if (flags & PatternPropertiesField) != 0 {
+		b.patternProperties = nil
+	}
+	if (flags & PrefixItemsField) != 0 {
+		b.prefixItems = nil
+	}
+	if (flags & PropertiesField) != 0 {
+		b.properties = nil
+	}
+	if (flags & PropertyNamesField) != 0 {
+		b.propertyNames = nil
+	}
+	if (flags & ReferenceField) != 0 {
+		b.reference = nil
+	}
+	if (flags & RequiredField) != 0 {
+		b.required = nil
+	}
+	if (flags & SchemaField) != 0 {
+		b.schema = nil
+	}
+	if (flags & ThenSchemaField) != 0 {
+		b.thenSchema = nil
+	}
+	if (flags & TypesField) != 0 {
+		b.types = nil
+	}
+	if (flags & UnevaluatedItemsField) != 0 {
+		b.unevaluatedItems = nil
+	}
+	if (flags & UnevaluatedPropertiesField) != 0 {
+		b.unevaluatedProperties = nil
+	}
+	if (flags & UniqueItemsField) != 0 {
+		b.uniqueItems = nil
+	}
+	if (flags & VocabularyField) != 0 {
+		b.vocabulary = nil
+	}
+	return b
+}
+
 func (b *Builder) Build() (*Schema, error) {
 	s := New()
 	if b.additionalItems != nil {
