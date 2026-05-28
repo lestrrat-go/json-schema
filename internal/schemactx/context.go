@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 )
 
 type EvaluatedProperties struct {
@@ -328,9 +329,7 @@ func WithDynamicAnchorValidator(ctx context.Context, name string, v any) context
 	vctx := ValidationContextFrom(ctx)
 	newVctx := *vctx // copy
 	next := make(map[string]any, len(vctx.DynamicAnchorValidators)+1)
-	for k, val := range vctx.DynamicAnchorValidators {
-		next[k] = val
-	}
+	maps.Copy(next, vctx.DynamicAnchorValidators)
 	next[name] = v
 	newVctx.DynamicAnchorValidators = next
 	return WithValidationContext(ctx, &newVctx)
