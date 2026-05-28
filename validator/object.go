@@ -350,8 +350,7 @@ func extractObjectProperties(v any) (map[string]any, bool, error) {
 // Validate implements the Interface
 func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Get previously evaluated properties from context
-	var ec *schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+	ec, _ := schemactx.EvaluationContextFromContext(ctx)
 	if ec == nil {
 		ec = &schemactx.EvaluationContext{}
 	}

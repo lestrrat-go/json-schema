@@ -295,7 +295,9 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 	acc, isArray := newArrayAccessor(v)
 
 	var ec schemactx.EvaluationContext
-	_ = schemactx.EvaluationContextFromContext(ctx, &ec)
+	if ecPtr, _ := schemactx.EvaluationContextFromContext(ctx); ecPtr != nil {
+		ec = *ecPtr
+	}
 
 	if !isArray {
 		// Handle non-array values based on whether this is strict array type validation

@@ -316,8 +316,8 @@ func WithSet(ctx context.Context, vocabSet *VocabularySet) context.Context {
 
 // SetFromContext extracts the vocabulary set from the context
 func SetFromContext(ctx context.Context) *VocabularySet {
-	var vocabSet *VocabularySet
-	if err := schemactx.VocabularySetFromContext(ctx, &vocabSet); err != nil {
+	vocabSet, err := schemactx.VocabularySetFromContext[*VocabularySet](ctx)
+	if err != nil {
 		return DefaultSet() // Use default vocabulary set with format-assertion disabled
 	}
 	return vocabSet
