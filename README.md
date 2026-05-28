@@ -1,6 +1,6 @@
 # github.com/lestrrat-go/json-schema [![CI](https://github.com/lestrrat-go/json-schema/actions/workflows/ci.yml/badge.svg)](https://github.com/lestrrat-go/json-schema/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/lestrrat-go/json-schema.svg)](https://pkg.go.dev/github.com/lestrrat-go/json-schema) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lestrrat-go/json-schema)
 
-Go module implementing JSON Schema validation following the [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema) specification.
+Go module implementing JSON Schema validation following the [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema) specification — with a fluent schema builder, reusable compiled validators, and ahead-of-time validator code generation.
 
 # Features
 
@@ -14,9 +14,9 @@ Go module implementing JSON Schema validation following the [JSON Schema 2020-12
 * Clean separation between schema construction and validation
   * Build schemas using fluent builder API
   * Compile schemas into optimized validators for high-performance validation
-* Code generation support
-  * Generate pre-compiled validator code for deployment optimization
-  * Skip runtime schema compilation overhead
+* Ahead-of-time code generation
+  * Emit a schema as standalone Go validator source, compiled straight into your binary
+  * No schema files to embed and no runtime schema compilation in production
 * Command-line tool for schema validation and code generation
 * Comprehensive test coverage including JSON Schema Test Suite compliance
 
@@ -235,6 +235,16 @@ This design provides:
 - Clean, intuitive API
 - Flexibility for different use cases
 - Strong type safety
+
+## Why this library?
+
+Most Go JSON Schema packages specialize in one direction — validating data, generating Go types *from* a schema, or inferring a schema *from* Go structs. This module instead covers the whole path from authoring to deployment:
+
+* **Author** schemas with a fluent builder and ready-made constructors (`Email()`, `PositiveInteger()`, `Optional()`, …), or unmarshal them from JSON — the two are interchangeable.
+* **Compile** a schema once into an optimized validator that is safe to reuse across goroutines and many requests.
+* **Generate** that validator as plain Go source, so production binaries skip schema parsing and compilation entirely — a step most validators leave for runtime.
+
+Schemas are fully encapsulated rather than open structs, so you cannot accidentally build a half-initialized or internally inconsistent schema, and the compiled form is free to optimize. The aim is one cohesive 2020-12 implementation that scales from a quick `lint` of a schema file to high-throughput services with no per-request setup.
 
 # Contributions
 
