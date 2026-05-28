@@ -7,26 +7,33 @@ import (
 	schema "github.com/lestrrat-go/json-schema"
 )
 
-func Example_schema_builder() {
-	s, err := schema.NewBuilder().
+// Example_schemaBuilderMarshal builds a schema with the fluent builder and shows
+// that it marshals to the same canonical JSON as the equivalent schema loaded
+// from a file. The library emits object keys in a stable, sorted order, so a
+// round trip (build -> JSON, or JSON -> *Schema -> JSON) is deterministic.
+func Example_schemaBuilderMarshal() {
+	// Programmatic.
+	built := schema.NewBuilder().
 		Schema(schema.Version).
-		ID(`https://example.com/polygon`).
+		ID("https://example.com/polygon").
 		Types(schema.ObjectType).
 		Property("validProp", schema.New()).
 		AdditionalProperties(schema.TrueSchema()).
-		Build()
-	if err != nil {
-		fmt.Println(err)
-	}
+		MustBuild()
 
-	fmt.Println(s.ID())
-	buf, err := json.Marshal(s)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	// Equivalent schema authored as JSON in testdata/schema_builder.json.
+	loaded := loadSchema("testdata/schema_builder.json")
+
+	for _, name := range []string{"programmatic", "from-json"} {
+		s := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}[name]
+		buf, err := json.Marshal(s)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("%-12s %s\n", name, buf)
 	}
-	fmt.Printf("%s\n", buf)
-	// OUTPUT:
-	// https://example.com/polygon
-	// {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"validProp":{}},"type":"object"}
+	// Output:
+	// programmatic {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"validProp":{}},"type":"object"}
+	// from-json    {"$id":"https://example.com/polygon","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"validProp":{}},"type":"object"}
 }
