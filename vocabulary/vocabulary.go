@@ -281,18 +281,17 @@ func ExtractVocabularySet(s *schema.Schema) *VocabularySet {
 	return vs
 }
 
-// ResolveVocabularyFromMetaschema resolves the vocabulary set from a metaschema
-func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) (*VocabularySet, error) {
+// ResolveVocabularyFromMetaschema resolves the vocabulary set declared by the
+// metaschema at metaschemaURI, resolving it against the given resolver and root
+// schema. It falls back to AllEnabled when the URI is empty, no root schema is
+// supplied, or the metaschema cannot be resolved.
+func ResolveVocabularyFromMetaschema(ctx context.Context, resolver *schema.Resolver, rootSchema *schema.Schema, metaschemaURI string) (*VocabularySet, error) {
 	if metaschemaURI == "" {
 		return AllEnabled(), nil
 	}
-
-	resolver := schema.ResolverFromContext(ctx)
 	if resolver == nil {
 		resolver = schema.NewResolver()
 	}
-
-	rootSchema := schema.RootSchemaFromContext(ctx)
 	if rootSchema == nil {
 		return AllEnabled(), nil
 	}

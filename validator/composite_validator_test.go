@@ -39,12 +39,10 @@ func TestCompositeValidatorWithRefAndOtherConstraints(t *testing.T) {
 	require.Equal(t, schemaWithRef.Pattern(), withoutRef.Pattern())
 
 	// Test compilation and validation
-	ctx := context.Background()
-	ctx = schema.WithResolver(ctx, schema.NewResolver())
-	ctx = schema.WithRootSchema(ctx, rootSchema)
-	ctx = schema.WithBaseSchema(ctx, rootSchema)
-
-	validator, err := Compile(ctx, schemaWithRef)
+	validator, err := Compile(context.Background(), schemaWithRef,
+		WithResolver(schema.NewResolver()),
+		WithBaseSchema(rootSchema),
+	)
 	require.NoError(t, err)
 
 	// Test validation with various inputs
@@ -94,7 +92,7 @@ func TestCompositeValidatorWithRefAndOtherConstraints(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := validator.Validate(ctx, tc.input)
+			_, err := validator.Validate(context.Background(), tc.input)
 			if tc.shouldPass {
 				require.NoError(t, err, "Test case: %s - %s", tc.name, tc.description)
 			} else {
@@ -125,12 +123,10 @@ func TestCompositeValidatorWithComplexRef(t *testing.T) {
 		MustBuild()
 
 	// Test compilation and validation
-	ctx := context.Background()
-	ctx = schema.WithResolver(ctx, schema.NewResolver())
-	ctx = schema.WithRootSchema(ctx, rootSchema)
-	ctx = schema.WithBaseSchema(ctx, rootSchema)
-
-	validator, err := Compile(ctx, schemaWithRef)
+	validator, err := Compile(context.Background(), schemaWithRef,
+		WithResolver(schema.NewResolver()),
+		WithBaseSchema(rootSchema),
+	)
 	require.NoError(t, err)
 
 	// Test validation with various inputs
@@ -174,7 +170,7 @@ func TestCompositeValidatorWithComplexRef(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := validator.Validate(ctx, tc.input)
+			_, err := validator.Validate(context.Background(), tc.input)
 			if tc.shouldPass {
 				require.NoError(t, err, "Test case: %s - %s", tc.name, tc.description)
 			} else {

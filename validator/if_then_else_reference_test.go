@@ -52,11 +52,7 @@ func TestIfThenElseWithReferences(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		// Set up context with resolver and root schema
-		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(context.Background(), &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		t.Run("then branch - string type", func(t *testing.T) {
@@ -149,11 +145,7 @@ func TestIfThenElseWithReferences(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		// Set up context with resolver and root schema
-		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(context.Background(), &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		t.Run("basic config - then branch", func(t *testing.T) {

@@ -16,9 +16,7 @@ func TestDynamicRefRuntimeScope(t *testing.T) {
 		t.Helper()
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
-		ctx := schema.WithResolver(t.Context(), schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(t.Context(), &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 		return v
 	}

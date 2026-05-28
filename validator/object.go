@@ -118,11 +118,6 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, cs compileSta
 
 	v.StrictObjectType(strictType)
 
-	// Set dependent schemas if available in context (from compilation phase)
-	if dependentValidators := DependentSchemasFromContext(ctx); dependentValidators != nil {
-		v.DependentSchemas(dependentValidators)
-	}
-
 	return v.Build()
 }
 
@@ -353,11 +348,9 @@ func (c *objectValidator) Validate(ctx context.Context, v any, options ...Valida
 }
 
 func (c *objectValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
-	// Get previously evaluated properties from context
-	ec, _ := schemactx.EvaluationContextFromContext(ctx)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
+	// Annotations from sibling applicators flow in via returned Results, not here;
+	// this starts from an empty evaluated-property set.
+	var ec schemactx.EvaluationContext
 	properties, isObject, err := extractObjectProperties(v)
 	if err != nil {
 		return nil, fmt.Errorf(`invalid value passed to ObjectValidator: %w`, err)
@@ -486,13 +479,10 @@ func (c *objectValidator) evaluate(ctx context.Context, v any, st *evalState) (R
 
 	// Handle dependent schemas if stored in this validator (must happen before unevaluated properties)
 	if len(c.dependentSchemas) > 0 {
-		// Pass the stored dependent schemas through context during execution phase
-		depCtx := WithDependentSchemas(ctx, c.dependentSchemas)
-
 		for propertyName, depValidator := range c.dependentSchemas {
 			// If the property exists in the object, validate the entire object with the dependent schema
 			if _, exists := properties[propertyName]; exists {
-				result, err := evalChild(depCtx, depValidator, v, st)
+				result, err := evalChild(ctx, depValidator, v, st)
 				if err != nil {
 					return nil, fmt.Errorf("dependent schema validation failed for property %s: %w", propertyName, err)
 				}

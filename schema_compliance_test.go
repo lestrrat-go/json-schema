@@ -486,8 +486,7 @@ func runTestSuite(t *testing.T, testSuite TestSuite) {
 
 	// Compile the schema to a validator, with the suite's remote documents
 	// preloaded so http://localhost:1234/... references resolve offline.
-	ctx := schema.WithResolver(context.Background(), newSuiteResolver(t))
-	v, err := validator.Compile(ctx, s)
+	v, err := validator.Compile(context.Background(), s, validator.WithResolver(newSuiteResolver(t)))
 	if err != nil {
 		t.Skipf("Failed to compile schema: %v", err)
 		return

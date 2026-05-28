@@ -19,6 +19,7 @@ func (compileOption) compileOption() {}
 type identResolver struct{}
 type identVocabularySet struct{}
 type identBaseURI struct{}
+type identBaseSchema struct{}
 
 // WithResolver supplies the $ref resolver used during compilation. When omitted,
 // a fresh resolver is created.
@@ -36,6 +37,15 @@ func WithVocabularySet(vs *vocabulary.VocabularySet) CompileOption {
 // to resolve relative references.
 func WithBaseURI(u string) CompileOption {
 	return compileOption{option.New(identBaseURI{}, u)}
+}
+
+// WithBaseSchema declares the document that the schema being compiled belongs to.
+// Use it when compiling a fragment whose local references (e.g. "#/$defs/...")
+// must resolve against a separate root document rather than the fragment itself.
+// The supplied schema becomes both the document root and the base resource for
+// reference resolution.
+func WithBaseSchema(s *schema.Schema) CompileOption {
+	return compileOption{option.New(identBaseSchema{}, s)}
 }
 
 // ValidateOption configures a Validate call.

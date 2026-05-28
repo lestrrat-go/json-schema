@@ -65,15 +65,13 @@ func _main() error {
 		return fmt.Errorf("root meta-schema %q not found in embedded schemas", rootRef)
 	}
 
-	ctx := context.Background()
 	// Enable all vocabularies so the meta-schema compiles with every keyword it
 	// uses across the core/applicator/validation/etc. vocabularies.
-	ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
-	ctx = schema.WithResolver(ctx, resolver)
-	ctx = schema.WithBaseSchema(ctx, root)
-	ctx = schema.WithBaseURI(ctx, baseURI)
-
-	compiledValidator, err := validator.Compile(ctx, root)
+	compiledValidator, err := validator.Compile(context.Background(), root,
+		validator.WithVocabularySet(vocabulary.AllEnabled()),
+		validator.WithResolver(resolver),
+		validator.WithBaseURI(baseURI),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to compile meta-schema: %w", err)
 	}

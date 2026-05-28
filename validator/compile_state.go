@@ -1,8 +1,6 @@
 package validator
 
 import (
-	"context"
-
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/vocabulary"
 	"github.com/lestrrat-go/option/v3"
@@ -46,71 +44,46 @@ type compileState struct {
 	skipIDRebase bool
 }
 
-// newCompileState builds the initial compileState for a top-level Compile call.
-// Explicit CompileOptions take precedence; for backward compatibility, any
-// values the caller placed on ctx via the public schema.With* / vocabulary.WithSet
-// helpers seed anything an option did not set. Defaults (fresh resolver, default
-// vocabulary) are applied so the rest of the compiler never sees a nil config.
-func newCompileState(ctx context.Context, s *schema.Schema, options []CompileOption) compileState {
-	var optResolver *schema.Resolver
-	var optVocab *vocabulary.VocabularySet
-	var optBaseURI string
-	haveBaseURI := false
+// newCompileState builds the initial compileState for a top-level Compile call
+// from the supplied options. Defaults (fresh resolver, default vocabulary) are
+// applied so the rest of the compiler never sees a nil config. The root schema
+// is both the document root and the initial base resource.
+func newCompileState(s *schema.Schema, options []CompileOption) compileState {
+	resolver := schema.NewResolver()
+	vocab := vocabulary.DefaultSet()
+	var baseURI string
+	// By default the schema being compiled is its own document root and base
+	// resource; WithBaseSchema overrides this for fragment compilation.
+	doc := s
 	for _, o := range options {
 		switch o.Ident() {
 		case identResolver{}:
-			optResolver = option.MustGet[*schema.Resolver](o)
+			if r := option.MustGet[*schema.Resolver](o); r != nil {
+				resolver = r
+			}
 		case identVocabularySet{}:
-			optVocab = option.MustGet[*vocabulary.VocabularySet](o)
+			if vs := option.MustGet[*vocabulary.VocabularySet](o); vs != nil {
+				vocab = vs
+			}
 		case identBaseURI{}:
-			optBaseURI = option.MustGet[string](o)
-			haveBaseURI = true
+			baseURI = option.MustGet[string](o)
+		case identBaseSchema{}:
+			if bs := option.MustGet[*schema.Schema](o); bs != nil {
+				doc = bs
+			}
 		}
 	}
 
-	resolver := optResolver
-	if resolver == nil {
-		resolver = schema.ResolverFromContext(ctx)
-	}
-	if resolver == nil {
-		resolver = schema.NewResolver()
-	}
-
-	vocab := optVocab
-	if vocab == nil {
-		vocab = vocabulary.SetFromContext(ctx)
-	}
-	if vocab == nil {
-		vocab = vocabulary.DefaultSet()
-	}
-
-	baseURI := optBaseURI
-	if !haveBaseURI {
-		baseURI = schema.BaseURIFromContext(ctx)
-	}
-
-	rootSchema := schema.RootSchemaFromContext(ctx)
-	if rootSchema == nil {
-		rootSchema = s
-	}
 	// Eager resolution requires the $id/anchor index to exist before the first
-	// $ref is compiled; register the root up front. RegisterRoot is deduped per
-	// root inside the resolver, so this is safe to call repeatedly.
-	resolver.RegisterRoot(rootSchema)
-
-	baseSchema := schema.BaseSchemaFromContext(ctx)
-	if baseSchema == nil {
-		baseSchema = s
-	}
+	// $ref is compiled; register the document root up front. RegisterRoot is
+	// deduped per root inside the resolver, so this is safe to call repeatedly.
+	resolver.RegisterRoot(doc)
 
 	return compileState{
-		cfg:            &compileConfig{resolver: resolver, vocab: vocab},
-		rootSchema:     rootSchema,
-		baseSchema:     baseSchema,
-		baseURI:        baseURI,
-		referenceStack: schema.ReferenceStackFromContext(ctx),
-		refDepths:      schema.RefDepthsFromContext(ctx),
-		dataDepth:      schema.DataDepthFromContext(ctx),
+		cfg:        &compileConfig{resolver: resolver, vocab: vocab},
+		rootSchema: doc,
+		baseSchema: doc,
+		baseURI:    baseURI,
 	}
 }
 

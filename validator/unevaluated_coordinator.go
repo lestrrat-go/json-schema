@@ -101,11 +101,7 @@ func (v *unevaluatedCoordinator) validateUnevaluatedProperties(ctx context.Conte
 		evaluatedProps = make(map[string]bool)
 	}
 
-	// Also check context for previously evaluated properties
 	var ec schemactx.EvaluationContext
-	if ecPtr, _ := schemactx.EvaluationContextFromContext(ctx); ecPtr != nil {
-		ec = *ecPtr
-	}
 	contextPropKeys := ec.Properties.Keys()
 
 	// Merge context and current evaluations
@@ -181,11 +177,7 @@ func (v *unevaluatedCoordinator) validateUnevaluatedItems(ctx context.Context, i
 		evaluatedItems = arrayResult.EvaluatedItems()
 	}
 
-	// Also check context for previously evaluated items
 	var ec schemactx.EvaluationContext
-	if ecPtr, _ := schemactx.EvaluationContextFromContext(ctx); ecPtr != nil {
-		ec = *ecPtr
-	}
 	contextItems := ec.Items.Values()
 
 	// Merge context and current evaluations

@@ -859,9 +859,7 @@ func TestStringValidatorComprehensive(t *testing.T) {
 				require.NoError(t, err)
 
 				// For direct format validation tests, enable format-assertion
-				ctx := context.Background()
-				ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
-				v, err := validator.Compile(ctx, s)
+				v, err := validator.Compile(context.Background(), s, validator.WithVocabularySet(vocabulary.AllEnabled()))
 				require.NoError(t, err)
 
 				_, err = v.Validate(context.Background(), tc.value)
@@ -955,9 +953,7 @@ func TestCommonPatterns(t *testing.T) {
 			schemaObj := tc.builder.MustBuild()
 			// For pattern helpers, we want format validation to be enforced
 			// Set up context with format-assertion enabled
-			ctx := context.Background()
-			ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
-			v, err := validator.Compile(ctx, schemaObj)
+			v, err := validator.Compile(context.Background(), schemaObj, validator.WithVocabularySet(vocabulary.AllEnabled()))
 			require.NoError(t, err, "Failed to compile validator")
 
 			// Test valid cases

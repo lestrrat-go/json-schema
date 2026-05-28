@@ -49,12 +49,11 @@ func valid(s *schema.Schema, data any) bool {
 // format-assertion, so that "format" keywords (email, uuid, date-time, ...) are
 // enforced rather than treated as annotations.
 func validStrict(s *schema.Schema, data any) bool {
-	ctx := vocabulary.WithSet(context.Background(), vocabulary.AllEnabled())
-	return validIn(ctx, s, data)
+	return validIn(context.Background(), s, data, validator.WithVocabularySet(vocabulary.AllEnabled()))
 }
 
-func validIn(ctx context.Context, s *schema.Schema, data any) bool {
-	v, err := validator.Compile(ctx, s)
+func validIn(ctx context.Context, s *schema.Schema, data any, options ...validator.CompileOption) bool {
+	v, err := validator.Compile(ctx, s, options...)
 	if err != nil {
 		return false
 	}

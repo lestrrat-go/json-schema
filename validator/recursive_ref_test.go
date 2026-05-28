@@ -17,9 +17,7 @@ func TestRecursiveReference(t *testing.T) {
 		t.Helper()
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
-		ctx := schema.WithResolver(t.Context(), schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-		return validator.Compile(ctx, &s)
+		return validator.Compile(t.Context(), &s, validator.WithResolver(schema.NewResolver()))
 	}
 
 	t.Run("self reference via $ref to document root", func(t *testing.T) {

@@ -33,12 +33,11 @@ func Example_resolverRegisterFS() {
 		if err := r.RegisterFS("https://example.com/schemas/", fsys); err != nil {
 			return false
 		}
-		ctx := schema.WithResolver(context.Background(), r)
-		v, err := validator.Compile(ctx, mainSchema)
+		v, err := validator.Compile(context.Background(), mainSchema, validator.WithResolver(r))
 		if err != nil {
 			return false
 		}
-		_, err = v.Validate(ctx, data)
+		_, err = v.Validate(context.Background(), data)
 		return err == nil
 	}
 

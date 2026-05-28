@@ -154,34 +154,6 @@ func mergeArrayResults(results ...*ArrayResult) *ArrayResult {
 	return merged
 }
 
-// dependentSchemasKey is now handled by the public schema package
-
-// WithDependentSchemas adds compiled dependent schema validators to the context
-func WithDependentSchemas(ctx context.Context, dependentSchemas map[string]Interface) context.Context {
-	// Convert map[string]Interface to map[string]any
-	converted := make(map[string]any, len(dependentSchemas))
-	for k, v := range dependentSchemas {
-		converted[k] = v
-	}
-	return schema.WithDependentSchemas(ctx, converted)
-}
-
-// DependentSchemasFromContext extracts compiled dependent schema validators from context, returns nil if none are associated with ctx
-func DependentSchemasFromContext(ctx context.Context) map[string]Interface {
-	deps := schema.DependentSchemasFromContext(ctx)
-	if deps == nil {
-		return nil
-	}
-	// Convert map[string]any back to map[string]Interface
-	converted := make(map[string]Interface, len(deps))
-	for k, v := range deps {
-		if validator, ok := v.(Interface); ok {
-			converted[k] = validator
-		}
-	}
-	return converted
-}
-
 type Builder interface {
 	Build() (Interface, error)
 	MustBuild() Interface

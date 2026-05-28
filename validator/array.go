@@ -298,10 +298,9 @@ func (c *arrayValidator) Validate(ctx context.Context, v any, options ...Validat
 func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	acc, isArray := newArrayAccessor(v)
 
+	// Annotations from sibling applicators flow in via returned Results; this
+	// starts from an empty evaluated-item set.
 	var ec schemactx.EvaluationContext
-	if ecPtr, _ := schemactx.EvaluationContextFromContext(ctx); ecPtr != nil {
-		ec = *ecPtr
-	}
 
 	if !isArray {
 		// Handle non-array values based on whether this is strict array type validation

@@ -10,7 +10,7 @@ import (
 
 // Example_externalResolver resolves a $ref that points at a separate schema
 // document. A schema.Resolver holds the external document (keyed by its URI) and
-// is placed on the context so the compiler can follow the reference. The same
+// is passed to Compile so the compiler can follow the reference. The same
 // wiring is used whether the documents are built programmatically or loaded from
 // JSON files.
 func Example_externalResolver() {
@@ -33,12 +33,11 @@ func Example_externalResolver() {
 	validateWith := func(mainSchema, addressSchema *schema.Schema, data any) bool {
 		r := schema.NewResolver()
 		r.RegisterDocument("https://example.com/address", addressSchema)
-		ctx := schema.WithResolver(context.Background(), r)
-		v, err := validator.Compile(ctx, mainSchema)
+		v, err := validator.Compile(context.Background(), mainSchema, validator.WithResolver(r))
 		if err != nil {
 			return false
 		}
-		_, err = v.Validate(ctx, data)
+		_, err = v.Validate(context.Background(), data)
 		return err == nil
 	}
 
