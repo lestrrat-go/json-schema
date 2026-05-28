@@ -22,7 +22,17 @@ func Example_anchorRef() {
 		Required("first").
 		MustBuild()
 
-	loaded := loadSchema("testdata/anchor_ref.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"$defs": {
+			"name": { "$anchor": "name", "type": "string", "minLength": 1 }
+		},
+		"properties": {
+			"first": { "$ref": "#name" }
+		},
+		"required": ["first"]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# non-empty first name")

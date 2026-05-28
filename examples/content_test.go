@@ -18,7 +18,13 @@ func Example_content() {
 		ContentSchema(schema.NewBuilder().Types(schema.ObjectType).MustBuild()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/content.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "string",
+		"contentEncoding": "base64",
+		"contentMediaType": "application/json",
+		"contentSchema": { "type": "object" }
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println(`# base64 of {"a":1}`)

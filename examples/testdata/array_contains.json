@@ -1,5 +1,0 @@
-{
-  "type": "array",
-  "contains": { "type": "integer" },
-  "minContains": 2
-}

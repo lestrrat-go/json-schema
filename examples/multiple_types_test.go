@@ -13,7 +13,10 @@ func Example_multipleTypes() {
 		Types(schema.StringType, schema.IntegerType).
 		MustBuild()
 
-	loaded := loadSchema("testdata/multiple_types.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": ["string", "integer"]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# a string")

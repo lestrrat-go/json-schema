@@ -26,7 +26,14 @@ func Example_resolverRegisterFS() {
 		Property("home", schema.NewBuilder().Reference("https://example.com/schemas/address.json").MustBuild()).
 		Required("home").
 		MustBuild()
-	loaded := loadSchema("testdata/registerfs_main.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"home": { "$ref": "https://example.com/schemas/address.json" }
+		},
+		"required": ["home"]
+	}`)
 
 	validateWith := func(mainSchema *schema.Schema, data any) bool {
 		r := schema.NewResolver()

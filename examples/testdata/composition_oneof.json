@@ -1,6 +1,0 @@
-{
-  "oneOf": [
-    { "type": "integer", "multipleOf": 3 },
-    { "type": "integer", "multipleOf": 5 }
-  ]
-}

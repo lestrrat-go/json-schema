@@ -17,7 +17,18 @@ func Example_dependentRequired() {
 		DependentRequired(map[string][]string{"credit_card": {"billing_address"}}).
 		MustBuild()
 
-	loaded := loadSchema("testdata/dependent_required.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"name": { "type": "string" },
+			"credit_card": { "type": "integer" },
+			"billing_address": { "type": "string" }
+		},
+		"dependentRequired": {
+			"credit_card": ["billing_address"]
+		}
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# no credit_card, so no dependency")
@@ -48,7 +59,21 @@ func Example_dependentSchemas() {
 		DependentSchemas(map[string]schema.SchemaOrBool{"credit_card": dep}).
 		MustBuild()
 
-	loaded := loadSchema("testdata/dependent_schemas.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"credit_card": { "type": "integer" }
+		},
+		"dependentSchemas": {
+			"credit_card": {
+				"required": ["billing_address"],
+				"properties": {
+					"billing_address": { "type": "string" }
+				}
+			}
+		}
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# no credit_card, dependent schema not applied")

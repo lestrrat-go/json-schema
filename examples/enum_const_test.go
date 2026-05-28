@@ -10,7 +10,10 @@ import (
 func Example_enum() {
 	built := schema.Enum("red", "green", "blue").MustBuild()
 
-	loaded := loadSchema("testdata/enum.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"enum": ["red", "green", "blue"]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# member of the set")
@@ -30,7 +33,10 @@ func Example_enum() {
 func Example_const() {
 	built := schema.NewBuilder().Const("v1").MustBuild()
 
-	loaded := loadSchema("testdata/const.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"const": "v1"
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# the constant value")

@@ -16,7 +16,13 @@ func Example_integerConstraints() {
 		MultipleOf(5).
 		MustBuild()
 
-	loaded := loadSchema("testdata/numeric_integer.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "integer",
+		"minimum": 0,
+		"maximum": 100,
+		"multipleOf": 5
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# 25 (in range, multiple of 5)")
@@ -41,7 +47,12 @@ func Example_numberExclusiveBounds() {
 		ExclusiveMaximum(1).
 		MustBuild()
 
-	loaded := loadSchema("testdata/numeric_number.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "number",
+		"exclusiveMinimum": 0,
+		"exclusiveMaximum": 1
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# 0.5 (strictly between 0 and 1)")

@@ -16,7 +16,13 @@ func Example_arrayItems() {
 		UniqueItems(true).
 		MustBuild()
 
-	loaded := loadSchema("testdata/array_items.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "array",
+		"items": { "type": "string" },
+		"minItems": 1,
+		"uniqueItems": true
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# distinct strings")
@@ -44,7 +50,15 @@ func Example_arrayTuple() {
 		Items(schema.FalseSchema()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/array_tuple.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "array",
+		"prefixItems": [
+			{ "type": "string" },
+			{ "type": "integer" }
+		],
+		"items": false
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# [string, integer]")
@@ -69,7 +83,12 @@ func Example_arrayContains() {
 		MinContains(2).
 		MustBuild()
 
-	loaded := loadSchema("testdata/array_contains.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "array",
+		"contains": { "type": "integer" },
+		"minContains": 2
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# two integers present")

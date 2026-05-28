@@ -18,7 +18,21 @@ func Example_convenienceBuilders() {
 		Required("id", "role").
 		MustBuild()
 
-	loaded := loadSchema("testdata/convenience_object.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"id": { "type": "integer", "minimum": 0 },
+			"nickname": {
+				"anyOf": [
+					{ "type": "string", "minLength": 1 },
+					{ "type": "null" }
+				]
+			},
+			"role": { "enum": ["admin", "user"] }
+		},
+		"required": ["id", "role"]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# required fields present, optional nickname omitted")

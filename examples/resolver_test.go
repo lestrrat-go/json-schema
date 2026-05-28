@@ -26,9 +26,22 @@ func Example_externalResolver() {
 		Required("home").
 		MustBuild()
 
-	// Loaded from JSON.
-	loadedMain := loadSchema("testdata/resolver_main.json")
-	loadedAddr := loadSchema("testdata/resolver_address.json")
+	// The equivalent schemas authored as JSON.
+	loadedMain := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"home": { "$ref": "https://example.com/address" }
+		},
+		"required": ["home"]
+	}`)
+	loadedAddr := loadSchemaJSON(`{
+		"$id": "https://example.com/address",
+		"type": "object",
+		"properties": {
+			"city": { "type": "string", "minLength": 1 }
+		},
+		"required": ["city"]
+	}`)
 
 	validateWith := func(mainSchema, addressSchema *schema.Schema, data any) bool {
 		r := schema.NewResolver()

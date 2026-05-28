@@ -16,7 +16,12 @@ func Example_ifThenElse() {
 		ElseSchema(schema.NewBuilder().Types(schema.StringType).MustBuild()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/conditional.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"if": { "type": "integer" },
+		"then": { "minimum": 0 },
+		"else": { "type": "string" }
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# 5 (integer branch: non-negative)")

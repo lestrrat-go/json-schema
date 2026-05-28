@@ -22,7 +22,20 @@ func Example_dynamicRef() {
 		Required("value").
 		MustBuild()
 
-	loaded := loadSchema("testdata/dynamic_ref_tree.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"$id": "https://example.com/tree",
+		"$dynamicAnchor": "node",
+		"type": "object",
+		"properties": {
+			"value": { "type": "integer" },
+			"children": {
+				"type": "array",
+				"items": { "$dynamicRef": "#node" }
+			}
+		},
+		"required": ["value"]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	good := map[string]any{

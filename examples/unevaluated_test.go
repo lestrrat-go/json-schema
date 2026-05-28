@@ -14,7 +14,11 @@ func Example_propertyNames() {
 		PropertyNames(schema.NewBuilder().Pattern("^[a-z]+$").MustBuild()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/property_names.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"propertyNames": { "pattern": "^[a-z]+$" }
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# all names lowercase")
@@ -44,7 +48,18 @@ func Example_unevaluatedProperties() {
 		UnevaluatedProperties(schema.FalseSchema()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/unevaluated_properties.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"allOf": [
+			{
+				"type": "object",
+				"properties": {
+					"name": { "type": "string" }
+				}
+			}
+		],
+		"unevaluatedProperties": false
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# only the evaluated property")
@@ -74,7 +89,16 @@ func Example_unevaluatedItems() {
 		UnevaluatedItems(schema.FalseSchema()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/unevaluated_items.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"allOf": [
+			{
+				"type": "array",
+				"prefixItems": [{ "type": "string" }]
+			}
+		],
+		"unevaluatedItems": false
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# only the evaluated element")

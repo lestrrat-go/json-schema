@@ -38,6 +38,25 @@ func loadSchema(path string) *schema.Schema {
 	return &s
 }
 
+// loadSchemaJSON loads a schema from an inline JSON document. So the examples
+// can keep the schema text visible while still demonstrating loading a schema
+// authored as a JSON file, it writes src to a temporary file and reads it back
+// through loadSchema.
+func loadSchemaJSON(src string) *schema.Schema {
+	f, err := os.CreateTemp("", "schema-*.json")
+	if err != nil {
+		panic(err)
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.WriteString(src); err != nil {
+		panic(err)
+	}
+	if err := f.Close(); err != nil {
+		panic(err)
+	}
+	return loadSchema(f.Name())
+}
+
 // valid compiles s into a validator and reports whether data satisfies it.
 // It uses the default 2020-12 vocabulary set, in which "format" is an annotation
 // only (no format assertion) — matching the JSON Schema default.

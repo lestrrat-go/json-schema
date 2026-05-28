@@ -18,8 +18,15 @@ func Example_objectProperties() {
 		Required("name").
 		MustBuild()
 
-	// Equivalent schema from testdata/object_properties.json.
-	loaded := loadSchema("testdata/object_properties.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"name": { "type": "string", "minLength": 1 },
+			"age": { "type": "integer", "minimum": 0 }
+		},
+		"required": ["name"]
+	}`)
 
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
@@ -45,7 +52,13 @@ func Example_objectAdditionalProperties() {
 		AdditionalProperties(schema.FalseSchema()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/object_additional_properties.json")
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"properties": {
+			"id": { "type": "integer", "minimum": 0 }
+		},
+		"additionalProperties": false
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# only declared properties")
@@ -71,7 +84,13 @@ func Example_objectPatternProperties() {
 		AdditionalProperties(schema.FalseSchema()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/object_pattern_properties.json")
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"patternProperties": {
+			"^S_": { "type": "string" }
+		},
+		"additionalProperties": false
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# matching name, string value")

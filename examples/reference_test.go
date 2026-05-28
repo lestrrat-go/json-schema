@@ -18,7 +18,18 @@ func Example_refDefs() {
 		Required("firstName", "lastName").
 		MustBuild()
 
-	loaded := loadSchema("testdata/reference_defs.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "object",
+		"$defs": {
+			"name": { "type": "string", "minLength": 1 }
+		},
+		"properties": {
+			"firstName": { "$ref": "#/$defs/name" },
+			"lastName": { "$ref": "#/$defs/name" }
+		},
+		"required": ["firstName", "lastName"]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# both names present and non-empty")

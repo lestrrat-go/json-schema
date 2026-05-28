@@ -12,7 +12,12 @@ import (
 // a string schema is produced by cloning the base and dropping its maxLength —
 // equivalent to building the relaxed schema directly.
 func Example_cloneAndReset() {
-	base := loadSchema("testdata/clone_base.json") // string, length 3..8
+	// The base schema authored as JSON: string, length 3..8.
+	base := loadSchemaJSON(`{
+		"type": "string",
+		"minLength": 3,
+		"maxLength": 8
+	}`)
 
 	// Two ways to reach the same goal: build the relaxed schema directly, or
 	// clone the base and reset the maxLength field.

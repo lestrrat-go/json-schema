@@ -8,8 +8,8 @@ import (
 )
 
 // Example_schemaBuilderMarshal builds a schema with the fluent builder and shows
-// that it marshals to the same canonical JSON as the equivalent schema loaded
-// from a file. The library emits object keys in a stable, sorted order, so a
+// that it marshals to the same canonical JSON as the equivalent schema authored
+// as JSON. The library emits object keys in a stable, sorted order, so a
 // round trip (build -> JSON, or JSON -> *Schema -> JSON) is deterministic.
 func Example_schemaBuilderMarshal() {
 	// Programmatic.
@@ -21,8 +21,14 @@ func Example_schemaBuilderMarshal() {
 		AdditionalProperties(schema.TrueSchema()).
 		MustBuild()
 
-	// Equivalent schema authored as JSON in testdata/schema_builder.json.
-	loaded := loadSchema("testdata/schema_builder.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"$id": "https://example.com/polygon",
+		"type": "object",
+		"properties": { "validProp": {} },
+		"additionalProperties": true
+	}`)
 
 	for _, name := range []string{"programmatic", "from-json"} {
 		s := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}[name]

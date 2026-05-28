@@ -16,7 +16,13 @@ func Example_stringConstraints() {
 		Pattern("^[a-z]+$").
 		MustBuild()
 
-	loaded := loadSchema("testdata/string_constraints.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "string",
+		"minLength": 3,
+		"maxLength": 10,
+		"pattern": "^[a-z]+$"
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# lowercase, within length")
@@ -38,7 +44,10 @@ func Example_stringConstraints() {
 // address under the default vocabulary but rejects it under the strict one.
 func Example_stringFormat() {
 	built := schema.Email().MustBuild() // type:string, format:email
-	loaded := loadSchema("testdata/string_email.json")
+	loaded := loadSchemaJSON(`{
+		"type": "string",
+		"format": "email"
+	}`)
 
 	const malformed = "not-an-email"
 	fmt.Printf("default (annotation) built=%t json=%t\n", valid(built, malformed), valid(loaded, malformed))

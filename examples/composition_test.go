@@ -13,7 +13,13 @@ func Example_anyOf() {
 		schema.NewBuilder().Types(schema.IntegerType).MustBuild(),
 	).MustBuild()
 
-	loaded := loadSchema("testdata/composition_anyof.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"anyOf": [
+			{ "type": "string" },
+			{ "type": "integer" }
+		]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# a string")
@@ -40,7 +46,13 @@ func Example_oneOf() {
 		).
 		MustBuild()
 
-	loaded := loadSchema("testdata/composition_oneof.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"oneOf": [
+			{ "type": "integer", "multipleOf": 3 },
+			{ "type": "integer", "multipleOf": 5 }
+		]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# 9 (multiple of 3 only)")
@@ -63,7 +75,13 @@ func Example_allOf() {
 		schema.NewBuilder().Types(schema.IntegerType).MultipleOf(2).MustBuild(),
 	).MustBuild()
 
-	loaded := loadSchema("testdata/composition_allof.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"allOf": [
+			{ "type": "integer", "minimum": 0 },
+			{ "type": "integer", "multipleOf": 2 }
+		]
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# 4 (non-negative and even)")
@@ -85,7 +103,10 @@ func Example_not() {
 		Not(schema.NewBuilder().Types(schema.StringType).MustBuild()).
 		MustBuild()
 
-	loaded := loadSchema("testdata/composition_not.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"not": { "type": "string" }
+	}`)
 	schemas := map[string]*schema.Schema{"programmatic": built, "from-json": loaded}
 
 	fmt.Println("# a number (not a string)")

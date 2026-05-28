@@ -1,5 +1,0 @@
-{
-  "if": { "type": "integer" },
-  "then": { "minimum": 0 },
-  "else": { "type": "string" }
-}

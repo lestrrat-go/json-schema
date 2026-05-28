@@ -19,7 +19,13 @@ func Example_schemaIntrospection() {
 		Pattern("^[a-z]+$").
 		MustBuild()
 
-	loaded := loadSchema("testdata/introspection.json")
+	// The equivalent schema authored as JSON.
+	loaded := loadSchemaJSON(`{
+		"type": "string",
+		"minLength": 3,
+		"maxLength": 20,
+		"pattern": "^[a-z]+$"
+	}`)
 
 	describe := func(s *schema.Schema) string {
 		return fmt.Sprintf("types=%v string?=%t pattern=%q maxLength(set=%t)=%d stringConstraints?=%t",
