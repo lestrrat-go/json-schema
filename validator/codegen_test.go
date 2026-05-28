@@ -316,7 +316,7 @@ func TestCodeGenerationWithCompiledValidators(t *testing.T) {
 // unsupportedValidator is a mock validator type for testing
 type unsupportedValidator struct{}
 
-func (v *unsupportedValidator) Validate(_ context.Context, _ any) (Result, error) {
+func (v *unsupportedValidator) Validate(_ context.Context, _ any, _ ...ValidateOption) (Result, error) {
 	return NewArrayResult(), nil
 }
 

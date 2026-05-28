@@ -20,8 +20,8 @@ type ReferenceValidator struct {
 	baseURI      string         // Enclosing resource's base URI captured at compile time
 }
 
-func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return r.evaluate(ctx, v, newEvalState(ctx))
+func (r *ReferenceValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return r.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (r *ReferenceValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
@@ -98,8 +98,8 @@ type dynamicScopeValidator struct {
 	inner  Interface
 }
 
-func (d *dynamicScopeValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return d.evaluate(ctx, v, newEvalState(ctx))
+func (d *dynamicScopeValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return d.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (d *dynamicScopeValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
@@ -127,8 +127,8 @@ func NewDynamicReferenceValidator(reference string) *DynamicReferenceValidator {
 	}
 }
 
-func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return dr.evaluate(ctx, v, newEvalState(ctx))
+func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return dr.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (dr *DynamicReferenceValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
@@ -140,8 +140,11 @@ func (dr *DynamicReferenceValidator) evaluate(ctx context.Context, v any, st *ev
 	// available to resolve against at validation time. The registered validator
 	// represents an outermost resource, so it re-enters with fresh state.
 	if name := plainAnchorFragment(dr.reference); name != "" {
-		if rv, ok := schema.DynamicAnchorValidatorFromContext(ctx, name).(Interface); ok && rv != nil {
-			return rv.Validate(ctx, v)
+		if rv := st.dynamicAnchorValidators[name]; rv != nil {
+			// The registered validator stands in for an outermost resource, so it
+			// re-enters with fresh dynamic scope; the anchor registry is carried
+			// forward so nested $dynamicRefs to the same anchor still resolve.
+			return evalChild(ctx, rv, v, &evalState{dynamicAnchorValidators: st.dynamicAnchorValidators})
 		}
 	}
 

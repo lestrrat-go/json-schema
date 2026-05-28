@@ -74,7 +74,7 @@ func (b *BooleanValidatorBuilder) Reset() *BooleanValidatorBuilder {
 	return b
 }
 
-func (c *booleanValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (c *booleanValidator) Validate(ctx context.Context, v any, _ ...ValidateOption) (Result, error) {
 	logger := TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "boolean validator starting", "value", v, "type", fmt.Sprintf("%T", v))
 

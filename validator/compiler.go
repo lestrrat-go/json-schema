@@ -18,8 +18,8 @@ import (
 // recursion depths) is carried explicitly in a compileState rather than through
 // the context. For backward compatibility, any such values placed on ctx via the
 // public schema.With* / vocabulary.WithSet helpers seed the initial state.
-func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
-	return compile(ctx, s, newCompileStateFromContext(ctx, s))
+func Compile(ctx context.Context, s *schema.Schema, options ...CompileOption) (Interface, error) {
+	return compile(ctx, s, newCompileState(ctx, s, options))
 }
 
 // compile is the internal entry point that threads an explicit compileState. It

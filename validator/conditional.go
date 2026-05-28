@@ -50,8 +50,8 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema, cs compil
 	return v, nil
 }
 
-func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, error) {
-	return v.evaluate(ctx, in, newEvalState(ctx))
+func (v *IfThenElseValidator) Validate(ctx context.Context, in any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx, options))
 }
 
 func (v *IfThenElseValidator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {

@@ -291,8 +291,8 @@ func newArrayAccessor(v any) (arrayAccessor, bool) {
 	}
 }
 
-func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return c.evaluate(ctx, v, newEvalState(ctx))
+func (c *arrayValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return c.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {

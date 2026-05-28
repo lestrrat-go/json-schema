@@ -33,8 +33,8 @@ func DependentSchemasValidator(ctx context.Context, dependentSchemas map[string]
 	}, nil
 }
 
-func (v *dependentSchemasValidator) Validate(ctx context.Context, value any) (Result, error) {
-	return v.evaluate(ctx, value, newEvalState(ctx))
+func (v *dependentSchemasValidator) Validate(ctx context.Context, value any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, value, newEvalState(ctx, options))
 }
 
 func (v *dependentSchemasValidator) evaluate(ctx context.Context, value any, st *evalState) (Result, error) {

@@ -348,8 +348,8 @@ func extractObjectProperties(v any) (map[string]any, bool, error) {
 }
 
 // Validate implements the Interface
-func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return c.evaluate(ctx, v, newEvalState(ctx))
+func (c *objectValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return c.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (c *objectValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {

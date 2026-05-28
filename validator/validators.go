@@ -26,7 +26,7 @@ func compileInferredNumberValidator(ctx context.Context, s *schema.Schema) (Inte
 	}, nil
 }
 
-func (v *inferredNumberValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *inferredNumberValidator) Validate(ctx context.Context, in any, _ ...ValidateOption) (Result, error) {
 	// Check if the value is numeric
 	rv := reflect.ValueOf(in)
 	switch rv.Kind() {
@@ -44,7 +44,7 @@ func (v *inferredNumberValidator) Validate(ctx context.Context, in any) (Result,
 
 type EmptyValidator struct{}
 
-func (e *EmptyValidator) Validate(_ context.Context, _ any) (Result, error) {
+func (e *EmptyValidator) Validate(_ context.Context, _ any, _ ...ValidateOption) (Result, error) {
 	// Empty schema allows anything
 	//nolint: nilnil
 	return nil, nil
@@ -54,8 +54,8 @@ type NotValidator struct {
 	validator Interface
 }
 
-func (n *NotValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return n.evaluate(ctx, v, newEvalState(ctx))
+func (n *NotValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return n.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (n *NotValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
@@ -73,7 +73,7 @@ func Null() Interface {
 	return nullValidator{}
 }
 
-func (nullValidator) Validate(_ context.Context, v any) (Result, error) {
+func (nullValidator) Validate(_ context.Context, v any, _ ...ValidateOption) (Result, error) {
 	if v == nil {
 		//nolint: nilnil
 		return nil, nil

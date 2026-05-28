@@ -22,8 +22,8 @@ type unevaluatedCoordinator struct {
 }
 
 // Validate orchestrates validation phases: execute all child validators, then apply unevaluated constraints
-func (v *unevaluatedCoordinator) Validate(ctx context.Context, in any) (Result, error) {
-	return v.evaluate(ctx, in, newEvalState(ctx))
+func (v *unevaluatedCoordinator) Validate(ctx context.Context, in any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx, options))
 }
 
 func (v *unevaluatedCoordinator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {

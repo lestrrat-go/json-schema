@@ -220,7 +220,7 @@ func (b *NumberValidatorBuilder) Reset() *NumberValidatorBuilder {
 	return b
 }
 
-func (v *numberValidator) Validate(_ context.Context, in any) (Result, error) {
+func (v *numberValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {
 	rv := reflect.ValueOf(in)
 
 	var n float64

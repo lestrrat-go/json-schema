@@ -12,7 +12,7 @@ import (
 
 // Interface is the interface that all validators must implement.
 type Interface interface {
-	Validate(context.Context, any) (Result, error)
+	Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error)
 }
 
 // Result contains annotation information from validation that may be used

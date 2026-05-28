@@ -34,7 +34,7 @@ type stringValidator struct {
 	strictStringType bool // true when schema explicitly declares type: string
 }
 
-func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *stringValidator) Validate(ctx context.Context, in any, _ ...ValidateOption) (Result, error) {
 	logger := TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
 	rv := reflect.ValueOf(in)

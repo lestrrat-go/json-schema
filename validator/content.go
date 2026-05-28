@@ -44,8 +44,8 @@ func compileContentValidator(ctx context.Context, s *schema.Schema, cs compileSt
 	return cv, nil
 }
 
-func (cv *contentValidator) Validate(ctx context.Context, v any) (Result, error) {
-	return cv.evaluate(ctx, v, newEvalState(ctx))
+func (cv *contentValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return cv.evaluate(ctx, v, newEvalState(ctx, options))
 }
 
 func (cv *contentValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {

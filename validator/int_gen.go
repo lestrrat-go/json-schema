@@ -225,7 +225,7 @@ func (b *IntegerValidatorBuilder) Reset() *IntegerValidatorBuilder {
 	return b
 }
 
-func (v *integerValidator) Validate(_ context.Context, in any) (Result, error) {
+func (v *integerValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {
 	rv := reflect.ValueOf(in)
 
 	var n int

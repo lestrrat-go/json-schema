@@ -5,6 +5,7 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/vocabulary"
+	"github.com/lestrrat-go/option/v3"
 )
 
 // compileConfig holds the immutable, whole-compilation inputs. It is shared by
@@ -45,21 +46,47 @@ type compileState struct {
 	skipIDRebase bool
 }
 
-// newCompileStateFromContext seeds a compileState from any values the caller
-// placed on ctx via the public schema.With* / vocabulary.WithSet helpers. This
-// preserves backward compatibility for callers that still configure compilation
-// through context while the internals run entirely off the explicit struct.
-// Defaults (fresh resolver, default vocabulary) are applied here so the rest of
-// the compiler never sees a nil config.
-func newCompileStateFromContext(ctx context.Context, s *schema.Schema) compileState {
-	resolver := schema.ResolverFromContext(ctx)
+// newCompileState builds the initial compileState for a top-level Compile call.
+// Explicit CompileOptions take precedence; for backward compatibility, any
+// values the caller placed on ctx via the public schema.With* / vocabulary.WithSet
+// helpers seed anything an option did not set. Defaults (fresh resolver, default
+// vocabulary) are applied so the rest of the compiler never sees a nil config.
+func newCompileState(ctx context.Context, s *schema.Schema, options []CompileOption) compileState {
+	var optResolver *schema.Resolver
+	var optVocab *vocabulary.VocabularySet
+	var optBaseURI string
+	haveBaseURI := false
+	for _, o := range options {
+		switch o.Ident() {
+		case identResolver{}:
+			optResolver = option.MustGet[*schema.Resolver](o)
+		case identVocabularySet{}:
+			optVocab = option.MustGet[*vocabulary.VocabularySet](o)
+		case identBaseURI{}:
+			optBaseURI = option.MustGet[string](o)
+			haveBaseURI = true
+		}
+	}
+
+	resolver := optResolver
+	if resolver == nil {
+		resolver = schema.ResolverFromContext(ctx)
+	}
 	if resolver == nil {
 		resolver = schema.NewResolver()
 	}
 
-	vocab := vocabulary.SetFromContext(ctx)
+	vocab := optVocab
+	if vocab == nil {
+		vocab = vocabulary.SetFromContext(ctx)
+	}
 	if vocab == nil {
 		vocab = vocabulary.DefaultSet()
+	}
+
+	baseURI := optBaseURI
+	if !haveBaseURI {
+		baseURI = schema.BaseURIFromContext(ctx)
 	}
 
 	rootSchema := schema.RootSchemaFromContext(ctx)
@@ -80,7 +107,7 @@ func newCompileStateFromContext(ctx context.Context, s *schema.Schema) compileSt
 		cfg:            &compileConfig{resolver: resolver, vocab: vocab},
 		rootSchema:     rootSchema,
 		baseSchema:     baseSchema,
-		baseURI:        schema.BaseURIFromContext(ctx),
+		baseURI:        baseURI,
 		referenceStack: schema.ReferenceStackFromContext(ctx),
 		refDepths:      schema.RefDepthsFromContext(ctx),
 		dataDepth:      schema.DataDepthFromContext(ctx),

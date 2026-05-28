@@ -81,7 +81,7 @@ func compileUntypedValidator(ctx context.Context, s *schema.Schema) (Interface, 
 	return v.Build()
 }
 
-func (u *untypedValidator) Validate(ctx context.Context, value any) (Result, error) {
+func (u *untypedValidator) Validate(ctx context.Context, value any, _ ...ValidateOption) (Result, error) {
 	// Check const first (more specific)
 	if u.constantValue != nil {
 		if err := validateConst(ctx, value, *u.constantValue); err != nil {

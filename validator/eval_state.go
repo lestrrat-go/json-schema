@@ -4,6 +4,7 @@ import (
 	"context"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/option/v3"
 )
 
 // evalState is the explicit per-validation working set, threaded by pointer
@@ -20,6 +21,12 @@ import (
 // here as the context bag is dismantled.
 type evalState struct {
 	dynamicScope []*schema.Schema
+
+	// dynamicAnchorValidators maps a $dynamicAnchor name to a validator that
+	// stands in for the outermost resource declaring it, populated via
+	// WithDynamicAnchorValidator. It lets a precompiled validator satisfy a
+	// $dynamicRef when no schema document is available at validation time.
+	dynamicAnchorValidators map[string]Interface
 }
 
 // evaluator is the internal recursion contract. Every in-package validator that
@@ -30,11 +37,20 @@ type evaluator interface {
 	evaluate(ctx context.Context, v any, st *evalState) (Result, error)
 }
 
-// newEvalState builds the fresh per-call state for a top-level Validate. Any
-// dynamic scope already present on ctx is carried over for backward
-// compatibility while callers transition off the context bag.
-func newEvalState(ctx context.Context) *evalState {
-	return &evalState{dynamicScope: schema.DynamicScopeFromContext(ctx)}
+// newEvalState builds the fresh per-call state for a top-level Validate from the
+// supplied options.
+func newEvalState(_ context.Context, options []ValidateOption) *evalState {
+	st := &evalState{}
+	for _, o := range options {
+		if o.Ident() == (identDynamicAnchorValidator{}) {
+			reg := option.MustGet[dynamicAnchorRegistration](o)
+			if st.dynamicAnchorValidators == nil {
+				st.dynamicAnchorValidators = make(map[string]Interface)
+			}
+			st.dynamicAnchorValidators[reg.name] = reg.v
+		}
+	}
+	return st
 }
 
 // pushDynamicScope returns a copy of st with s appended to the dynamic scope
@@ -44,7 +60,7 @@ func (st *evalState) pushDynamicScope(s *schema.Schema) *evalState {
 	newScope := make([]*schema.Schema, len(st.dynamicScope)+1)
 	copy(newScope, st.dynamicScope)
 	newScope[len(st.dynamicScope)] = s
-	return &evalState{dynamicScope: newScope}
+	return &evalState{dynamicScope: newScope, dynamicAnchorValidators: st.dynamicAnchorValidators}
 }
 
 // evalChild dispatches into a child validator, sharing st when the child is an
