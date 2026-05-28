@@ -5,13 +5,13 @@ go 1.24.4
 require (
 	github.com/lestrrat-go/codegen v1.0.4
 	github.com/lestrrat-go/jsref/v2 v2.0.0-20250713032959-1507af0872ba
-	github.com/stretchr/testify v1.10.0
-	github.com/urfave/cli/v3 v3.3.8
+	github.com/stretchr/testify v1.11.1
+	github.com/urfave/cli/v3 v3.9.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/jsptr v0.0.0-20250712081548-ece4951ef7eb // indirect
 	github.com/lestrrat-go/option v1.0.0 // indirect
