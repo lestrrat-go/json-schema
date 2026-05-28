@@ -595,6 +595,22 @@ func genBuilder(obj *codegen.Object) error {
 		o.L("}")
 	}
 
+	// Reset clears every field identified by the given flags in one call,
+	// complementing the per-field ResetXXX methods and mirroring Schema.Has.
+	o.LL("// Reset clears the builder fields identified by the given flags.")
+	o.L("// For example, b.Reset(AnchorField | PropertiesField) clears both anchor and properties.")
+	o.L("func (b *Builder) Reset(flags FieldFlag) *Builder {")
+	o.L("if b.err != nil {")
+	o.L("return b")
+	o.L("}")
+	for _, field := range obj.Fields() {
+		o.L("if (flags & %sField) != 0 {", field.Name(true))
+		o.L("b.%s = nil", field.Name(false))
+		o.L("}")
+	}
+	o.L("return b")
+	o.L("}")
+
 	o.LL("func (b *Builder) Build() (*Schema, error) {")
 	o.L("s := New()")
 	for _, field := range obj.Fields() {
