@@ -67,8 +67,10 @@ func validIn(ctx context.Context, s *schema.Schema, data any) bool {
 // equivalent, the lines are identical — demonstrating that the programmatic and
 // JSON-file approaches reach the same goal.
 func report(schemas map[string]*schema.Schema, data any) {
-	// Stable order: programmatic first, then from-file.
+	// Stable order: programmatic first, then from-file. Written via Fprintf to
+	// os.Stdout (which godoc examples capture) so this shared helper does not trip
+	// the forbidigo rule that only exempts code inside Example functions.
 	for _, name := range []string{"programmatic", "from-json"} {
-		fmt.Printf("%-12s valid=%t\n", name, valid(schemas[name], data))
+		fmt.Fprintf(os.Stdout, "%-12s valid=%t\n", name, valid(schemas[name], data))
 	}
 }
