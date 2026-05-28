@@ -444,9 +444,9 @@ func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Re
 
 	// Handle unevaluatedItems validation
 	if c.unevaluatedItems != nil {
-		// Get evaluated items from context (from previous validators) AND current result
-		contextEvaluated := evaluatedItems.Values() // From previous validators
-		currentEvaluated := result.EvaluatedItems() // From current validator
+		// Merge any inherited evaluated-item annotations with this validator's.
+		contextEvaluated := evaluatedItems.Values() // inherited (empty unless seeded)
+		currentEvaluated := result.EvaluatedItems() // from this validator
 
 		// Merge context and current evaluations
 		maxLen := max(len(contextEvaluated), len(currentEvaluated))

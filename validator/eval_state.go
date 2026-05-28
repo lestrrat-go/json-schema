@@ -13,12 +13,11 @@ import (
 // validator is safe to call concurrently from multiple goroutines (go
 // v.Validate(...)): each call gets its own evalState.
 //
-// It currently carries the runtime dynamic scope — the chain of
-// $dynamicAnchor-bearing resources entered along the instance's evaluation path,
-// which $dynamicRef bookending consults. Other per-call state (the
-// $dynamicAnchor validator registry, dependent-schema scope, trace logger)
-// still travels on the context during this transitional stage and will move
-// here as the context bag is dismantled.
+// It carries the runtime dynamic scope — the chain of $dynamicAnchor-bearing
+// resources entered along the instance's evaluation path, which $dynamicRef
+// bookending consults — and the $dynamicAnchor validator registry. The only
+// validation input not held here is the trace logger, which travels on the
+// context as a cross-cutting observability concern.
 type evalState struct {
 	dynamicScope []*schema.Schema
 

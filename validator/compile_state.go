@@ -16,13 +16,11 @@ type compileConfig struct {
 	vocab    *vocabulary.VocabularySet
 }
 
-// compileState is the explicit per-recursion-edge carrier for compilation. It
-// replaces the values that used to be smuggled through context.Context
-// (resolver, root/base schema, base URI, reference stack, ref depths, data
-// depth). It is passed BY VALUE so a callee deriving a modified state (entering
-// an $id resource, crossing a data boundary, pushing a reference) cannot leak
-// that change back to its caller or siblings — exactly the fork semantics the
-// old `ctx = schema.WithX(ctx, …)` calls provided.
+// compileState is the explicit per-recursion-edge carrier for compilation: the
+// resolver, root/base schema, base URI, reference stack, and recursion depths
+// threaded down the compile tree. It is passed BY VALUE so a callee deriving a
+// modified state (entering an $id resource, crossing a data boundary, pushing a
+// reference) cannot leak that change back to its caller or siblings.
 //
 // cfg is a shared pointer (immutable for the whole compile); the remaining
 // fields are copied on each value-copy of the struct. Slice/map fields

@@ -14,10 +14,10 @@ import (
 // a potential bookend target for $dynamicRef, so its validator is wrapped to
 // push the schema onto the runtime dynamic scope when validation enters it.
 //
-// Compilation state (resolver, root/base schema, base URI, reference stack,
-// recursion depths) is carried explicitly in a compileState rather than through
-// the context. For backward compatibility, any such values placed on ctx via the
-// public schema.With* / vocabulary.WithSet helpers seed the initial state.
+// Configuration (resolver, vocabulary set, base URI, base schema) is supplied
+// through CompileOptions; the remaining compilation state (root/base schema,
+// reference stack, recursion depths) is derived and threaded internally via
+// compileState. ctx is used only for cancellation.
 func Compile(ctx context.Context, s *schema.Schema, options ...CompileOption) (Interface, error) {
 	return compile(ctx, s, newCompileState(s, options))
 }
