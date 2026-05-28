@@ -18,6 +18,15 @@ import (
 // through CompileOptions; the remaining compilation state (root/base schema,
 // reference stack, recursion depths) is derived and threaded internally via
 // compileState. ctx is used only for cancellation.
+//
+// When no WithResolver option is given, Compile uses a default resolver that
+// resolves references only from memory — the schema's own $id resources and
+// anchors — and does not reach the network or filesystem (see NewResolver in
+// the schema package). To resolve against documents you have preloaded, or to
+// allow network or filesystem access, build a resolver and pass it with
+// WithResolver. A default resolver created here knows nothing about
+// registrations made on a resolver you did not pass, so such external
+// references fail to resolve rather than being silently fetched.
 func Compile(ctx context.Context, s *schema.Schema, options ...CompileOption) (Interface, error) {
 	return compile(ctx, s, newCompileState(s, options))
 }
