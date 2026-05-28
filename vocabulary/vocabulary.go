@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	schema "github.com/lestrrat-go/json-schema"
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/keywords"
 )
 
@@ -304,26 +303,6 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, resolver *schema.Resol
 	}
 
 	return ExtractVocabularySet(&metaschema), nil
-}
-
-// WithSet adds a vocabulary set to the context
-func WithSet(ctx context.Context, vocabSet *VocabularySet) context.Context {
-	return schemactx.WithVocabularySet(ctx, vocabSet)
-}
-
-// SetFromContext extracts the vocabulary set from the context
-func SetFromContext(ctx context.Context) *VocabularySet {
-	vocabSet, err := schemactx.VocabularySetFromContext[*VocabularySet](ctx)
-	if err != nil {
-		return DefaultSet() // Use default vocabulary set with format-assertion disabled
-	}
-	return vocabSet
-}
-
-// IsKeywordEnabledInContext checks if a keyword is enabled in the current context
-func IsKeywordEnabledInContext(ctx context.Context, keyword string) bool {
-	vocabSet := SetFromContext(ctx)
-	return vocabSet.IsKeywordEnabled(keyword)
 }
 
 // ValidateVocabularyURI validates that a vocabulary URI is well-formed

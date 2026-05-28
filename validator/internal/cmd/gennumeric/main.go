@@ -82,7 +82,7 @@ func generateValidator(def definition, outputDir string) error {
 	o.L("var _ Builder = (*%sValidatorBuilder)(nil)", def.class)
 	o.L("var _ Interface = (*%sValidator)(nil)", xstrings.Snake(def.class))
 
-	o.LL("func compile%sValidator(ctx context.Context, s *schema.Schema) (Interface, error) {", def.class)
+	o.LL("func compile%sValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) (Interface, error) {", def.class)
 	o.L("b := %s()", def.class)
 	for _, prop := range props {
 		var methodName string
@@ -93,7 +93,7 @@ func generateValidator(def definition, outputDir string) error {
 		}
 
 		if prop == "enum" {
-			o.LL("if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, \"enum\") {")
+			o.LL("if s.HasEnum() && vocab.IsKeywordEnabled(\"enum\") {")
 			o.L("enums := s.Enum()")
 			o.L("l := make([]%s, 0, len(enums))", def.typ)
 			o.L("for i, e := range s.Enum() {")
@@ -123,7 +123,7 @@ func generateValidator(def definition, outputDir string) error {
 			runes := []rune(methodName)
 			first := runes[0]
 			lower := string(append(append([]rune(nil), unicode.ToLower(first)), runes[1:]...))
-			o.LL("if s.Has%s() && vocabulary.IsKeywordEnabledInContext(ctx, %q) {", methodName, lower)
+			o.LL("if s.Has%s() && vocab.IsKeywordEnabled(%q) {", methodName, lower)
 			o.L("rv := reflect.ValueOf(s.%s())", methodName)
 			o.L("var tmp %s", def.typ)
 			o.L("switch rv.Kind() {")

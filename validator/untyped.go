@@ -67,14 +67,14 @@ func (b *UntypedValidatorBuilder) Reset() *UntypedValidatorBuilder {
 	return b
 }
 
-func compileUntypedValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileUntypedValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) (Interface, error) {
 	v := Untyped()
 
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
+	if s.HasEnum() && vocab.IsKeywordEnabled("enum") {
 		v.Enum(s.Enum()...)
 	}
 
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
+	if s.HasConst() && vocab.IsKeywordEnabled("const") {
 		v.Const(s.Const())
 	}
 

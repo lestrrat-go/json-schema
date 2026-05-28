@@ -101,11 +101,6 @@ func compileSchema(ctx context.Context, s *schema.Schema, cs compileState) (Inte
 		cs.cfg = &compileConfig{resolver: cs.cfg.resolver, vocab: vocabSet}
 	}
 
-	// Seed the vocabulary onto ctx so the leaf constraint validators (string,
-	// numeric, boolean, untyped), which still read it from context, gate their
-	// keywords against the effective vocabulary for this schema.
-	ctx = vocabulary.WithSet(ctx, cs.cfg.vocab)
-
 	// Handle $ref and $dynamicRef first - if schema has a reference, resolve it immediately
 	var reference string
 	var isDynamicRef bool
@@ -381,28 +376,28 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 			switch typ {
 			case schema.StringType:
 				// String type validator (with or without additional string constraints)
-				stringValidator, err := compileStringValidator(ctx, s, true) // strict type checking
+				stringValidator, err := compileStringValidator(s, cs.cfg.vocab, true) // strict type checking
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile string validator: %w", err)
 				}
 				typeValidators = append(typeValidators, stringValidator)
 			case schema.IntegerType:
 				// Integer type validator
-				integerValidator, err := compileIntegerValidator(ctx, s)
+				integerValidator, err := compileIntegerValidator(s, cs.cfg.vocab)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile integer validator: %w", err)
 				}
 				typeValidators = append(typeValidators, integerValidator)
 			case schema.NumberType:
 				// Number type validator
-				numberValidator, err := compileNumberValidator(ctx, s)
+				numberValidator, err := compileNumberValidator(s, cs.cfg.vocab)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile number validator: %w", err)
 				}
 				typeValidators = append(typeValidators, numberValidator)
 			case schema.BooleanType:
 				// Boolean type validator
-				booleanValidator, err := compileBooleanValidator(ctx, s)
+				booleanValidator, err := compileBooleanValidator(s, cs.cfg.vocab)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile boolean validator: %w", err)
 				}
@@ -458,7 +453,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 
 		// String constraints without explicit type
 		if s.HasAny(schema.StringConstraintFields) {
-			stringValidator, err := compileStringValidator(ctx, s, false)
+			stringValidator, err := compileStringValidator(s, cs.cfg.vocab, false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile string validator: %w", err)
 			}
@@ -468,7 +463,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 		// Numeric constraints (includes both integer and number constraints)
 		if s.HasAny(schema.NumericConstraintFields) {
 			// Use inferred number validator for untyped schemas
-			inferredValidator, err := compileInferredNumberValidator(ctx, s)
+			inferredValidator, err := compileInferredNumberValidator(s, cs.cfg.vocab)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile inferred number validator: %w", err)
 			}
@@ -511,7 +506,7 @@ func compileBaseConstraints(ctx context.Context, s *schema.Schema, cs compileSta
 	if s.HasAny(schema.ValueConstraintFields) {
 		if len(s.Types()) == 0 {
 			// Untyped schema with value constraints
-			untypedValidator, err := compileUntypedValidator(ctx, s)
+			untypedValidator, err := compileUntypedValidator(s, cs.cfg.vocab)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile untyped validator: %w", err)
 			}

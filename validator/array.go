@@ -7,7 +7,6 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
-	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Builder = (*ArrayValidatorBuilder)(nil)
@@ -20,13 +19,13 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, cs compileStat
 	cs = cs.incDataDepth()
 	v := Array()
 
-	if s.HasMinItems() && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
+	if s.HasMinItems() && cs.cfg.vocab.IsKeywordEnabled("minItems") {
 		v.MinItems(s.MinItems())
 	}
-	if s.HasMaxItems() && vocabulary.IsKeywordEnabledInContext(ctx, "maxItems") {
+	if s.HasMaxItems() && cs.cfg.vocab.IsKeywordEnabled("maxItems") {
 		v.MaxItems(s.MaxItems())
 	}
-	if s.HasUniqueItems() && vocabulary.IsKeywordEnabledInContext(ctx, "uniqueItems") {
+	if s.HasUniqueItems() && cs.cfg.vocab.IsKeywordEnabled("uniqueItems") {
 		v.UniqueItems(s.UniqueItems())
 	}
 	if s.HasPrefixItems() {

@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 // inferredNumberValidator validates numeric constraints only when the value is a number,
@@ -14,9 +15,9 @@ type inferredNumberValidator struct {
 	numberValidator Interface
 }
 
-func compileInferredNumberValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileInferredNumberValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) (Interface, error) {
 	// Create the underlying number validator
-	numValidator, err := compileNumberValidator(ctx, s)
+	numValidator, err := compileNumberValidator(s, vocab)
 	if err != nil {
 		return nil, err
 	}

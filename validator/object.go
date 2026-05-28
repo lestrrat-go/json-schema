@@ -9,7 +9,6 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
-	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Builder = (*ObjectValidatorBuilder)(nil)
@@ -22,16 +21,16 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, cs compileSta
 	cs = cs.incDataDepth()
 	v := Object()
 
-	if s.HasMinProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
+	if s.HasMinProperties() && cs.cfg.vocab.IsKeywordEnabled("minProperties") {
 		v.MinProperties(s.MinProperties())
 	}
-	if s.HasMaxProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "maxProperties") {
+	if s.HasMaxProperties() && cs.cfg.vocab.IsKeywordEnabled("maxProperties") {
 		v.MaxProperties(s.MaxProperties())
 	}
-	if s.HasRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "required") {
+	if s.HasRequired() && cs.cfg.vocab.IsKeywordEnabled("required") {
 		v.Required(s.Required())
 	}
-	if s.HasDependentRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "dependentRequired") {
+	if s.HasDependentRequired() && cs.cfg.vocab.IsKeywordEnabled("dependentRequired") {
 		v.DependentRequired(s.DependentRequired())
 	}
 	if s.HasProperties() {

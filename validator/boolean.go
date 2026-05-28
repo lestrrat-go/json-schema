@@ -12,12 +12,12 @@ import (
 var _ Builder = (*BooleanValidatorBuilder)(nil)
 var _ Interface = (*booleanValidator)(nil)
 
-func compileBooleanValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileBooleanValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) (Interface, error) {
 	v := Boolean()
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
+	if s.HasConst() && vocab.IsKeywordEnabled("const") {
 		v.Const(s.Const())
 	}
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
+	if s.HasEnum() && vocab.IsKeywordEnabled("enum") {
 		v.Enum(s.Enum()...)
 	}
 	return v.Build()
