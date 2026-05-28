@@ -5,7 +5,6 @@
 package meta
 
 import (
-	"context"
 	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 )
@@ -504,29 +503,4 @@ func init() {
 					MustBuild(),
 			),
 		)
-}
-
-// Validator returns a pre-compiled validator for the JSON Schema 2020-12 meta-schema.
-// This validator can be used to validate JSON Schema documents themselves.
-//
-// Example usage:
-//
-//	validator := meta.Validator()
-//	result, err := validator.Validate(ctx, jsonSchemaDocument)
-func Validator() validator.Interface {
-	return metaValidator
-}
-
-// Validate validates a JSON Schema document against the JSON Schema 2020-12 meta-schema.
-// This is a convenience function that uses the pre-compiled validator.
-//
-// Example usage:
-//
-//	err := meta.Validate(ctx, jsonSchemaDocument)
-//	if err != nil {
-//	    // The document is not a valid JSON Schema
-//	}
-func Validate(ctx context.Context, jsonSchemaDocument any) error {
-	_, err := metaValidator.Validate(ctx, jsonSchemaDocument)
-	return err
 }

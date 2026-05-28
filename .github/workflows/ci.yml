@@ -6,6 +6,26 @@ on:
       - develop/*
 
 jobs:
+  generate:
+    runs-on: ubuntu-latest
+    name: "Check generated files are up to date"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Go stable version
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: "go.mod"
+          check-latest: true
+      - name: Regenerate code
+        run: go generate ./...
+      - name: Verify no changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated files are out of date. Run 'go generate ./...' and commit the result."
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
     strategy:
