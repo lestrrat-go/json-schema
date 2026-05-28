@@ -141,7 +141,8 @@ func TestMetaschemaValidation(t *testing.T) {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
 
-		v, err := validator.Compile(context.Background(), &metaschemaRef)
+		v, err := validator.Compile(context.Background(), &metaschemaRef,
+			validator.WithResolver(schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))))
 		require.NoError(t, err)
 		t.Logf("Compiled validator type: %T", v)
 
@@ -189,7 +190,8 @@ func TestMetaschemaValidation(t *testing.T) {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
 
-		v, err := validator.Compile(context.Background(), &metaschemaRef)
+		v, err := validator.Compile(context.Background(), &metaschemaRef,
+			validator.WithResolver(schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))))
 		require.NoError(t, err)
 
 		// IMPORTANT: This uses map[string]any to represent the raw JSON data from the test suite.
@@ -238,7 +240,8 @@ func TestMetaschemaValidation(t *testing.T) {
 			t.Logf("AllOf length: %d", len(metaschemaRef.AllOf()))
 		}
 
-		v, err := validator.Compile(context.Background(), &metaschemaRef)
+		v, err := validator.Compile(context.Background(), &metaschemaRef,
+			validator.WithResolver(schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))))
 		require.NoError(t, err)
 
 		// This uses map[string]any for a valid schema that should pass metaschema validation.

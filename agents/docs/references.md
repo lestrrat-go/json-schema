@@ -8,13 +8,14 @@ Covers `$ref`, `$id`, `$anchor`, `$dynamicRef`, `$dynamicAnchor`, and the `schem
 
 - `uri.go` — `ResolveURI` (RFC 3986 base+ref join).
 - `registry.go` — `resourceIndex` (absolute URI → schema, plus anchors), `FindDynamicAnchor`, child-schema enumeration.
-- `resolver.go` — `Resolver`: a `registryResolver` stacked ahead of HTTP / FS / object resolvers (via `lestrrat-go/jsref/v2`). `RegisterRoot`, `RegisterDocument`, `RegisterFS`, `ResourceFor`, `ResolveReference`.
+- `resolver.go` — `Resolver`: a `registryResolver` stacked ahead of any caller-supplied resolvers, then a final object resolver (via `lestrrat-go/jsref/v2`). `NewResolver(...ResolverOption)`, `RegisterRoot`, `RegisterDocument`, `RegisterFS`, `ResourceFor`, `ResolveReference`.
+- `resolver_options.go` — `ResolverOption`, `WithResolver`, and the opt-in resolver factories `HTTPResolver`, `FSResolver(fs.FS)`, `DirResolver(dir)` plus the `fs.FS`-backed `fsResolver`.
 - `validator/compiler.go` — the eager `$ref` resolution block.
 - `validator/reference.go` — `ReferenceValidator`, `DynamicReferenceValidator`, `plainAnchorFragment`.
 
 ## In-document `$id` registry
 
-A `resourceIndex` maps absolute URIs → schemas and is consulted by the `registryResolver` before any network/FS resolver. Built at the root `Compile` via `Resolver.RegisterRoot`.
+A `resourceIndex` maps absolute URIs → schemas and is consulted by the `registryResolver` before any opt-in network/FS resolver. Built at the root `Compile` via `Resolver.RegisterRoot`.
 
 `RegisterRoot` is **deduped per root** (a `registered` map guarded by `Resolver.mu`). This is required: validate-time recompiles must NOT re-index, or a data race results. Do not remove the dedup.
 
@@ -40,7 +41,8 @@ When a `$ref` enters another resource, `compileSchema` sets the base URI to the 
 
 - `Resolver.RegisterDocument(uri, root)` preloads a document under an explicit *retrieval* URI; it becomes addressable both by that URI and by its own canonical `$id`. The conformance suite loads its `remotes/` tree this way (`loadRemotes`/`newSuiteResolver` in `schema_compliance_test.go`).
 - `Resolver.RegisterFS(baseURI, fsys)` walks an `fs.FS` and registers every `.json` file under `baseURI` joined with its path. Works with `embed.FS`, `os.DirFS`, `fstest.MapFS`.
-- HTTP fetching is available via the stacked resolver but offline preloading (RegisterDocument/RegisterFS) is preferred for tests and reproducible builds.
+- **External access is opt-in.** A bare `NewResolver()` resolves only from memory (registry + preloaded docs); an external `$ref` that is not preloaded fails rather than being fetched. To allow it, pass a resolver explicitly: `NewResolver(WithResolver(HTTPResolver()))` for HTTP/HTTPS, `NewResolver(WithResolver(DirResolver(".")))` or `WithResolver(FSResolver(fsys))` for files. The FS resolvers are backed by `io/fs` and accept JSON or YAML documents.
+- Offline preloading (RegisterDocument/RegisterFS) remains preferred for tests and reproducible builds.
 
 ## Pre-compiled meta validator + `$dynamicRef` (a real footgun, already fixed)
 

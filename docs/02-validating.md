@@ -65,15 +65,14 @@ func Example_docValidate() {
 source: [examples/doc_validate_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/doc_validate_test.go)
 <!-- END INCLUDE -->
 
-## Pass the same context to Compile and Validate
+## Configuring Compile and Validate
 
-Optional behavior is configured on the `context.Context` and read at both compile and validate time:
+Optional behavior is configured two ways:
 
-- A custom [reference resolver](./03-references.md) (`schema.WithResolver`)
-- A different [vocabulary set](./04-vocabularies-and-meta-schema.md) (`vocabulary.WithSet`)
-- A [trace logger](#tracing) (`validator.WithTraceSlog`)
-
-Build the context once and pass it to **both** calls. Compiling with a resolver but validating without it (or vice-versa) can lead to surprising results.
+- **Compile options** passed to `validator.Compile(ctx, schema, opts...)`:
+  - A custom [reference resolver](./03-references.md) — `validator.WithResolver(r)`. Note that external (`network`/`filesystem`) access is **opt-in** on the resolver itself; see [References](./03-references.md).
+  - A different [vocabulary set](./04-vocabularies-and-meta-schema.md) — `validator.WithVocabularySet(vs)`.
+- **A trace logger** carried on the `context.Context` — `validator.WithTraceSlog(ctx, logger)` — and read while validating (see [Tracing](#tracing)).
 
 ## `format` does not assert by default
 

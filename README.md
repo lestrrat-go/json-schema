@@ -8,7 +8,7 @@ Go module implementing JSON Schema validation following the [JSON Schema 2020-12
   * All validation keywords (type, properties, items, etc.)
   * Schema composition (allOf, anyOf, oneOf)
   * Conditional schemas (if/then/else)
-  * Reference resolution ($ref, $anchor, $dynamicRef)
+  * Reference resolution ($ref, $anchor, $dynamicRef) — in-memory by default; network/filesystem access is opt-in
   * Format validation (email, uri, date-time, etc.)
   * Content validation (base64, json-pointer, etc.)
 * Clean separation between schema construction and validation
@@ -19,6 +19,28 @@ Go module implementing JSON Schema validation following the [JSON Schema 2020-12
   * No schema files to embed and no runtime schema compilation in production
 * Command-line tool for schema validation and code generation
 * Comprehensive test coverage including JSON Schema Test Suite compliance
+
+> [!IMPORTANT]
+> **Reference resolution is in-memory by default — external access is opt-in.**
+> A `$ref`/`$dynamicRef` to another document resolves **only** from schemas you
+> have registered in memory. The resolver does **not** reach out to the network
+> or read the local filesystem unless you explicitly enable it. This prevents
+> surprise outbound fetches (SSRF) and unexpected disk reads.
+>
+> **If you relied on the old behavior where external `$ref`s were fetched
+> automatically, you must now opt in:**
+>
+> ```go
+> // Default: in-memory only. Preload externals with RegisterFS / RegisterDocument.
+> r := schema.NewResolver()
+>
+> // Opt in to live access when you want it:
+> r = schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))    // HTTP/HTTPS
+> r = schema.NewResolver(schema.WithResolver(schema.DirResolver(".")))  // local files under "."
+> r = schema.NewResolver(schema.WithResolver(schema.FSResolver(fsys)))  // any io/fs (embed.FS, …)
+> ```
+>
+> See [References](./docs/03-references.md) for details.
 
 # SYNOPSIS
 

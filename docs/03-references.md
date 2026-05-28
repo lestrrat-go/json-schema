@@ -2,6 +2,9 @@
 
 JSON Schema lets you reuse and cross-link sub-schemas with `$ref` and `$dynamicRef`, anchored by `$id`, `$anchor`, and `$dynamicAnchor`. This library resolves all of them; this guide covers the common cases and how to point the resolver at external documents.
 
+> [!IMPORTANT]
+> **External access is opt-in.** A `schema.Resolver` resolves references **only from memory** by default — it never touches the network or the filesystem unless you explicitly enable it. An external `$ref` you have not preloaded (or whose access you have not opted into) fails to resolve rather than being silently fetched. To allow live access, pass `WithResolver(HTTPResolver())` (HTTP/HTTPS), `WithResolver(DirResolver("."))`, or `WithResolver(FSResolver(fsys))`. See [External references and the Resolver](#external-references-and-the-resolver) below.
+
 ## Reusing a sub-schema with `$ref` and `$defs`
 
 Define a schema once under `$defs` and reference it with `$ref`:
@@ -66,7 +69,81 @@ References within a document resolve automatically when you `Compile` — no ext
 
 ## External references and the Resolver
 
-When a `$ref` points at *another document* (an absolute URI, not a `#`-fragment of the current schema), the validator needs to find that document. That is the job of `schema.Resolver`: create one with `schema.NewResolver()`, register the documents it should know about, put it on the context with `schema.WithResolver`, and use that **same** context for both `Compile` and `Validate`.
+When a `$ref` points at *another document* (an absolute URI, not a `#`-fragment of the current schema), the validator needs to find that document. That is the job of `schema.Resolver`: create one with `schema.NewResolver()`, register the documents it should know about, and pass it to `Compile` with `validator.WithResolver(r)`.
+
+> **External access is opt-in.** A bare `schema.NewResolver()` resolves references **only from memory** — in-document `$id` resources and documents you preload (below). It never reaches the network or the filesystem on its own, so an external `$ref` you have not preloaded fails to resolve instead of being silently fetched. To allow live access, hand the resolver explicit resolvers:
+>
+> ```go
+> r := schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))      // allow HTTP/HTTPS
+> r := schema.NewResolver(schema.WithResolver(schema.DirResolver(".")))   // allow local files under "."
+> r := schema.NewResolver(schema.WithResolver(schema.FSResolver(fsys)))   // allow files from any io/fs
+> ```
+>
+> Preloading (below) is preferred over live access for tests and reproducible builds.
+
+### Opting in to live access
+
+`FSResolver(fsys)` (any `io/fs`), `DirResolver(dir)` (the local filesystem), and `HTTPResolver()` (the network) each enable one kind of live resolution when passed to `WithResolver`. A bare resolver does none of them:
+
+<!-- INCLUDE(examples/resolver_optin_example_test.go) -->
+```go
+package examples_test
+
+import (
+  "context"
+  "fmt"
+  "testing/fstest"
+
+  schema "github.com/lestrrat-go/json-schema"
+  "github.com/lestrrat-go/json-schema/validator"
+)
+
+// Example_resolverOptIn shows that external reference resolution is opt-in. A
+// bare schema.NewResolver() resolves only from memory; to let a $ref reach the
+// filesystem you must hand it an explicit resolver. Here FSResolver reads from
+// an in-memory fs.FS on demand (use DirResolver(".") for the local filesystem or
+// HTTPResolver() for the network the same way). Contrast with Example_docRegisterFS,
+// which preloads the documents instead.
+func Example_resolverOptIn() {
+  fsys := fstest.MapFS{
+    "address.json": &fstest.MapFile{Data: []byte(
+      `{"type":"object","properties":{"city":{"type":"string","minLength":1}},"required":["city"]}`,
+    )},
+  }
+
+  main := schema.NewBuilder().
+    Types(schema.ObjectType).
+    Property("home", schema.NewBuilder().Reference("address.json").MustBuild()).
+    Required("home").
+    MustBuild()
+
+  ctx := context.Background()
+
+  // Default resolver: no filesystem access, so the external $ref cannot resolve.
+  if _, err := validator.Compile(ctx, main, validator.WithResolver(schema.NewResolver())); err != nil {
+    fmt.Println("default (in-memory only):", err != nil)
+  }
+
+  // Opt in to filesystem access with FSResolver.
+  r := schema.NewResolver(schema.WithResolver(schema.FSResolver(fsys)))
+  v, err := validator.Compile(ctx, main, validator.WithResolver(r))
+  if err != nil {
+    fmt.Println("compile failed:", err)
+    return
+  }
+
+  _, err = v.Validate(ctx, map[string]any{"home": map[string]any{"city": "Kyoto"}})
+  fmt.Println("with city:   ", err == nil)
+  _, err = v.Validate(ctx, map[string]any{"home": map[string]any{}})
+  fmt.Println("without city:", err == nil)
+  // Output:
+  // default (in-memory only): true
+  // with city:    true
+  // without city: false
+}
+```
+source: [examples/resolver_optin_example_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/resolver_optin_example_test.go)
+<!-- END INCLUDE -->
 
 ### Preloading a tree of files: `RegisterFS`
 
@@ -134,7 +211,7 @@ The `$ref` to `https://example.com/schemas/address.json` resolves offline agains
 - `RegisterDocument(uri, root)` preloads one document under an explicit retrieval URI. The document becomes addressable both by that URI **and** by its own canonical `$id`.
 - `RegisterRoot(root)` indexes a schema's own `$id`/anchors (the root `Compile` does this for you automatically).
 
-Preloading documents is preferred over live HTTP fetching for tests and reproducible builds.
+Preloading documents is preferred over live HTTP fetching (which is opt-in; see above) for tests and reproducible builds.
 
 ## `$id`, `$anchor`, `$dynamicAnchor`
 

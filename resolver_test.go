@@ -105,7 +105,7 @@ func TestResolveFileReference(t *testing.T) {
 	// Change to tmpDir for relative path resolution
 	t.Chdir(tmpDir)
 
-	resolver := schema.NewResolver()
+	resolver := schema.NewResolver(schema.WithResolver(schema.DirResolver(".")))
 
 	t.Run("resolve file reference", func(t *testing.T) {
 		var resolved schema.Schema
@@ -157,7 +157,7 @@ func TestResolveHTTPReference(t *testing.T) {
 	}))
 	defer server.Close()
 
-	resolver := schema.NewResolver()
+	resolver := schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))
 
 	t.Run("resolve HTTP reference", func(t *testing.T) {
 		var resolved schema.Schema
@@ -240,7 +240,7 @@ $defs:
 	// Change to tmpDir for relative path resolution
 	t.Chdir(tmpDir)
 
-	resolver := schema.NewResolver()
+	resolver := schema.NewResolver(schema.WithResolver(schema.DirResolver(".")))
 
 	t.Run("resolve YAML file", func(t *testing.T) {
 		var resolved schema.Schema
@@ -455,7 +455,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		resolver := schema.NewResolver()
+		resolver := schema.NewResolver(schema.WithResolver(schema.HTTPResolver()))
 
 		// Test ResolveJSONReference with external URL and JSON pointer
 		var resolved schema.Schema
