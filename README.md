@@ -115,25 +115,23 @@ func Example() {
 source: [examples/json_schema_readme_example_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/json_schema_readme_example_test.go)
 <!-- END INCLUDE -->
 
-# Command Line Tool
+# Install
 
-The `json-schema` command line tool provides schema validation and code generation.
-
-## Install the Command Line Tool
-
-```bash
-go install github.com/lestrrat-go/json-schema/cmd/json-schema@latest
-```
-
-## Install as a Go Module
+As a library:
 
 ```bash
 go get github.com/lestrrat-go/json-schema
 ```
 
+As a command-line tool:
+
+```bash
+go install github.com/lestrrat-go/json-schema/cmd/json-schema@latest
+```
+
 # Command Line Tool
 
-The `json-schema` command line tool provides schema validation and code generation:
+The `json-schema` command line tool provides schema validation and code generation.
 
 ## Basic Usage
 
@@ -199,10 +197,12 @@ UserValidator := validator.Object().
 
 This generated validator can be directly used in your Go code for high-performance validation.
 
-# How-to Documentation
+# Documentation
 
-* [API documentation](https://pkg.go.dev/github.com/lestrrat-go/json-schema)
-* [Examples](./examples)
+* [How-to Guides](./docs) — building schemas, validating, references, vocabularies, code generation, and the CLI
+* [API Reference](https://pkg.go.dev/github.com/lestrrat-go/json-schema)
+* [Runnable Examples](./examples)
+* Working on the library itself? See [`AGENTS.md`](./AGENTS.md)
 
 # Description
 
@@ -247,10 +247,12 @@ For either bug reports or feature requests, failing tests are even better.
 
 Please make sure to include tests that exercise the changes you made.
 
-If you are editing auto-generated files (those files with the `_gen.go` suffix, please make sure that you do the following:
+See [`AGENTS.md`](./AGENTS.md) for a map of the codebase, the build/test/codegen workflow, and architectural notes — it is written for both human contributors and AI coding agents.
 
-1. Edit the generator, not the generated files (e.g. internal/cmd/genobjects/main.go)
-2. Run `./gen.sh` to generate the new code
+If you are editing auto-generated files (those with the `_gen.go` suffix), please do the following:
+
+1. Edit the generator, not the generated files (e.g. `internal/cmd/genobjects/`)
+2. Run `./gen.sh` to regenerate the code
 3. Commit _both_ the generator _and_ the generated files
 
 ## Discussions / Usage
