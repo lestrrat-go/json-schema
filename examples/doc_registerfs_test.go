@@ -32,8 +32,8 @@ func Example_docRegisterFS() {
 		return
 	}
 
-	ctx := schema.WithResolver(context.Background(), r)
-	v, err := validator.Compile(ctx, main)
+	ctx := context.Background()
+	v, err := validator.Compile(ctx, main, validator.WithResolver(r))
 	if err != nil {
 		fmt.Println("compile failed:", err)
 		return
