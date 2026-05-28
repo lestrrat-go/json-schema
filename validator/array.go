@@ -328,6 +328,9 @@ func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Re
 	// Check uniqueItems constraint
 	if c.uniqueItems && length > 0 {
 		for i := range acc.length {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			item1, err := acc.at(i)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)

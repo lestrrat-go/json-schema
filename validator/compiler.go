@@ -70,6 +70,10 @@ func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, cs c
 
 // compileSchema implements the simplified compilation approach using UnevaluatedCoordinator.
 func compileSchema(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	skipIDRebase := cs.skipIDRebase
 	cs.skipIDRebase = false // applies only to the immediate schema, not its subschemas
 

@@ -416,6 +416,9 @@ func (c *objectValidator) evaluate(ctx context.Context, v any, st *evalState) (R
 	// Validate properties
 	var unevaluatedProps []string
 	for propName, propValue := range properties {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		validated := false
 
 		// Check if this property was already evaluated by a previous validator

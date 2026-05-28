@@ -69,6 +69,11 @@ func (st *evalState) pushDynamicScope(s *schema.Schema) *evalState {
 // registered under a $dynamicAnchor that deliberately stands in for an outermost
 // resource.
 func evalChild(ctx context.Context, child Interface, v any, st *evalState) (Result, error) {
+	// All recursive validation flows through here, so a single cancellation check
+	// bounds how long a deep or wide validation runs after ctx is cancelled.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if e, ok := child.(evaluator); ok {
 		return e.evaluate(ctx, v, st)
 	}
