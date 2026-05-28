@@ -7,33 +7,32 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
-	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Builder = (*ArrayValidatorBuilder)(nil)
 var _ Interface = (*arrayValidator)(nil)
 
-func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+func compileArrayValidator(ctx context.Context, s *schema.Schema, cs compileState, strictType bool) (Interface, error) {
 	// Array keywords (prefixItems, items, contains) apply their subschemas to
 	// child elements, so crossing into them is a data boundary for recursion
 	// classification.
-	ctx = schema.WithDataDepth(ctx, schema.DataDepthFromContext(ctx)+1)
+	cs = cs.incDataDepth()
 	v := Array()
 
-	if s.HasMinItems() && vocabulary.IsKeywordEnabledInContext(ctx, "minItems") {
+	if s.HasMinItems() && cs.cfg.vocab.IsKeywordEnabled("minItems") {
 		v.MinItems(s.MinItems())
 	}
-	if s.HasMaxItems() && vocabulary.IsKeywordEnabledInContext(ctx, "maxItems") {
+	if s.HasMaxItems() && cs.cfg.vocab.IsKeywordEnabled("maxItems") {
 		v.MaxItems(s.MaxItems())
 	}
-	if s.HasUniqueItems() && vocabulary.IsKeywordEnabledInContext(ctx, "uniqueItems") {
+	if s.HasUniqueItems() && cs.cfg.vocab.IsKeywordEnabled("uniqueItems") {
 		v.UniqueItems(s.UniqueItems())
 	}
 	if s.HasPrefixItems() {
 		if prefixItems := s.PrefixItems(); len(prefixItems) > 0 {
 			prefixValidators := make([]Interface, len(prefixItems))
 			for i, prefixSchema := range prefixItems {
-				prefixValidator, err := Compile(ctx, convertSchemaOrBool(prefixSchema))
+				prefixValidator, err := compile(ctx, convertSchemaOrBool(prefixSchema), cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile prefixItems[%d] validator: %w", i, err)
 				}
@@ -45,7 +44,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasItems() {
 		itemsSchema := s.Items()
 		if itemsSchema != nil {
-			itemValidator, err := Compile(ctx, convertSchemaOrBool(itemsSchema))
+			itemValidator, err := compile(ctx, convertSchemaOrBool(itemsSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile items validator: %w", err)
 			}
@@ -55,7 +54,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 	if s.HasAdditionalItems() {
 		additionalItemsSchema := s.AdditionalItems()
 		if additionalItemsSchema != nil {
-			additionalItemsValidator, err := Compile(ctx, convertSchemaOrBool(additionalItemsSchema))
+			additionalItemsValidator, err := compile(ctx, convertSchemaOrBool(additionalItemsSchema), cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile additionalItems validator: %w", err)
 			}
@@ -80,7 +79,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				}
 			case *schema.Schema:
 				// Regular schema object
-				containsValidator, err := Compile(ctx, val)
+				containsValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile contains validator: %w", err)
 				}
@@ -106,7 +105,7 @@ func compileArrayValidator(ctx context.Context, s *schema.Schema, strictType boo
 				v.UnevaluatedItemsBool(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate unevaluated items with this schema
-				itemValidator, err := Compile(ctx, val)
+				itemValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile unevaluated items validator: %w", err)
 				}
@@ -291,13 +290,16 @@ func newArrayAccessor(v any) (arrayAccessor, bool) {
 	}
 }
 
-func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (c *arrayValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return c.evaluate(ctx, v, newEvalState(ctx, options))
+}
+
+func (c *arrayValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	acc, isArray := newArrayAccessor(v)
 
+	// Annotations from sibling applicators flow in via returned Results; this
+	// starts from an empty evaluated-item set.
 	var ec schemactx.EvaluationContext
-	if ecPtr, _ := schemactx.EvaluationContextFromContext(ctx); ecPtr != nil {
-		ec = *ecPtr
-	}
 
 	if !isArray {
 		// Handle non-array values based on whether this is strict array type validation
@@ -326,6 +328,9 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Check uniqueItems constraint
 	if c.uniqueItems && length > 0 {
 		for i := range acc.length {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			item1, err := acc.at(i)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
@@ -359,7 +364,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 		if err != nil {
 			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 		}
-		_, err = c.prefixItems[i].Validate(ctx, item)
+		_, err = evalChild(ctx, c.prefixItems[i], item, st)
 		if err != nil {
 			return nil, fmt.Errorf(`invalid value passed to ArrayValidator: prefixItems[%d] validation failed: %w`, i, err)
 		}
@@ -374,7 +379,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 			}
-			_, err = c.items.Validate(ctx, item)
+			_, err = evalChild(ctx, c.items, item, st)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: item validation failed: %w`, err)
 			}
@@ -394,7 +399,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 			}
-			_, err = c.contains.Validate(ctx, item)
+			_, err = evalChild(ctx, c.contains, item, st)
 			if err == nil {
 				containsCount++
 				// Mark this item as evaluated by contains
@@ -428,7 +433,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: failed to resolve item %d: %w`, i, err)
 				}
-				_, err = c.additionalItems.Validate(ctx, item)
+				_, err = evalChild(ctx, c.additionalItems, item, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: additionalItems validation failed: %w`, err)
 				}
@@ -439,9 +444,9 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 	// Handle unevaluatedItems validation
 	if c.unevaluatedItems != nil {
-		// Get evaluated items from context (from previous validators) AND current result
-		contextEvaluated := evaluatedItems.Values() // From previous validators
-		currentEvaluated := result.EvaluatedItems() // From current validator
+		// Merge any inherited evaluated-item annotations with this validator's.
+		contextEvaluated := evaluatedItems.Values() // inherited (empty unless seeded)
+		currentEvaluated := result.EvaluatedItems() // from this validator
 
 		// Merge context and current evaluations
 		maxLen := max(len(contextEvaluated), len(currentEvaluated))
@@ -483,7 +488,7 @@ func (c *arrayValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 			// Handle schema unevaluatedItems
 			if validator, ok := c.unevaluatedItems.(Interface); ok {
-				_, err := validator.Validate(ctx, item)
+				_, err := evalChild(ctx, validator, item, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ArrayValidator: unevaluated item validation failed at index %d: %w`, i, err)
 				}

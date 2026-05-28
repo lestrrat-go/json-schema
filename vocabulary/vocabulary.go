@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	schema "github.com/lestrrat-go/json-schema"
-	"github.com/lestrrat-go/json-schema/internal/schemactx"
 	"github.com/lestrrat-go/json-schema/keywords"
 )
 
@@ -281,52 +280,29 @@ func ExtractVocabularySet(s *schema.Schema) *VocabularySet {
 	return vs
 }
 
-// ResolveVocabularyFromMetaschema resolves the vocabulary set from a metaschema
-func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) (*VocabularySet, error) {
+// ResolveVocabularyFromMetaschema resolves the vocabulary set declared by the
+// metaschema at metaschemaURI, resolving it against the given resolver and root
+// schema. It falls back to AllEnabled when the URI is empty, no root schema is
+// supplied, or the metaschema cannot be resolved.
+func ResolveVocabularyFromMetaschema(ctx context.Context, resolver *schema.Resolver, rootSchema *schema.Schema, metaschemaURI string) (*VocabularySet, error) {
 	if metaschemaURI == "" {
 		return AllEnabled(), nil
 	}
-
-	resolver := schema.ResolverFromContext(ctx)
 	if resolver == nil {
 		resolver = schema.NewResolver()
 	}
-
-	rootSchema := schema.RootSchemaFromContext(ctx)
 	if rootSchema == nil {
 		return AllEnabled(), nil
 	}
 
 	// Try to resolve the metaschema
 	var metaschema schema.Schema
-	// Create context with base schema for resolver
-	resolverCtx := schema.WithBaseSchema(ctx, rootSchema)
-	if err := resolver.ResolveReference(resolverCtx, &metaschema, metaschemaURI); err != nil {
+	if err := resolver.ResolveReference(ctx, &metaschema, metaschemaURI, rootSchema, ""); err != nil {
 		// If we can't resolve the metaschema, default to all enabled
 		return AllEnabled(), nil //nolint:nilerr // Intentional: fallback to default behavior on resolve error
 	}
 
 	return ExtractVocabularySet(&metaschema), nil
-}
-
-// WithSet adds a vocabulary set to the context
-func WithSet(ctx context.Context, vocabSet *VocabularySet) context.Context {
-	return schemactx.WithVocabularySet(ctx, vocabSet)
-}
-
-// SetFromContext extracts the vocabulary set from the context
-func SetFromContext(ctx context.Context) *VocabularySet {
-	vocabSet, err := schemactx.VocabularySetFromContext[*VocabularySet](ctx)
-	if err != nil {
-		return DefaultSet() // Use default vocabulary set with format-assertion disabled
-	}
-	return vocabSet
-}
-
-// IsKeywordEnabledInContext checks if a keyword is enabled in the current context
-func IsKeywordEnabledInContext(ctx context.Context, keyword string) bool {
-	vocabSet := SetFromContext(ctx)
-	return vocabSet.IsKeywordEnabled(keyword)
 }
 
 // ValidateVocabularyURI validates that a vocabulary URI is well-formed

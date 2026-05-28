@@ -63,10 +63,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		// Valid data
@@ -174,10 +171,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		// Valid data
@@ -234,10 +228,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		// Valid data
@@ -270,10 +261,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		_, err := validator.Compile(ctx, &s)
+		_, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "circular reference")
 	})
@@ -327,10 +315,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		// Valid data - type A
@@ -414,10 +399,7 @@ func TestReferenceResolutionComprehensive(t *testing.T) {
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		// Valid document
@@ -473,10 +455,7 @@ func TestCircularReferenceDetection(t *testing.T) {
 	require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
 	ctx := context.Background()
-	ctx = schema.WithResolver(ctx, schema.NewResolver())
-	ctx = schema.WithRootSchema(ctx, &s)
-
-	_, err := validator.Compile(ctx, &s)
+	_, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "circular reference")
 }
@@ -499,10 +478,7 @@ func TestBasicReferenceResolution(t *testing.T) {
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		t.Run("valid object", func(t *testing.T) {
@@ -551,10 +527,7 @@ func TestBasicReferenceResolution(t *testing.T) {
 
 		// Set up context with resolver and root schema
 		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(ctx, &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		t.Run("valid person", func(t *testing.T) {

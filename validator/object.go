@@ -9,35 +9,34 @@ import (
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/internal/schemactx"
-	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 var _ Builder = (*ObjectValidatorBuilder)(nil)
 var _ Interface = (*objectValidator)(nil)
 
-func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+func compileObjectValidator(ctx context.Context, s *schema.Schema, cs compileState, strictType bool) (Interface, error) {
 	// Object keywords (properties, patternProperties, additionalProperties,
 	// propertyNames) apply their subschemas to child values, so crossing into
 	// them is a data boundary for recursion classification.
-	ctx = schema.WithDataDepth(ctx, schema.DataDepthFromContext(ctx)+1)
+	cs = cs.incDataDepth()
 	v := Object()
 
-	if s.HasMinProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "minProperties") {
+	if s.HasMinProperties() && cs.cfg.vocab.IsKeywordEnabled("minProperties") {
 		v.MinProperties(s.MinProperties())
 	}
-	if s.HasMaxProperties() && vocabulary.IsKeywordEnabledInContext(ctx, "maxProperties") {
+	if s.HasMaxProperties() && cs.cfg.vocab.IsKeywordEnabled("maxProperties") {
 		v.MaxProperties(s.MaxProperties())
 	}
-	if s.HasRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "required") {
+	if s.HasRequired() && cs.cfg.vocab.IsKeywordEnabled("required") {
 		v.Required(s.Required())
 	}
-	if s.HasDependentRequired() && vocabulary.IsKeywordEnabledInContext(ctx, "dependentRequired") {
+	if s.HasDependentRequired() && cs.cfg.vocab.IsKeywordEnabled("dependentRequired") {
 		v.DependentRequired(s.DependentRequired())
 	}
 	if s.HasProperties() {
 		properties := make(map[string]Interface)
 		for name, propSchema := range s.Properties() {
-			propValidator, err := Compile(ctx, propSchema)
+			propValidator, err := compile(ctx, propSchema, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property validator for %s: %w", name, err)
 			}
@@ -57,7 +56,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern %s: %w", pattern, err)
 			}
-			propValidator, err := Compile(ctx, propSchema)
+			propValidator, err := compile(ctx, propSchema, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern property validator for %s: %w", pattern, err)
 			}
@@ -75,7 +74,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 				v.AdditionalProperties(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate additional properties with this schema
-				propValidator, err := Compile(ctx, val)
+				propValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile additional properties validator: %w", err)
 				}
@@ -88,7 +87,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 	if s.HasPropertyNames() {
 		propertyNamesSchema := s.PropertyNames()
 		if propertyNamesSchema != nil {
-			propertyNamesValidator, err := Compile(ctx, propertyNamesSchema)
+			propertyNamesValidator, err := compile(ctx, propertyNamesSchema, cs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile property names validator: %w", err)
 			}
@@ -105,7 +104,7 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 				v.UnevaluatedProperties(bool(val))
 			case *schema.Schema:
 				// This is a regular schema - validate unevaluated properties with this schema
-				propValidator, err := Compile(ctx, val)
+				propValidator, err := compile(ctx, val, cs)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile unevaluated properties validator: %w", err)
 				}
@@ -117,11 +116,6 @@ func compileObjectValidator(ctx context.Context, s *schema.Schema, strictType bo
 	}
 
 	v.StrictObjectType(strictType)
-
-	// Set dependent schemas if available in context (from compilation phase)
-	if dependentValidators := DependentSchemasFromContext(ctx); dependentValidators != nil {
-		v.DependentSchemas(dependentValidators)
-	}
 
 	return v.Build()
 }
@@ -348,12 +342,14 @@ func extractObjectProperties(v any) (map[string]any, bool, error) {
 }
 
 // Validate implements the Interface
-func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
-	// Get previously evaluated properties from context
-	ec, _ := schemactx.EvaluationContextFromContext(ctx)
-	if ec == nil {
-		ec = &schemactx.EvaluationContext{}
-	}
+func (c *objectValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return c.evaluate(ctx, v, newEvalState(ctx, options))
+}
+
+func (c *objectValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
+	// Annotations from sibling applicators flow in via returned Results, not here;
+	// this starts from an empty evaluated-property set.
+	var ec schemactx.EvaluationContext
 	properties, isObject, err := extractObjectProperties(v)
 	if err != nil {
 		return nil, fmt.Errorf(`invalid value passed to ObjectValidator: %w`, err)
@@ -402,7 +398,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Validate property names
 	if c.propertyNames != nil {
 		for propName := range properties {
-			_, err := c.propertyNames.Validate(ctx, propName)
+			_, err := evalChild(ctx, c.propertyNames, propName, st)
 			if err != nil {
 				return nil, fmt.Errorf(`invalid value passed to ObjectValidator: property name validation failed for %s: %w`, propName, err)
 			}
@@ -420,6 +416,9 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 	// Validate properties
 	var unevaluatedProps []string
 	for propName, propValue := range properties {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		validated := false
 
 		// Check if this property was already evaluated by a previous validator
@@ -431,7 +430,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		// Check explicit properties
 		if c.properties != nil {
 			if propValidator, exists := c.properties[propName]; exists {
-				_, err := propValidator.Validate(ctx, propValue)
+				_, err := evalChild(ctx, propValidator, propValue, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: property validation failed for %s: %w`, propName, err)
 				}
@@ -444,7 +443,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 		if c.patternProperties != nil {
 			for pattern, propValidator := range c.patternProperties {
 				if pattern.MatchString(propName) {
-					_, err := propValidator.Validate(ctx, propValue)
+					_, err := evalChild(ctx, propValidator, propValue, st)
 					if err != nil {
 						return nil, fmt.Errorf(`invalid value passed to ObjectValidator: pattern property validation failed for %s: %w`, propName, err)
 					}
@@ -464,7 +463,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				validated = true
 				evaluatedProperties.MarkEvaluated(propName)
 			} else if propValidator, ok := c.additionalProperties.(Interface); ok {
-				_, err := propValidator.Validate(ctx, propValue)
+				_, err := evalChild(ctx, propValidator, propValue, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: additional property validation failed for %s: %w`, propName, err)
 				}
@@ -482,13 +481,10 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 
 	// Handle dependent schemas if stored in this validator (must happen before unevaluated properties)
 	if len(c.dependentSchemas) > 0 {
-		// Pass the stored dependent schemas through context during execution phase
-		depCtx := WithDependentSchemas(ctx, c.dependentSchemas)
-
 		for propertyName, depValidator := range c.dependentSchemas {
 			// If the property exists in the object, validate the entire object with the dependent schema
 			if _, exists := properties[propertyName]; exists {
-				result, err := depValidator.Validate(depCtx, v)
+				result, err := evalChild(ctx, depValidator, v, st)
 				if err != nil {
 					return nil, fmt.Errorf("dependent schema validation failed for property %s: %w", propertyName, err)
 				}
@@ -522,7 +518,7 @@ func (c *objectValidator) Validate(ctx context.Context, v any) (Result, error) {
 				// If unevaluatedProperties is true, mark this property as evaluated
 				evaluatedProperties.MarkEvaluated(propName)
 			} else if propValidator, ok := c.unevaluatedProperties.(Interface); ok {
-				_, err := propValidator.Validate(ctx, propValue)
+				_, err := evalChild(ctx, propValidator, propValue, st)
 				if err != nil {
 					return nil, fmt.Errorf(`invalid value passed to ObjectValidator: unevaluated property validation failed for %s: %w`, propName, err)
 				}

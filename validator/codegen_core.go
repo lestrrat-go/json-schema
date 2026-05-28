@@ -74,8 +74,8 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		// The dynamic-scope wrapper only records a schema resource on the runtime
 		// scope chain so $dynamicRef bookending can find it. Generated validators
 		// carry no schema document and resolve $dynamicRef via anchors registered
-		// in context (see schema.WithDynamicAnchorValidator), so emit the wrapped
-		// validator directly and drop the wrapper.
+		// through the WithDynamicAnchorValidator validate option, so emit the
+		// wrapped validator directly and drop the wrapper.
 		return g.generateInternal(dst, validator.inner)
 	default:
 		// Unsupported validator type, falling back to EmptyValidator

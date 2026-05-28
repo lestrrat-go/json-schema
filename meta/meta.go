@@ -3,7 +3,6 @@ package meta
 import (
 	"context"
 
-	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/validator"
 )
 
@@ -20,9 +19,11 @@ import (
 // "meta" dynamic anchor and let DynamicReferenceValidator pick it up.
 type metaSchemaValidator struct{}
 
-func (metaSchemaValidator) Validate(ctx context.Context, v any) (validator.Result, error) {
-	ctx = schema.WithDynamicAnchorValidator(ctx, "meta", metaValidator)
-	return metaValidator.Validate(ctx, v)
+func (metaSchemaValidator) Validate(ctx context.Context, v any, options ...validator.ValidateOption) (validator.Result, error) {
+	// Register metaValidator under the "meta" $dynamicAnchor so the "#meta"
+	// $dynamicRefs inside it resolve back to the whole meta validator.
+	options = append(options, validator.WithDynamicAnchorValidator("meta", metaValidator))
+	return metaValidator.Validate(ctx, v, options...)
 }
 
 // Validator returns a pre-compiled validator for the JSON Schema 2020-12

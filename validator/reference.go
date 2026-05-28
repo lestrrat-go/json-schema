@@ -2,11 +2,11 @@ package validator // ReferenceValidator handles schema references ($ref) with la
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 
 	schema "github.com/lestrrat-go/json-schema"
+	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
 type ReferenceValidator struct {
@@ -20,7 +20,11 @@ type ReferenceValidator struct {
 	baseURI      string         // Enclosing resource's base URI captured at compile time
 }
 
-func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (r *ReferenceValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return r.evaluate(ctx, v, newEvalState(ctx, options))
+}
+
+func (r *ReferenceValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	// Lazy resolution - only resolve when actually needed for validation
 	r.resolvedOnce.Do(func() {
 		r.resolved, r.resolveErr = r.resolveReference(ctx)
@@ -30,81 +34,48 @@ func (r *ReferenceValidator) Validate(ctx context.Context, v any) (Result, error
 		return nil, fmt.Errorf("reference resolution failed for %s: %w", r.reference, r.resolveErr)
 	}
 
-	return r.resolved.Validate(ctx, v)
+	return evalChild(ctx, r.resolved, v, st)
 }
 
 func (r *ReferenceValidator) resolveReference(ctx context.Context) (Interface, error) {
-	// Use stored resolver and root schema, fall back to context if not available
+	// All resolution inputs were captured into the validator at compile time, so
+	// this lazy (validate-time) resolution is self-contained.
 	resolver := r.resolver
 	if resolver == nil {
-		resolver = schema.ResolverFromContext(ctx)
-		if resolver == nil {
-			resolver = schema.NewResolver()
-		}
+		resolver = schema.NewResolver()
 	}
 
 	rootSchema := r.rootSchema
 	if rootSchema == nil {
-		rootSchema = schema.RootSchemaFromContext(ctx)
-		if rootSchema == nil {
-			return nil, fmt.Errorf("no root schema available in context for reference resolution: %s", r.reference)
-		}
+		return nil, fmt.Errorf("no root schema available for reference resolution: %s", r.reference)
 	}
 
-	// Check for circular references by looking at context
-	if stack := schema.ReferenceStackFromContext(ctx); stack != nil {
-		if slices.Contains(stack, r.reference) {
-			return nil, fmt.Errorf("circular reference detected: %s", r.reference)
-		}
-		// Add current reference to stack
-		newStack := make([]string, len(stack)+1)
-		copy(newStack, stack)
-		newStack[len(stack)] = r.reference
-		ctx = schema.WithReferenceStack(ctx, newStack)
-	} else {
-		// Start new reference stack
-		ctx = schema.WithReferenceStack(ctx, []string{r.reference})
-	}
-
-	// Resolve the reference against the enclosing resource captured at compile
-	// time (falling back to context/root), so deferred recursive references in
-	// a nested $id resource still resolve within that resource.
-	var targetSchema schema.Schema
-	baseURI := r.baseURI
-	if baseURI == "" {
-		baseURI = schema.BaseURIFromContext(ctx)
-	}
-	refCtx := ctx
-	if baseURI != "" {
-		refCtx = schema.WithBaseURI(ctx, baseURI)
-	}
 	baseSchema := r.baseSchema
-	if baseSchema == nil {
-		baseSchema = schema.BaseSchemaFromContext(ctx)
-	}
 	if baseSchema == nil {
 		baseSchema = rootSchema
 	}
-	if baseSchema != nil {
-		refCtx = schema.WithBaseSchema(refCtx, baseSchema)
-	}
-	if err := resolver.ResolveReference(refCtx, &targetSchema, r.reference); err != nil {
+	baseURI := r.baseURI
+
+	// Resolve the reference against the enclosing resource captured at compile
+	// time, so deferred recursive references in a nested $id resource still
+	// resolve within that resource.
+	var targetSchema schema.Schema
+	if err := resolver.ResolveReference(ctx, &targetSchema, r.reference, baseSchema, baseURI); err != nil {
 		return nil, fmt.Errorf("failed to resolve reference %s: %w", r.reference, err)
 	}
 
-	// Compile the resolved schema. Seed the resolver (carrying the in-document
-	// $id registry), root schema, and base schema/URI: this runs at validation
-	// time, when the incoming context generally lacks them, and without the
-	// resolver nested references would fall back to external retrieval.
-	compileCtx := schema.WithResolver(ctx, resolver)
-	compileCtx = schema.WithRootSchema(compileCtx, rootSchema)
-	if baseURI != "" {
-		compileCtx = schema.WithBaseURI(compileCtx, baseURI)
+	// Recompile the resolved schema. The reference is seeded onto the recompile's
+	// reference stack so any cycle within the target is classified the same way
+	// the original compile would have classified it.
+	cs := compileState{
+		cfg:            &compileConfig{resolver: resolver, vocab: vocabulary.DefaultSet()},
+		rootSchema:     rootSchema,
+		baseSchema:     baseSchema,
+		baseURI:        baseURI,
+		referenceStack: []string{r.reference},
+		refDepths:      map[string]int{r.reference: 0},
 	}
-	if baseSchema != nil {
-		compileCtx = schema.WithBaseSchema(compileCtx, baseSchema)
-	}
-	compiled, err := Compile(compileCtx, &targetSchema)
+	compiled, err := compile(ctx, &targetSchema, cs)
 	if err != nil {
 		return nil, err
 	}
@@ -127,9 +98,12 @@ type dynamicScopeValidator struct {
 	inner  Interface
 }
 
-func (d *dynamicScopeValidator) Validate(ctx context.Context, v any) (Result, error) {
-	ctx = schema.WithDynamicScope(ctx, d.schema)
-	return d.inner.Validate(ctx, v)
+func (d *dynamicScopeValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return d.evaluate(ctx, v, newEvalState(ctx, options))
+}
+
+func (d *dynamicScopeValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
+	return evalChild(ctx, d.inner, v, st.pushDynamicScope(d.schema))
 }
 
 // DynamicReferenceValidator handles $dynamicRef. Unlike $ref, a $dynamicRef can
@@ -153,20 +127,28 @@ func NewDynamicReferenceValidator(reference string) *DynamicReferenceValidator {
 	}
 }
 
-func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
+func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any, options ...ValidateOption) (Result, error) {
+	return dr.evaluate(ctx, v, newEvalState(ctx, options))
+}
+
+func (dr *DynamicReferenceValidator) evaluate(ctx context.Context, v any, st *evalState) (Result, error) {
 	// When the fragment is a plain $dynamicAnchor name and a validator has been
 	// registered for it in the context, the registered validator stands in for
 	// the outermost dynamic-scope resource declaring that anchor. This is how the
 	// precompiled meta-schema validator satisfies "$dynamicRef": "#meta" — it
 	// registers itself under "meta" and recurses, since no schema document is
-	// available to resolve against at validation time.
+	// available to resolve against at validation time. The registered validator
+	// represents an outermost resource, so it re-enters with fresh state.
 	if name := plainAnchorFragment(dr.reference); name != "" {
-		if rv, ok := schema.DynamicAnchorValidatorFromContext(ctx, name).(Interface); ok && rv != nil {
-			return rv.Validate(ctx, v)
+		if rv := st.dynamicAnchorValidators[name]; rv != nil {
+			// The registered validator stands in for an outermost resource, so it
+			// re-enters with fresh dynamic scope; the anchor registry is carried
+			// forward so nested $dynamicRefs to the same anchor still resolve.
+			return evalChild(ctx, rv, v, &evalState{dynamicAnchorValidators: st.dynamicAnchorValidators})
 		}
 	}
 
-	target, err := dr.resolveTarget(ctx)
+	target, err := dr.resolveTarget(ctx, st)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic reference resolution failed for %s: %w", dr.reference, err)
 	}
@@ -174,37 +156,21 @@ func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Resul
 	if err != nil {
 		return nil, fmt.Errorf("dynamic reference resolution failed for %s: %w", dr.reference, err)
 	}
-	return validator.Validate(ctx, v)
+	return evalChild(ctx, validator, v, st)
 }
 
 // resolveTarget resolves the $dynamicRef against the current runtime dynamic
-// scope carried in ctx.
-func (dr *DynamicReferenceValidator) resolveTarget(ctx context.Context) (*schema.Schema, error) {
+// scope carried in st.
+func (dr *DynamicReferenceValidator) resolveTarget(ctx context.Context, st *evalState) (*schema.Schema, error) {
 	resolver := dr.resolver
 	if resolver == nil {
-		if resolver = schema.ResolverFromContext(ctx); resolver == nil {
-			resolver = schema.NewResolver()
-		}
+		resolver = schema.NewResolver()
 	}
 	baseSchema := dr.baseSchema
 	if baseSchema == nil {
-		baseSchema = schema.BaseSchemaFromContext(ctx)
-	}
-	if baseSchema == nil {
 		baseSchema = dr.rootSchema
 	}
-	if baseSchema == nil {
-		baseSchema = schema.RootSchemaFromContext(ctx)
-	}
-
-	refCtx := ctx
-	if dr.baseURI != "" {
-		refCtx = schema.WithBaseURI(refCtx, dr.baseURI)
-	}
-	if baseSchema != nil {
-		refCtx = schema.WithBaseSchema(refCtx, baseSchema)
-	}
-	return resolveDynamicRef(refCtx, resolver, baseSchema, dr.reference)
+	return resolveDynamicRef(ctx, resolver, baseSchema, dr.baseURI, dr.reference, st.dynamicScope)
 }
 
 // validatorFor compiles (and caches) the validator for a resolved target schema.
@@ -221,34 +187,26 @@ func (dr *DynamicReferenceValidator) validatorFor(ctx context.Context, target *s
 
 	resolver := dr.resolver
 	if resolver == nil {
-		resolver = schema.ResolverFromContext(ctx)
+		resolver = schema.NewResolver()
 	}
-	root := dr.rootSchema
-	if root == nil {
-		root = schema.RootSchemaFromContext(ctx)
-	}
-	compileCtx := ctx
-	if resolver != nil {
-		compileCtx = schema.WithResolver(compileCtx, resolver)
-	}
-	if root != nil {
-		compileCtx = schema.WithRootSchema(compileCtx, root)
+	cs := compileState{
+		cfg:        &compileConfig{resolver: resolver, vocab: vocabulary.DefaultSet()},
+		rootSchema: dr.rootSchema,
+		baseSchema: target,
 	}
 	if target.HasID() && target.ID() != "" {
 		// Resolve the target's (possibly relative) $id against the base URI under
 		// which the $dynamicRef itself was resolved, so the target's own relative
 		// references resolve within its resource.
-		parentBase := dr.baseURI
-		if parentBase == "" {
-			parentBase = schema.BaseURIFromContext(ctx)
+		if base := schema.ResolveURI(dr.baseURI, target.ID()); base != "" {
+			cs.baseURI = base
 		}
-		if base := schema.ResolveURI(parentBase, target.ID()); base != "" {
-			compileCtx = schema.WithBaseURI(compileCtx, base)
-		}
-		compileCtx = schema.WithBaseSchema(compileCtx, target)
+	}
+	if cs.rootSchema == nil {
+		cs.rootSchema = target
 	}
 
-	v, err := Compile(compileCtx, target)
+	v, err := compile(ctx, target, cs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile dynamic reference target %s: %w", dr.reference, err)
 	}
@@ -276,19 +234,7 @@ func plainAnchorFragment(ref string) string {
 // declares a $dynamicAnchor of the same name — the bookending requirement — the
 // reference instead resolves to the same $dynamicAnchor in the FIRST (outermost)
 // resource of the runtime dynamic scope. Otherwise it behaves exactly like $ref.
-func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchema *schema.Schema, dynamicRef string) (*schema.Schema, error) {
-	baseURI := schema.BaseURIFromContext(ctx)
-	// Only seed the base schema when one is actually available. A nil *Schema
-	// boxed into the context's any-typed slot would defeat the presence check in
-	// BaseSchemaFromContext and get dereferenced during anchor lookup.
-	refCtx := ctx
-	if baseSchema != nil {
-		refCtx = schema.WithBaseSchema(refCtx, baseSchema)
-	}
-	if baseURI != "" {
-		refCtx = schema.WithBaseURI(refCtx, baseURI)
-	}
-
+func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchema *schema.Schema, baseURI string, dynamicRef string, scopeChain []*schema.Schema) (*schema.Schema, error) {
 	// Determine whether the fragment is a plain anchor name (eligible for
 	// dynamic-scope bookending) versus a JSON pointer or no fragment at all.
 	anchorName := plainAnchorFragment(dynamicRef)
@@ -297,15 +243,14 @@ func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchem
 	var lexical schema.Schema
 	var lexErr error
 	if dynamicRef == "#"+anchorName && anchorName != "" {
-		lexErr = resolver.ResolveAnchor(refCtx, &lexical, anchorName)
+		lexErr = resolver.ResolveAnchor(ctx, &lexical, anchorName, baseSchema)
 	} else {
-		lexErr = resolver.ResolveReference(refCtx, &lexical, dynamicRef)
+		lexErr = resolver.ResolveReference(ctx, &lexical, dynamicRef, baseSchema, baseURI)
 	}
 
 	// Bookending: only consult the dynamic scope when the lexical target declares
 	// a $dynamicAnchor matching the fragment.
 	if anchorName != "" && lexErr == nil && lexical.HasDynamicAnchor() && lexical.DynamicAnchor() == anchorName {
-		scopeChain := schema.DynamicScopeFromContext(ctx)
 		for i := range scopeChain {
 			if found := schema.FindDynamicAnchor(scopeChain[i], anchorName); found != nil {
 				return found, nil

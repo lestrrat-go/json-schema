@@ -1,6 +1,0 @@
-{
-  "anyOf": [
-    { "type": "string" },
-    { "type": "integer" }
-  ]
-}

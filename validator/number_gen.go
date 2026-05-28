@@ -15,10 +15,10 @@ import (
 var _ Builder = (*NumberValidatorBuilder)(nil)
 var _ Interface = (*numberValidator)(nil)
 
-func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileNumberValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) (Interface, error) {
 	b := Number()
 
-	if s.HasMultipleOf() && vocabulary.IsKeywordEnabledInContext(ctx, "multipleOf") {
+	if s.HasMultipleOf() && vocab.IsKeywordEnabled("multipleOf") {
 		rv := reflect.ValueOf(s.MultipleOf())
 		var tmp float64
 		switch rv.Kind() {
@@ -33,7 +33,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.MultipleOf(tmp)
 	}
 
-	if s.HasMaximum() && vocabulary.IsKeywordEnabledInContext(ctx, "maximum") {
+	if s.HasMaximum() && vocab.IsKeywordEnabled("maximum") {
 		rv := reflect.ValueOf(s.Maximum())
 		var tmp float64
 		switch rv.Kind() {
@@ -47,7 +47,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.Maximum(tmp)
 	}
 
-	if s.HasExclusiveMaximum() && vocabulary.IsKeywordEnabledInContext(ctx, "exclusiveMaximum") {
+	if s.HasExclusiveMaximum() && vocab.IsKeywordEnabled("exclusiveMaximum") {
 		rv := reflect.ValueOf(s.ExclusiveMaximum())
 		var tmp float64
 		switch rv.Kind() {
@@ -61,7 +61,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.ExclusiveMaximum(tmp)
 	}
 
-	if s.HasMinimum() && vocabulary.IsKeywordEnabledInContext(ctx, "minimum") {
+	if s.HasMinimum() && vocab.IsKeywordEnabled("minimum") {
 		rv := reflect.ValueOf(s.Minimum())
 		var tmp float64
 		switch rv.Kind() {
@@ -75,7 +75,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.Minimum(tmp)
 	}
 
-	if s.HasExclusiveMinimum() && vocabulary.IsKeywordEnabledInContext(ctx, "exclusiveMinimum") {
+	if s.HasExclusiveMinimum() && vocab.IsKeywordEnabled("exclusiveMinimum") {
 		rv := reflect.ValueOf(s.ExclusiveMinimum())
 		var tmp float64
 		switch rv.Kind() {
@@ -89,7 +89,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.ExclusiveMinimum(tmp)
 	}
 
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, "const") {
+	if s.HasConst() && vocab.IsKeywordEnabled("const") {
 		rv := reflect.ValueOf(s.Const())
 		var tmp float64
 		switch rv.Kind() {
@@ -103,7 +103,7 @@ func compileNumberValidator(ctx context.Context, s *schema.Schema) (Interface, e
 		b.Const(tmp)
 	}
 
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, "enum") {
+	if s.HasEnum() && vocab.IsKeywordEnabled("enum") {
 		enums := s.Enum()
 		l := make([]float64, 0, len(enums))
 		for i, e := range s.Enum() {
@@ -220,7 +220,7 @@ func (b *NumberValidatorBuilder) Reset() *NumberValidatorBuilder {
 	return b
 }
 
-func (v *numberValidator) Validate(_ context.Context, in any) (Result, error) {
+func (v *numberValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {
 	rv := reflect.ValueOf(in)
 
 	var n float64

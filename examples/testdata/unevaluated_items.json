@@ -1,9 +1,0 @@
-{
-  "allOf": [
-    {
-      "type": "array",
-      "prefixItems": [{ "type": "string" }]
-    }
-  ],
-  "unevaluatedItems": false
-}

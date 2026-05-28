@@ -1,8 +1,0 @@
-{
-  "$id": "https://example.com/address",
-  "type": "object",
-  "properties": {
-    "city": { "type": "string", "minLength": 1 }
-  },
-  "required": ["city"]
-}

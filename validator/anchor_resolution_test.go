@@ -33,11 +33,7 @@ func TestAnchorResolution(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(context.Background(), &s, validator.WithResolver(schema.NewResolver()))
 		if err != nil {
 			t.Logf("Expected anchor resolution to work, but got error: %v", err)
 			t.Skip("Anchor resolution not yet implemented")
@@ -100,11 +96,7 @@ func TestAnchorResolution(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(context.Background(), &s, validator.WithResolver(schema.NewResolver()))
 		if err != nil {
 			t.Logf("Expected multiple anchor resolution to work, but got error: %v", err)
 			t.Skip("Anchor resolution not yet implemented")
@@ -153,11 +145,7 @@ func TestAnchorResolution(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(context.Background(), &s, validator.WithResolver(schema.NewResolver()))
 		if err != nil {
 			t.Logf("Expected nested anchor resolution to work, but got error: %v", err)
 			t.Skip("Anchor resolution not yet implemented")

@@ -16,12 +16,12 @@ type IfThenElseValidator struct {
 	elseValidator Interface
 }
 
-func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interface, error) {
+func compileIfThenElseValidator(ctx context.Context, s *schema.Schema, cs compileState) (Interface, error) {
 	v := &IfThenElseValidator{}
 
 	// Compile 'if' validator (required)
 	ifSchema := convertSchemaOrBool(s.IfSchema())
-	ifValidator, err := Compile(ctx, ifSchema)
+	ifValidator, err := compile(ctx, ifSchema, cs)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to compile if validator: %w`, err)
 	}
@@ -30,7 +30,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	// Compile 'then' validator (optional)
 	if s.HasThenSchema() {
 		thenSchema := convertSchemaOrBool(s.ThenSchema())
-		thenValidator, err := Compile(ctx, thenSchema)
+		thenValidator, err := compile(ctx, thenSchema, cs)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile then validator: %w`, err)
 		}
@@ -40,7 +40,7 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	// Compile 'else' validator (optional)
 	if s.HasElseSchema() {
 		elseSchema := convertSchemaOrBool(s.ElseSchema())
-		elseValidator, err := Compile(ctx, elseSchema)
+		elseValidator, err := compile(ctx, elseSchema, cs)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to compile else validator: %w`, err)
 		}
@@ -50,9 +50,13 @@ func compileIfThenElseValidator(ctx context.Context, s *schema.Schema) (Interfac
 	return v, nil
 }
 
-func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *IfThenElseValidator) Validate(ctx context.Context, in any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx, options))
+}
+
+func (v *IfThenElseValidator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {
 	// First, check the 'if' condition and collect its annotations
-	ifResult, ifErr := v.ifValidator.Validate(ctx, in)
+	ifResult, ifErr := evalChild(ctx, v.ifValidator, in, st)
 
 	// The 'if' schema contributes annotations regardless of whether it passes or fails
 	var conditionalResult Result
@@ -60,7 +64,7 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 	if ifErr == nil {
 		// 'if' condition passed, validate against 'then' if it exists
 		if v.thenValidator != nil {
-			thenResult, err := v.thenValidator.Validate(ctx, in)
+			thenResult, err := evalChild(ctx, v.thenValidator, in, st)
 			if err != nil {
 				return nil, err
 			}
@@ -73,7 +77,7 @@ func (v *IfThenElseValidator) Validate(ctx context.Context, in any) (Result, err
 	} else {
 		// 'if' condition failed, validate against 'else' if it exists
 		if v.elseValidator != nil {
-			elseResult, err := v.elseValidator.Validate(ctx, in)
+			elseResult, err := evalChild(ctx, v.elseValidator, in, st)
 			if err != nil {
 				return nil, err
 			}

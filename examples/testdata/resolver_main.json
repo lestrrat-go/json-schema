@@ -1,7 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "home": { "$ref": "https://example.com/address" }
-  },
-  "required": ["home"]
-}

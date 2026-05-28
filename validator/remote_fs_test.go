@@ -25,8 +25,7 @@ func TestRegisterFS(t *testing.T) {
 
 	var top schema.Schema
 	require.NoError(t, top.UnmarshalJSON([]byte(`{"$ref":"http://localhost:1234/integer.json"}`)))
-	ctx := schema.WithResolver(t.Context(), r)
-	v, err := validator.Compile(ctx, &top)
+	v, err := validator.Compile(t.Context(), &top, validator.WithResolver(r))
 	require.NoError(t, err)
 	_, err = v.Validate(t.Context(), 7)
 	require.NoError(t, err)
@@ -36,7 +35,7 @@ func TestRegisterFS(t *testing.T) {
 	// Relative ref inside a registered FS document resolves within the FS.
 	var nested schema.Schema
 	require.NoError(t, nested.UnmarshalJSON([]byte(`{"$ref":"http://localhost:1234/nested/foo.json"}`)))
-	v, err = validator.Compile(ctx, &nested)
+	v, err = validator.Compile(t.Context(), &nested, validator.WithResolver(r))
 	require.NoError(t, err)
 	_, err = v.Validate(t.Context(), map[string]any{"name": "ok"})
 	require.NoError(t, err)

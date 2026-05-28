@@ -34,7 +34,7 @@ type stringValidator struct {
 	strictStringType bool // true when schema explicitly declares type: string
 }
 
-func (v *stringValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *stringValidator) Validate(ctx context.Context, in any, _ ...ValidateOption) (Result, error) {
 	logger := TraceSlogFromContext(ctx)
 	logger.InfoContext(ctx, "string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
 	rv := reflect.ValueOf(in)
@@ -157,31 +157,30 @@ func truncateString(s string, maxLength int) string {
 	return string(runes[:maxLength]) + "..."
 }
 
-func compileStringValidator(ctx context.Context, s *schema.Schema, strictType bool) (Interface, error) {
+func compileStringValidator(s *schema.Schema, vocab *vocabulary.VocabularySet, strictType bool) (Interface, error) {
 	v := String()
 	v.StrictStringType(strictType)
-	if s.HasConst() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Const) {
+	if s.HasConst() && vocab.IsKeywordEnabled(keywords.Const) {
 		v.Const(s.Const())
 	}
-	if s.HasMaxLength() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.MaxLength) {
+	if s.HasMaxLength() && vocab.IsKeywordEnabled(keywords.MaxLength) {
 		v.MaxLength(s.MaxLength())
 	}
-	if s.HasMinLength() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.MinLength) {
+	if s.HasMinLength() && vocab.IsKeywordEnabled(keywords.MinLength) {
 		v.MinLength(s.MinLength())
 	}
-	if s.HasPattern() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Pattern) {
+	if s.HasPattern() && vocab.IsKeywordEnabled(keywords.Pattern) {
 		v.Pattern(s.Pattern())
 	}
 	// Format validation should only be enforced when format-assertion vocabulary is enabled
 	// When only format-annotation is enabled, format should be treated as annotation-only
 	if s.HasFormat() {
-		vocabSet := vocabulary.SetFromContext(ctx)
-		if vocabSet.IsEnabled("https://json-schema.org/draft/2020-12/vocab/format-assertion") {
+		if vocab.IsEnabled("https://json-schema.org/draft/2020-12/vocab/format-assertion") {
 			v.Format(s.Format())
 		}
 		// If only format-annotation is enabled, we skip format validation (annotation-only behavior)
 	}
-	if s.HasEnum() && vocabulary.IsKeywordEnabledInContext(ctx, keywords.Enum) {
+	if s.HasEnum() && vocab.IsKeywordEnabled(keywords.Enum) {
 		v.Enum(s.Enum()...)
 	}
 

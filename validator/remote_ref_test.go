@@ -24,8 +24,7 @@ func TestRemoteRefViaRegisterDocument(t *testing.T) {
 		r.RegisterDocument("http://localhost:1234/integer.json", mustParse(t, `{"type":"integer"}`))
 
 		s := mustParse(t, `{"$ref":"http://localhost:1234/integer.json"}`)
-		ctx := schema.WithResolver(t.Context(), r)
-		v, err := validator.Compile(ctx, s)
+		v, err := validator.Compile(t.Context(), s, validator.WithResolver(r))
 		require.NoError(t, err)
 
 		_, err = v.Validate(t.Context(), 42)
@@ -43,8 +42,7 @@ func TestRemoteRefViaRegisterDocument(t *testing.T) {
 			mustParse(t, `{"type":"string"}`))
 
 		s := mustParse(t, `{"$ref":"http://localhost:1234/nested/foo.json"}`)
-		ctx := schema.WithResolver(t.Context(), r)
-		v, err := validator.Compile(ctx, s)
+		v, err := validator.Compile(t.Context(), s, validator.WithResolver(r))
 		require.NoError(t, err)
 
 		_, err = v.Validate(t.Context(), map[string]any{"name": "ok"})

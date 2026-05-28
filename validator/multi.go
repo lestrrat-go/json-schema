@@ -28,13 +28,17 @@ type allOfValidator struct {
 	validators []Interface
 }
 
-func (v *allOfValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *allOfValidator) Validate(ctx context.Context, in any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx, options))
+}
+
+func (v *allOfValidator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {
 	// allOf subschemas are "cousins": each is evaluated independently and none
 	// can see the items/properties evaluated by another. Their annotations are
 	// merged upward for the parent (so a parent-level unevaluatedItems /
 	// unevaluatedProperties does see them), but they are NOT shared sideways
 	// between branches.
-	merger, err := executeValidatorsAndMergeResults(ctx, v.validators, in, "allOf")
+	merger, err := executeValidatorsAndMergeResults(ctx, v.validators, in, st, "allOf")
 	if err != nil {
 		return nil, err
 	}
@@ -45,13 +49,17 @@ type anyOfValidator struct {
 	validators []Interface
 }
 
-func (v *anyOfValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *anyOfValidator) Validate(ctx context.Context, in any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx, options))
+}
+
+func (v *anyOfValidator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {
 	var resultMerger resultMerger
 	anyPassed := false
 
 	// According to JSON Schema spec, anyOf must collect annotations from ALL passing validators
 	for _, subv := range v.validators {
-		result, err := subv.Validate(ctx, in)
+		result, err := evalChild(ctx, subv, in, st)
 		if err == nil {
 			anyPassed = true
 			resultMerger.mergeResult(result)
@@ -70,11 +78,15 @@ type oneOfValidator struct {
 	validators []Interface
 }
 
-func (v *oneOfValidator) Validate(ctx context.Context, in any) (Result, error) {
+func (v *oneOfValidator) Validate(ctx context.Context, in any, options ...ValidateOption) (Result, error) {
+	return v.evaluate(ctx, in, newEvalState(ctx, options))
+}
+
+func (v *oneOfValidator) evaluate(ctx context.Context, in any, st *evalState) (Result, error) {
 	passedCount := 0
 	var validResult Result
 	for _, subv := range v.validators {
-		result, err := subv.Validate(ctx, in)
+		result, err := evalChild(ctx, subv, in, st)
 		if err == nil {
 			passedCount++
 			validResult = result

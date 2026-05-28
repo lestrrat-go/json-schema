@@ -185,11 +185,7 @@ func TestDependentSchemas(t *testing.T) {
 		var s schema.Schema
 		require.NoError(t, s.UnmarshalJSON([]byte(jsonSchema)))
 
-		ctx := context.Background()
-		ctx = schema.WithResolver(ctx, schema.NewResolver())
-		ctx = schema.WithRootSchema(ctx, &s)
-
-		v, err := validator.Compile(ctx, &s)
+		v, err := validator.Compile(context.Background(), &s, validator.WithResolver(schema.NewResolver()))
 		require.NoError(t, err)
 
 		// Valid case - name present with required age
