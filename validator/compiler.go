@@ -11,9 +11,56 @@ import (
 	"github.com/lestrrat-go/json-schema/vocabulary"
 )
 
-// Compile implements the new simplified compilation approach using UnevaluatedCoordinator.
-// This replaces the complex old compilation logic.
+// Compile builds a validator for s. A schema that declares a $dynamicAnchor is
+// a potential bookend target for $dynamicRef, so its validator is wrapped to
+// push the schema onto the runtime dynamic scope when validation enters it.
 func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
+	v, err := compileSchema(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	// A schema resource (one bearing $id) or any schema declaring a
+	// $dynamicAnchor participates in the dynamic scope: wrap it so entering it
+	// during validation records it, letting $dynamicRef find the outermost
+	// in-scope $dynamicAnchor.
+	if s != nil && (s.HasID() || s.HasDynamicAnchor()) {
+		return &dynamicScopeValidator{schema: s, inner: v}, nil
+	}
+	return v, nil
+}
+
+// combineReferenceWithConstraints combines a resolved $ref/$dynamicRef validator
+// with any sibling keywords present on the same schema, mirroring $ref handling
+// so that keywords like unevaluatedProperties alongside a $dynamicRef are still
+// applied (and can see the reference target's annotations).
+func combineReferenceWithConstraints(ctx context.Context, s *schema.Schema, resolvedValidator Interface) (Interface, error) {
+	if !hasOtherConstraints(s) {
+		return resolvedValidator, nil
+	}
+	schemaWithoutRef := createSchemaWithoutRef(s)
+	if schemaWithoutRef.HasUnevaluatedProperties() || schemaWithoutRef.HasUnevaluatedItems() {
+		schemaWithoutUnevaluated := createSchemaWithoutUnevaluatedFields(schemaWithoutRef)
+		additionalValidator, err := Compile(ctx, schemaWithoutUnevaluated)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
+		}
+		return &unevaluatedCoordinator{
+			validators:       []Interface{resolvedValidator, additionalValidator},
+			unevaluatedProps: schemaWithoutRef.UnevaluatedProperties(),
+			unevaluatedItems: schemaWithoutRef.UnevaluatedItems(),
+			strictArrayType:  hasExplicitArrayType(schemaWithoutRef),
+			strictObjectType: hasExplicitObjectType(schemaWithoutRef),
+		}, nil
+	}
+	additionalValidator, err := Compile(ctx, schemaWithoutRef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile additional constraints: %w", err)
+	}
+	return AllOf(resolvedValidator, additionalValidator), nil
+}
+
+// compileSchema implements the simplified compilation approach using UnevaluatedCoordinator.
+func compileSchema(ctx context.Context, s *schema.Schema) (Interface, error) {
 	// Set up context with default resolver if none provided
 	if schema.ResolverFromContext(ctx) == nil {
 		ctx = schema.WithResolver(ctx, schema.NewResolver())
@@ -110,26 +157,26 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 	}
 
 	if reference != "" {
-		// Handle $dynamicRef with proper DynamicReferenceValidator
+		// Handle $dynamicRef with a DynamicReferenceValidator. Capture the
+		// enclosing resource's base schema and base URI (not just the document
+		// root) so the non-dynamic fallback — a $dynamicRef whose fragment is a
+		// JSON pointer or a plain $ref to an $anchor — resolves within the correct
+		// schema resource. The dynamic scope itself is read at validation time.
 		if isDynamicRef {
-			// Create dynamic reference validator with stored context. Capture the
-			// enclosing resource's base schema and base URI (not just the document
-			// root) so that the non-dynamic fallback — a $dynamicRef whose fragment
-			// is a JSON pointer or a plain $ref to an $anchor — resolves within the
-			// correct schema resource when nested $id re-basing is in effect.
-			dynamicScope := schema.DynamicScopeFromContext(ctx)
 			baseSchema := schema.BaseSchemaFromContext(ctx)
 			if baseSchema == nil {
 				baseSchema = schema.RootSchemaFromContext(ctx)
 			}
-			return &DynamicReferenceValidator{
-				reference:    reference,
-				resolver:     schema.ResolverFromContext(ctx),
-				rootSchema:   schema.RootSchemaFromContext(ctx),
-				baseSchema:   baseSchema,
-				baseURI:      schema.BaseURIFromContext(ctx),
-				dynamicScope: dynamicScope,
-			}, nil
+			drv := &DynamicReferenceValidator{
+				reference:  reference,
+				resolver:   schema.ResolverFromContext(ctx),
+				rootSchema: schema.RootSchemaFromContext(ctx),
+				baseSchema: baseSchema,
+				baseURI:    schema.BaseURIFromContext(ctx),
+			}
+			// Combine with any sibling keywords (e.g. unevaluatedProperties), the
+			// same way $ref does, so they are not silently dropped.
+			return combineReferenceWithConstraints(ctx, s, drv)
 		}
 
 		// Get resolver from context (guaranteed to be present)
@@ -239,7 +286,16 @@ func Compile(ctx context.Context, s *schema.Schema) (Interface, error) {
 		if targetSchema.HasID() {
 			resolvedCtx = schema.WithBaseSchema(ctx, &targetSchema)
 		}
-		return Compile(resolvedCtx, &targetSchema)
+		compiled, err := Compile(resolvedCtx, &targetSchema)
+		if err != nil {
+			return nil, err
+		}
+		// Following the $ref enters the target's resource; record it on the
+		// dynamic scope so a $dynamicRef deeper in the target can find it.
+		if resource := resolver.ResourceFor(schema.ResolveURI(baseURI, reference)); resource != nil && resource != &targetSchema {
+			compiled = &dynamicScopeValidator{schema: resource, inner: compiled}
+		}
+		return compiled, nil
 	}
 	var validators []Interface
 
