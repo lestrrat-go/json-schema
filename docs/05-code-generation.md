@@ -51,26 +51,52 @@ UserValidator := validator.Object().
 
 `validator.NewCodeGenerator()` returns a `CodeGenerator`; its `Generate` method writes builder source for any compiled validator into an `io.Writer`:
 
+<!-- INCLUDE(examples/doc_codegen_test.go) -->
 ```go
+package examples_test
+
 import (
-	"bytes"
-	"github.com/lestrrat-go/json-schema/validator"
+  "bytes"
+  "context"
+  "fmt"
+
+  schema "github.com/lestrrat-go/json-schema"
+  "github.com/lestrrat-go/json-schema/validator"
 )
 
-v, err := validator.Compile(ctx, s)
-if err != nil {
-	return err
-}
+// Example_docCodegen compiles a schema and emits Go source that reconstructs the
+// validator directly, so production code can skip compilation. This is the
+// programmatic form of the `json-schema gen-validator` CLI command.
+func Example_docCodegen() {
+  s := schema.NewBuilder().
+    Types(schema.StringType).
+    MinLength(1).
+    MustBuild()
 
-var buf bytes.Buffer
-if err := validator.NewCodeGenerator().Generate(&buf, v); err != nil {
-	return err
+  v, err := validator.Compile(context.Background(), s)
+  if err != nil {
+    fmt.Println("compile failed:", err)
+    return
+  }
+
+  var buf bytes.Buffer
+  if err := validator.NewCodeGenerator().Generate(&buf, v); err != nil {
+    fmt.Println("generate failed:", err)
+    return
+  }
+  // Generate emits the raw builder calls (one per line). The gen-validator CLI
+  // additionally assigns them to a variable and runs the result through gofmt.
+  fmt.Print(buf.String())
+  // Output:
+  // validator.String().
+  // MinLength(1).
+  // MustBuild()
 }
-// buf now holds `validator.Object()....MustBuild()` source.
-// Prepend a variable name and run it through go/format before writing to a file.
 ```
+source: [examples/doc_codegen_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/doc_codegen_test.go)
+<!-- END INCLUDE -->
 
-This is exactly what `gen-validator` does internally: compile, `Generate` into a buffer, prepend `name :=`, then `go/format`.
+This is exactly what `gen-validator` does internally: compile, `Generate` into a buffer, prepend `name :=`, then run it through `go/format` for the indented layout shown above.
 
 ## The generated validator builders
 
