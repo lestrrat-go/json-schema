@@ -205,13 +205,13 @@ func hasOtherConstraints(s *schema.Schema) bool {
 }
 
 // createSchemaWithoutRef creates a copy of the schema without the $ref/$dynamicRef constraint
-func createSchemaWithoutRef(s *schema.Schema) *schema.Schema {
+func createSchemaWithoutRef(s *schema.Schema) (*schema.Schema, error) {
 	// Use the new Clone Builder pattern to create a copy without the $ref/$dynamicRef field
 	builder := schema.NewBuilder().Clone(s).ResetReference()
 	if s.HasDynamicReference() {
 		builder = builder.ResetDynamicReference()
 	}
-	return builder.MustBuild()
+	return builder.Build()
 }
 
 // mergeGenericResults merges two results, handling both ObjectResult and ArrayResult types

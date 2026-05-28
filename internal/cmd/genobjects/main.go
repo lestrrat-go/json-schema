@@ -612,6 +612,9 @@ func genBuilder(obj *codegen.Object) error {
 	o.L("}")
 
 	o.LL("func (b *Builder) Build() (*Schema, error) {")
+	o.L("if b.err != nil {")
+	o.L("return nil, b.err")
+	o.L("}")
 	o.L("s := New()")
 	for _, field := range obj.Fields() {
 		switch field.Type() {
