@@ -70,6 +70,13 @@ func (g *codeGenerator) generateInternal(dst io.Writer, v Interface) error {
 		return g.generateInferredNumber(dst, validator)
 	case *IfThenElseValidator:
 		return g.generateIfThenElse(dst, validator)
+	case *dynamicScopeValidator:
+		// The dynamic-scope wrapper only records a schema resource on the runtime
+		// scope chain so $dynamicRef bookending can find it. Generated validators
+		// carry no schema document and resolve $dynamicRef via anchors registered
+		// in context (see schema.WithDynamicAnchorValidator), so emit the wrapped
+		// validator directly and drop the wrapper.
+		return g.generateInternal(dst, validator.inner)
 	default:
 		// Unsupported validator type, falling back to EmptyValidator
 		o.R("&validator.EmptyValidator{}")

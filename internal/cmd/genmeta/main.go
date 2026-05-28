@@ -4,17 +4,36 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
+	"embed"
 	"fmt"
 	"go/format"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/validator"
 	"github.com/lestrrat-go/json-schema/vocabulary"
+)
+
+// schemaFS holds the JSON Schema 2020-12 meta-schema and its vocabulary
+// documents, copied verbatim from the published spec (with the canonical
+// json-schema.org URIs). They are embedded so generation is hermetic: it needs
+// no network access and is reproducible from version-controlled inputs.
+//
+//go:embed schemas
+var schemaFS embed.FS
+
+const (
+	// schemaRoot is the directory inside schemaFS that holds the 2020-12 documents.
+	schemaRoot = "schemas/2020-12"
+	// baseURI is the canonical retrieval base the embedded documents are addressed
+	// under. The root meta-schema's $id is baseURI+"schema"; its vocabulary
+	// documents are baseURI+"meta/<name>".
+	baseURI = "https://json-schema.org/draft/2020-12/"
+	// rootRef is the canonical URI of the root meta-schema document.
+	rootRef = baseURI + "schema"
 )
 
 func main() {
@@ -25,129 +44,45 @@ func main() {
 }
 
 func _main() error {
-	// Get the root directory (where main go.mod is located)
 	rootDir, err := findRootDir()
 	if err != nil {
 		return fmt.Errorf("failed to find root directory: %w", err)
 	}
 
-	// Load the main meta-schema
-	metaSchemaPath := filepath.Join(rootDir, "metaschema-2020-12.json")
-	metaSchemaData, err := os.ReadFile(metaSchemaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read meta-schema file %q: %w", metaSchemaPath, err)
-	}
-
-	// Parse the meta-schema
-	var metaSchema schema.Schema
-	if err := json.Unmarshal(metaSchemaData, &metaSchema); err != nil {
-		return fmt.Errorf("failed to unmarshal meta-schema: %w", err)
-	}
-
-	fmt.Printf("Successfully loaded meta-schema with ID: %s\n", metaSchema.ID())
-
-	// Debug: Raw JSON check
-	if bytes.Contains(metaSchemaData, []byte(`"type"`)) {
-		fmt.Printf("Raw JSON contains 'type' field\n")
-	} else {
-		fmt.Printf("Raw JSON does NOT contain 'type' field\n")
-	}
-
-	// Debug: Check if meta-schema has types
-	if metaSchema.HasTypes() {
-		types := metaSchema.Types()
-		fmt.Printf("Meta-schema has types: %v\n", types)
-
-		// Debug: Test type compilation in isolation
-		fmt.Printf("Testing if 'type' keyword is enabled in context...\n")
-		testCtx := context.Background()
-		testVocabSet := vocabulary.AllEnabled()
-		testCtx = vocabulary.WithSet(testCtx, testVocabSet)
-		isTypeEnabled := vocabulary.IsKeywordEnabledInContext(testCtx, "type")
-		fmt.Printf("Type keyword enabled: %v\n", isTypeEnabled)
-
-		// Debug: Test what base schema would be created
-		fmt.Printf("Simulating createBaseSchema behavior...\n")
-		baseBuilder := schema.NewBuilder()
-		if len(metaSchema.Types()) > 0 {
-			baseBuilder.Types(metaSchema.Types()...)
-			fmt.Printf("Base schema would have types: %v\n", metaSchema.Types())
-		}
-		baseSchema := baseBuilder.MustBuild()
-
-		// Test compiling the base schema in isolation
-		baseValidator, err := validator.Compile(testCtx, baseSchema)
-		if err != nil {
-			fmt.Printf("Base schema compilation failed: %v\n", err)
-		} else {
-			fmt.Printf("Base schema compiled successfully to: %T\n", baseValidator)
-
-			// Test the base validator
-			testValues := []any{"string", 123, true, map[string]any{"key": "value"}}
-			for _, value := range testValues {
-				_, err := baseValidator.Validate(testCtx, value)
-				fmt.Printf("Base validator - Value %T: %v\n", value, err == nil)
-			}
-
-			// Debug: Check which allOf compilation path will be taken
-			fmt.Printf("Checking allOf compilation path...\n")
-			fmt.Printf("metaSchema.HasAllOf(): %v\n", metaSchema.HasAllOf())
-			fmt.Printf("hasBaseConstraints(metaSchema): %v\n", len(metaSchema.Types()) > 0) // This is what hasBaseConstraints checks for types
-
-			// Check if it has unevaluated fields that would trigger special handling
-			hasUnevaluatedProperties := metaSchema.HasUnevaluatedProperties()
-			hasUnevaluatedItems := metaSchema.HasUnevaluatedItems()
-			fmt.Printf("metaSchema.HasUnevaluatedProperties(): %v\n", hasUnevaluatedProperties)
-			fmt.Printf("metaSchema.HasUnevaluatedItems(): %v\n", hasUnevaluatedItems)
-		}
-	} else {
-		fmt.Printf("Meta-schema has NO types field!\n")
-	}
-
-	// Compile the meta-schema to a validator
-	ctx := context.Background()
-
-	// Set up vocabulary context for JSON Schema 2020-12
-	// Use AllEnabled to ensure all vocabularies are enabled for meta-schema compilation
-	vocabSet := vocabulary.AllEnabled()
-	ctx = vocabulary.WithSet(ctx, vocabSet)
-
-	// Set up resolver for meta-schema references
+	// Register every embedded document so the meta-schema's cross-vocabulary
+	// $refs (e.g. "meta/core") resolve from memory instead of over the network.
 	resolver := schema.NewResolver()
+	docs, err := loadEmbeddedSchemas()
+	if err != nil {
+		return err
+	}
+	for uri, doc := range docs {
+		resolver.RegisterDocument(uri, doc)
+	}
+
+	root := docs[rootRef]
+	if root == nil {
+		return fmt.Errorf("root meta-schema %q not found in embedded schemas", rootRef)
+	}
+
+	ctx := context.Background()
+	// Enable all vocabularies so the meta-schema compiles with every keyword it
+	// uses across the core/applicator/validation/etc. vocabularies.
+	ctx = vocabulary.WithSet(ctx, vocabulary.AllEnabled())
 	ctx = schema.WithResolver(ctx, resolver)
+	ctx = schema.WithBaseSchema(ctx, root)
+	ctx = schema.WithBaseURI(ctx, baseURI)
 
-	// Set up base schema context for reference resolution
-	ctx = schema.WithBaseSchema(ctx, &metaSchema)
-
-	// Set up base URI for relative reference resolution within metaschema
-	// Use the directory base URI, not the specific schema file URI
-	// This allows meta/core to resolve to https://json-schema.org/draft/2020-12/meta/core
-	ctx = schema.WithBaseURI(ctx, "https://json-schema.org/draft/2020-12/")
-
-	// Compile the meta-schema to a validator
-	compiledValidator, err := validator.Compile(ctx, &metaSchema)
+	compiledValidator, err := validator.Compile(ctx, root)
 	if err != nil {
 		return fmt.Errorf("failed to compile meta-schema: %w", err)
 	}
 
-	fmt.Printf("Successfully compiled meta-schema to validator of type: %T\n", compiledValidator)
-
-	// Debug: Print the structure of the compiled validator
-	debugValidator(compiledValidator, 0)
-
-	// Use the code generator to generate the builder chain
-	generator := validator.NewCodeGenerator()
 	var builderBuf bytes.Buffer
-
-	err = generator.Generate(&builderBuf, compiledValidator)
-	if err != nil {
+	if err := validator.NewCodeGenerator().Generate(&builderBuf, compiledValidator); err != nil {
 		return fmt.Errorf("failed to generate validator code: %w", err)
 	}
 
-	builderChain := builderBuf.String()
-	fmt.Printf("Generated builder chain: %s\n", builderChain)
-
-	// Create the package content using the generated builder chain
 	packageContent := fmt.Sprintf(`// Code generated by internal/cmd/genmeta. DO NOT EDIT.
 
 // Package meta provides a pre-compiled validator for JSON Schema 2020-12 meta-schema.
@@ -155,7 +90,6 @@ func _main() error {
 package meta
 
 import (
-	"context"
 	"github.com/lestrrat-go/json-schema/keywords"
 	"github.com/lestrrat-go/json-schema/validator"
 )
@@ -172,34 +106,8 @@ func init() {
 	// Generated validator using the code generator from the actual meta-schema
 	metaValidator = %s
 }
+`, builderBuf.String())
 
-// Validator returns a pre-compiled validator for the JSON Schema 2020-12 meta-schema.
-// This validator can be used to validate JSON Schema documents themselves.
-//
-// Example usage:
-//
-//	validator := meta.Validator()
-//	result, err := validator.Validate(ctx, jsonSchemaDocument)
-func Validator() validator.Interface {
-	return metaValidator
-}
-
-// Validate validates a JSON Schema document against the JSON Schema 2020-12 meta-schema.
-// This is a convenience function that uses the pre-compiled validator.
-//
-// Example usage:
-//
-//	err := meta.Validate(ctx, jsonSchemaDocument)
-//	if err != nil {
-//	    // The document is not a valid JSON Schema
-//	}
-func Validate(ctx context.Context, jsonSchemaDocument any) error {
-	_, err := metaValidator.Validate(ctx, jsonSchemaDocument)
-	return err
-}
-`, builderChain)
-
-	// Format the generated code
 	formattedCode, err := format.Source([]byte(packageContent))
 	if err != nil {
 		scanner := bufio.NewScanner(strings.NewReader(packageContent))
@@ -211,15 +119,8 @@ func Validate(ctx context.Context, jsonSchemaDocument any) error {
 		return fmt.Errorf("failed to format generated code: %w", err)
 	}
 
-	// Ensure meta directory exists
-	metaDir := filepath.Join(rootDir, "meta")
-	if err := os.MkdirAll(metaDir, 0755); err != nil {
-		return fmt.Errorf("failed to create meta directory: %w", err)
-	}
-
-	// Write the generated code to meta/meta_gen.go
-	outputPath := filepath.Join(metaDir, "meta_gen.go")
-	if err := os.WriteFile(outputPath, formattedCode, 0644); err != nil {
+	outputPath := filepath.Join(rootDir, "meta", "meta_gen.go")
+	if err := os.WriteFile(outputPath, formattedCode, 0o644); err != nil {
 		return fmt.Errorf("failed to write generated code to %q: %w", outputPath, err)
 	}
 
@@ -227,9 +128,39 @@ func Validate(ctx context.Context, jsonSchemaDocument any) error {
 	return nil
 }
 
+// loadEmbeddedSchemas parses every JSON document under schemaRoot and keys it by
+// its canonical retrieval URI (baseURI joined with the path relative to
+// schemaRoot, sans ".json" extension).
+func loadEmbeddedSchemas() (map[string]*schema.Schema, error) {
+	docs := make(map[string]*schema.Schema)
+	err := fs.WalkDir(schemaFS, schemaRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".json") {
+			return nil
+		}
+		data, err := schemaFS.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read embedded schema %q: %w", path, err)
+		}
+		var s schema.Schema
+		if err := s.UnmarshalJSON(data); err != nil {
+			return fmt.Errorf("failed to unmarshal embedded schema %q: %w", path, err)
+		}
+		rel := strings.TrimPrefix(path, schemaRoot+"/")
+		uri := baseURI + strings.TrimSuffix(rel, ".json")
+		docs[uri] = &s
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
 // findRootDir finds the root directory containing the main go.mod file
 func findRootDir() (string, error) {
-	// Start from current directory and walk up until we find go.mod
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -238,10 +169,10 @@ func findRootDir() (string, error) {
 	for {
 		goModPath := filepath.Join(dir, "go.mod")
 		if _, err := os.Stat(goModPath); err == nil {
-			// Check if this is the main go.mod (contains github.com/lestrrat-go/json-schema)
 			content, err := os.ReadFile(goModPath)
 			if err == nil && len(content) > 0 {
-				// Simple check - if it doesn't contain "replace", it's likely the main module
+				// The main module's go.mod has no replace directive pointing the
+				// module at itself (only the generator sub-modules do).
 				if !bytes.Contains(content, []byte("replace github.com/lestrrat-go/json-schema")) {
 					return dir, nil
 				}
@@ -250,108 +181,10 @@ func findRootDir() (string, error) {
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			break // reached root
+			break
 		}
 		dir = parent
 	}
 
 	return "", fmt.Errorf("could not find root go.mod file")
-}
-
-// debugValidator recursively prints the structure of validators to help debug what's being compiled
-func debugValidator(v validator.Interface, depth int) {
-	if v == nil {
-		return
-	}
-
-	if depth > 10 {
-		fmt.Printf("%s... (max depth reached)\n", strings.Repeat("  ", depth))
-		return
-	}
-
-	indent := strings.Repeat("  ", depth)
-	vType := reflect.TypeOf(v)
-	if vType.Kind() == reflect.Ptr {
-		vType = vType.Elem()
-	}
-
-	fmt.Printf("%s%s (%T)\n", indent, vType.Name(), v)
-
-	// Try to access the internal structure using reflection for known types
-	vValue := reflect.ValueOf(v)
-	if vValue.Kind() == reflect.Ptr {
-		vValue = vValue.Elem()
-	}
-
-	// Handle MultiValidator specifically
-	if vType.Name() == "MultiValidator" {
-		// Look for validators field
-		if vValue.IsValid() {
-			for i := 0; i < vValue.NumField(); i++ {
-				field := vValue.Field(i)
-				fieldType := vValue.Type().Field(i)
-
-				if fieldType.Name == "validators" && field.Kind() == reflect.Slice {
-					fmt.Printf("%s  %d validators:\n", indent, field.Len())
-					for j := 0; j < field.Len(); j++ {
-						child := field.Index(j)
-						if child.CanInterface() {
-							if childValidator, ok := child.Interface().(validator.Interface); ok {
-								debugValidator(childValidator, depth+2)
-							}
-						}
-					}
-				} else if fieldType.Name == "mode" {
-					fmt.Printf("%s  mode: %v\n", indent, field.Interface())
-				}
-			}
-		}
-	}
-
-	// Print all fields for other validator types to see their structure
-	if vType.Name() != "MultiValidator" && vValue.IsValid() {
-		for i := 0; i < vValue.NumField(); i++ {
-			field := vValue.Field(i)
-			fieldType := vValue.Type().Field(i)
-
-			// Skip unexported fields that might cause issues
-			if !fieldType.IsExported() {
-				continue
-			}
-
-			// Print field values for debugging
-			if field.CanInterface() {
-				switch field.Kind() {
-				case reflect.Slice:
-					fmt.Printf("%s  %s: [%d items]\n", indent, fieldType.Name, field.Len())
-					if field.Len() < 5 { // Only show details for small slices
-						for j := 0; j < field.Len(); j++ {
-							item := field.Index(j)
-							if item.CanInterface() {
-								fmt.Printf("%s    [%d]: %v\n", indent, j, item.Interface())
-							}
-						}
-					}
-				case reflect.Map:
-					fmt.Printf("%s  %s: map[%d entries]\n", indent, fieldType.Name, field.Len())
-					if field.Len() < 5 { // Only show details for small maps
-						for _, key := range field.MapKeys() {
-							value := field.MapIndex(key)
-							if key.CanInterface() && value.CanInterface() {
-								fmt.Printf("%s    %v: %v\n", indent, key.Interface(), value.Interface())
-							}
-						}
-					}
-				case reflect.Ptr:
-					if !field.IsNil() {
-						fmt.Printf("%s  %s: %v\n", indent, fieldType.Name, field.Interface())
-					} else {
-						fmt.Printf("%s  %s: nil\n", indent, fieldType.Name)
-					}
-				default:
-					fmt.Printf("%s  %s: %v\n", indent, fieldType.Name, field.Interface())
-				}
-			}
-		}
-	}
 }

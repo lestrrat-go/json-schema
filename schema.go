@@ -262,6 +262,21 @@ func RootSchemaFromContext(ctx context.Context) *Schema {
 	return rootSchema
 }
 
+// WithDynamicAnchorValidator registers a compiled validator under a
+// $dynamicAnchor name so a $dynamicRef to that anchor can be satisfied at
+// validation time even when no schema document is available to resolve against
+// (e.g. the precompiled meta-schema validator). The value is an opaque
+// validator handle; the validator package asserts its concrete type.
+func WithDynamicAnchorValidator(ctx context.Context, name string, v any) context.Context {
+	return schemactx.WithDynamicAnchorValidator(ctx, name, v)
+}
+
+// DynamicAnchorValidatorFromContext returns the validator registered for the
+// given $dynamicAnchor name, or nil if none is registered.
+func DynamicAnchorValidatorFromContext(ctx context.Context, name string) any {
+	return schemactx.DynamicAnchorValidatorFromContext(ctx, name)
+}
+
 // WithBaseURI adds a base URI to the context for reference resolution
 func WithBaseURI(ctx context.Context, baseURI string) context.Context {
 	return schemactx.WithBaseURI(ctx, baseURI)

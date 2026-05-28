@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 )
 
 type EvaluatedProperties struct {
@@ -101,6 +102,13 @@ type ValidationContext struct {
 	RefDepths      map[string]int // data depth at which each active reference was entered
 	DataDepth      int            // number of child-applying keyword boundaries crossed during compilation
 	Evaluation     *EvaluationContext
+	// DynamicAnchorValidators maps a $dynamicAnchor name to an already-compiled
+	// validator standing in for the outermost dynamic-scope resource declaring
+	// that anchor. It lets a precompiled validator (e.g. the generated meta
+	// validator) satisfy a $dynamicRef when no schema document is available to
+	// resolve against at runtime. Values are validator.Interface stored as any
+	// because the validator package cannot be imported here.
+	DynamicAnchorValidators map[string]any
 }
 
 // Context key for the consolidated validation context
@@ -312,6 +320,25 @@ func WithEvaluationContext(ctx context.Context, ec *EvaluationContext) context.C
 func EvaluationContextFromContext(ctx context.Context) (*EvaluationContext, error) {
 	vctx := ValidationContextFrom(ctx)
 	return valueFromContext[*EvaluationContext](vctx.Evaluation, vctx.Evaluation != nil, "evaluation context")
+}
+
+// WithDynamicAnchorValidator registers a compiled validator under a
+// $dynamicAnchor name. Registrations accumulate; the most recent registration
+// for a given name wins.
+func WithDynamicAnchorValidator(ctx context.Context, name string, v any) context.Context {
+	vctx := ValidationContextFrom(ctx)
+	newVctx := *vctx // copy
+	next := make(map[string]any, len(vctx.DynamicAnchorValidators)+1)
+	maps.Copy(next, vctx.DynamicAnchorValidators)
+	next[name] = v
+	newVctx.DynamicAnchorValidators = next
+	return WithValidationContext(ctx, &newVctx)
+}
+
+// DynamicAnchorValidatorFromContext returns the validator registered for the
+// given $dynamicAnchor name, or nil if none is registered.
+func DynamicAnchorValidatorFromContext(ctx context.Context, name string) any {
+	return ValidationContextFrom(ctx).DynamicAnchorValidators[name]
 }
 
 // Logging context functions

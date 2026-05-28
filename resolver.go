@@ -208,6 +208,11 @@ func (r *Resolver) ResolveAnchor(ctx context.Context, dst *Schema, anchorName st
 	if err != nil {
 		return fmt.Errorf("no base schema provided in context for resolving anchor %s: %w", anchorName, err)
 	}
+	// A nil *Schema can be boxed into the context's any-typed slot and slip past
+	// the presence check above; guard against dereferencing it during the search.
+	if baseSchema == nil {
+		return fmt.Errorf("nil base schema in context for resolving anchor %s", anchorName)
+	}
 
 	anchorSchema, err := r.findSchemaByAnchor(baseSchema, anchorName)
 	if err != nil {

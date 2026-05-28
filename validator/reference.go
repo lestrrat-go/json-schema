@@ -154,6 +154,18 @@ func NewDynamicReferenceValidator(reference string) *DynamicReferenceValidator {
 }
 
 func (dr *DynamicReferenceValidator) Validate(ctx context.Context, v any) (Result, error) {
+	// When the fragment is a plain $dynamicAnchor name and a validator has been
+	// registered for it in the context, the registered validator stands in for
+	// the outermost dynamic-scope resource declaring that anchor. This is how the
+	// precompiled meta-schema validator satisfies "$dynamicRef": "#meta" — it
+	// registers itself under "meta" and recurses, since no schema document is
+	// available to resolve against at validation time.
+	if name := plainAnchorFragment(dr.reference); name != "" {
+		if rv, ok := schema.DynamicAnchorValidatorFromContext(ctx, name).(Interface); ok && rv != nil {
+			return rv.Validate(ctx, v)
+		}
+	}
+
 	target, err := dr.resolveTarget(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic reference resolution failed for %s: %w", dr.reference, err)
@@ -247,6 +259,17 @@ func (dr *DynamicReferenceValidator) validatorFor(ctx context.Context, target *s
 	return v, nil
 }
 
+// plainAnchorFragment returns the fragment of ref when it is a plain anchor name
+// (e.g. "meta" for "#meta" or "extended#meta"), or "" when the reference has no
+// fragment or the fragment is a JSON pointer.
+func plainAnchorFragment(ref string) string {
+	_, frag, found := strings.Cut(ref, "#")
+	if !found || frag == "" || strings.HasPrefix(frag, "/") {
+		return ""
+	}
+	return frag
+}
+
 // resolveDynamicRef resolves a $dynamicRef. It first resolves the reference the
 // way $ref would (the "lexical" target). When the reference's fragment is a
 // plain anchor (e.g. "#meta" or "extended#meta") and that lexical target itself
@@ -255,19 +278,20 @@ func (dr *DynamicReferenceValidator) validatorFor(ctx context.Context, target *s
 // resource of the runtime dynamic scope. Otherwise it behaves exactly like $ref.
 func resolveDynamicRef(ctx context.Context, resolver *schema.Resolver, baseSchema *schema.Schema, dynamicRef string) (*schema.Schema, error) {
 	baseURI := schema.BaseURIFromContext(ctx)
-	refCtx := schema.WithBaseSchema(ctx, baseSchema)
+	// Only seed the base schema when one is actually available. A nil *Schema
+	// boxed into the context's any-typed slot would defeat the presence check in
+	// BaseSchemaFromContext and get dereferenced during anchor lookup.
+	refCtx := ctx
+	if baseSchema != nil {
+		refCtx = schema.WithBaseSchema(refCtx, baseSchema)
+	}
 	if baseURI != "" {
 		refCtx = schema.WithBaseURI(refCtx, baseURI)
 	}
 
 	// Determine whether the fragment is a plain anchor name (eligible for
 	// dynamic-scope bookending) versus a JSON pointer or no fragment at all.
-	var anchorName string
-	if _, frag, found := strings.Cut(dynamicRef, "#"); found {
-		if frag != "" && !strings.HasPrefix(frag, "/") {
-			anchorName = frag
-		}
-	}
+	anchorName := plainAnchorFragment(dynamicRef)
 
 	// Resolve the lexical target as $ref would.
 	var lexical schema.Schema
