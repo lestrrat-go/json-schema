@@ -88,9 +88,9 @@ When an error message alone does not make it obvious *why* an input was rejected
 package examples_test
 
 import (
+  "bytes"
   "context"
   "fmt"
-  "io"
   "log/slog"
 
   schema "github.com/lestrrat-go/json-schema"
@@ -100,7 +100,8 @@ import (
 // Example_docTracing attaches a structured trace logger with WithTraceSlog. The
 // logger records the validation walk keyword by keyword, which is the fastest way
 // to see why an input was rejected. In real use point the handler at os.Stderr;
-// here it is discarded so the example output stays deterministic.
+// here it writes to a buffer that is never printed, so the example output stays
+// deterministic.
 func Example_docTracing() {
   s := schema.NewBuilder().
     Types(schema.ObjectType).
@@ -108,7 +109,8 @@ func Example_docTracing() {
     Required("id").
     MustBuild()
 
-  logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}))
+  var traceOut bytes.Buffer
+  logger := slog.New(slog.NewTextHandler(&traceOut, &slog.HandlerOptions{Level: slog.LevelDebug}))
   ctx := validator.WithTraceSlog(context.Background(), logger)
 
   v, err := validator.Compile(ctx, s)
