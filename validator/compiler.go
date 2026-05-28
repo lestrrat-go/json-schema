@@ -162,10 +162,9 @@ func compileSchema(ctx context.Context, s *schema.Schema, cs compileState) (Inte
 		// Push the reference, recording the data depth at which it was entered.
 		cs = cs.pushReference(reference)
 
-		// Resolve the reference to get the target schema. The resolver still reads
-		// the base schema and base URI from context; bridge them from cs.
+		// Resolve the reference to get the target schema.
 		var targetSchema schema.Schema
-		if err := resolver.ResolveReference(cs.resolveScopeContext(ctx), &targetSchema, reference); err != nil {
+		if err := resolver.ResolveReference(ctx, &targetSchema, reference, cs.baseSchema, cs.baseURI); err != nil {
 			return nil, fmt.Errorf("reference resolution failed for %s: %w", reference, err)
 		}
 

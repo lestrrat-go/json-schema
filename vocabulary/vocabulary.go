@@ -299,9 +299,7 @@ func ResolveVocabularyFromMetaschema(ctx context.Context, metaschemaURI string) 
 
 	// Try to resolve the metaschema
 	var metaschema schema.Schema
-	// Create context with base schema for resolver
-	resolverCtx := schema.WithBaseSchema(ctx, rootSchema)
-	if err := resolver.ResolveReference(resolverCtx, &metaschema, metaschemaURI); err != nil {
+	if err := resolver.ResolveReference(ctx, &metaschema, metaschemaURI, rootSchema, ""); err != nil {
 		// If we can't resolve the metaschema, default to all enabled
 		return AllEnabled(), nil //nolint:nilerr // Intentional: fallback to default behavior on resolve error
 	}

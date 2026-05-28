@@ -43,16 +43,16 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve string definition", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &base)
-		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/stringType")
+		ctx := context.Background()
+		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/stringType", &base, "")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.StringType))
 	})
 
 	t.Run("resolve integer definition", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &base)
-		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/intType")
+		ctx := context.Background()
+		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/intType", &base, "")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.IntegerType))
 		require.Equal(t, float64(0), resolved.Minimum()) // JSON numbers are float64
@@ -60,8 +60,8 @@ func TestResolveLocalReference(t *testing.T) {
 
 	t.Run("resolve non-existent reference", func(t *testing.T) {
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &base)
-		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/nonexistent")
+		ctx := context.Background()
+		err := resolver.ResolveReference(ctx, &resolved, "#/$defs/nonexistent", &base, "")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve local reference")
 	})
@@ -110,7 +110,7 @@ func TestResolveFileReference(t *testing.T) {
 	t.Run("resolve file reference", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, "person.json")
+		err := resolver.ResolveReference(ctx, &resolved, "person.json", nil, "")
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/person", resolved.ID())
 		require.True(t, resolved.ContainsType(schema.ObjectType))
@@ -119,7 +119,7 @@ func TestResolveFileReference(t *testing.T) {
 	t.Run("resolve file reference with fragment", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, "person.json#/properties/name")
+		err := resolver.ResolveReference(ctx, &resolved, "person.json#/properties/name", nil, "")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.StringType))
 	})
@@ -127,7 +127,7 @@ func TestResolveFileReference(t *testing.T) {
 	t.Run("resolve non-existent file", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, "nonexistent.json")
+		err := resolver.ResolveReference(ctx, &resolved, "nonexistent.json", nil, "")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve external reference")
 	})
@@ -162,7 +162,7 @@ func TestResolveHTTPReference(t *testing.T) {
 	t.Run("resolve HTTP reference", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, server.URL+"/person.json")
+		err := resolver.ResolveReference(ctx, &resolved, server.URL+"/person.json", nil, "")
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/person", resolved.ID())
 		require.True(t, resolved.ContainsType(schema.ObjectType))
@@ -171,7 +171,7 @@ func TestResolveHTTPReference(t *testing.T) {
 	t.Run("resolve HTTP reference with fragment", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, server.URL+"/person.json#/$defs/nameType")
+		err := resolver.ResolveReference(ctx, &resolved, server.URL+"/person.json#/$defs/nameType", nil, "")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.StringType))
 		// Note: minLength would need to be checked if it was part of the schema struct
@@ -180,7 +180,7 @@ func TestResolveHTTPReference(t *testing.T) {
 	t.Run("resolve HTTP 404", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, server.URL+"/nonexistent.json")
+		err := resolver.ResolveReference(ctx, &resolved, server.URL+"/nonexistent.json", nil, "")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve external reference")
 	})
@@ -245,7 +245,7 @@ $defs:
 	t.Run("resolve YAML file", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, "schema.yaml")
+		err := resolver.ResolveReference(ctx, &resolved, "schema.yaml", nil, "")
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/yaml-schema", resolved.ID())
 		require.True(t, resolved.ContainsType(schema.ObjectType))
@@ -254,7 +254,7 @@ $defs:
 	t.Run("resolve YAML file with fragment", func(t *testing.T) {
 		var resolved schema.Schema
 		ctx := context.Background()
-		err := resolver.ResolveReference(ctx, &resolved, "schema.yaml#/$defs/positiveInt")
+		err := resolver.ResolveReference(ctx, &resolved, "schema.yaml#/$defs/positiveInt", nil, "")
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.IntegerType))
 		require.Equal(t, float64(1), resolved.Minimum()) // JSON numbers are float64
@@ -287,8 +287,8 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Test ResolveJSONReference directly
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
-		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/person")
+		ctx := context.Background()
+		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/person", &baseSchema)
 		require.NoError(t, err)
 
 		// Verify resolved schema
@@ -325,8 +325,8 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Test ResolveAnchor directly
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
-		err := resolver.ResolveAnchor(ctx, &resolved, "person")
+		ctx := context.Background()
+		err := resolver.ResolveAnchor(ctx, &resolved, "person", &baseSchema)
 		require.NoError(t, err)
 
 		// Verify resolved schema
@@ -365,15 +365,15 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Test unified API with JSON pointer reference
 		var resolvedPointer schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
-		err := resolver.ResolveReference(ctx, &resolvedPointer, "#/$defs/person")
+		ctx := context.Background()
+		err := resolver.ResolveReference(ctx, &resolvedPointer, "#/$defs/person", &baseSchema, "")
 		require.NoError(t, err)
 		require.True(t, resolvedPointer.ContainsType(schema.ObjectType))
 		require.Equal(t, "person", resolvedPointer.Anchor())
 
 		// Test unified API with anchor reference
 		var resolvedAnchor schema.Schema
-		err = resolver.ResolveReference(ctx, &resolvedAnchor, "#person")
+		err = resolver.ResolveReference(ctx, &resolvedAnchor, "#person", &baseSchema, "")
 		require.NoError(t, err)
 		require.True(t, resolvedAnchor.ContainsType(schema.ObjectType))
 		require.Equal(t, "person", resolvedAnchor.Anchor())
@@ -401,8 +401,8 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Try to resolve non-existent anchor
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
-		err := resolver.ResolveAnchor(ctx, &resolved, "nonexistent")
+		ctx := context.Background()
+		err := resolver.ResolveAnchor(ctx, &resolved, "nonexistent", &baseSchema)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor nonexistent not found")
 	})
@@ -425,8 +425,8 @@ func TestResolverSeparateAPIs(t *testing.T) {
 
 		// Try to resolve non-existent JSON pointer
 		var resolved schema.Schema
-		ctx := schema.WithBaseSchema(context.Background(), &baseSchema)
-		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/nonexistent")
+		ctx := context.Background()
+		err := resolver.ResolveJSONReference(ctx, &resolved, "#/$defs/nonexistent", &baseSchema)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve local JSON pointer reference")
 	})
@@ -460,7 +460,7 @@ func TestResolverSeparateAPIs(t *testing.T) {
 		// Test ResolveJSONReference with external URL and JSON pointer
 		var resolved schema.Schema
 		ctx := context.Background() // No base schema needed for external reference
-		err := resolver.ResolveJSONReference(ctx, &resolved, server.URL+"/person.json#/$defs/nameType")
+		err := resolver.ResolveJSONReference(ctx, &resolved, server.URL+"/person.json#/$defs/nameType", nil)
 		require.NoError(t, err)
 		require.True(t, resolved.ContainsType(schema.StringType))
 		require.Equal(t, "personName", resolved.Anchor())

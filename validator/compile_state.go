@@ -135,18 +135,3 @@ func (cs compileState) pushReference(reference string) compileState {
 
 	return cs
 }
-
-// resolveScopeContext builds a context carrying only the base schema and base
-// URI that the schema-package resolver still reads from context
-// (Resolver.ResolveReference / ResolveAnchor). This is a localized bridge for
-// Stage 1; the resolver's signature is changed to take these explicitly in a
-// later stage.
-func (cs compileState) resolveScopeContext(ctx context.Context) context.Context {
-	if cs.baseSchema != nil {
-		ctx = schema.WithBaseSchema(ctx, cs.baseSchema)
-	}
-	if cs.baseURI != "" {
-		ctx = schema.WithBaseURI(ctx, cs.baseURI)
-	}
-	return ctx
-}
