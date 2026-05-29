@@ -33,6 +33,14 @@ Why it matters when editing:
 
 The output is a tree of small validators. `Interface.Validate(ctx, value)` runs the tree, returning `(Result, error)`; a non-nil error is a validation failure with a descriptive message.
 
+`validator.ValidateJSON(ctx, v, data)` (validator/json.go) is a thin convenience entry for raw JSON bytes: it decodes `data` with `json.Decoder.UseNumber()` (rejecting empty input and trailing data) and delegates to `v.Validate`. It's a free function (not an `Interface` method) because `Interface` is the recursive tree-node contract implemented by ~20 validators, and decoding is a top-level concern, not a per-node one.
+
+Object values are read through one shared helper, `extractObjectProperties` (validator/object.go), used by the object validator, `dependentSchemas`, and the unevaluated coordinator (`resolveToObjectMap`). It fast-paths a `map[string]any` (the JSON-decoded shape) by returning it directly — callers treat the result as read-only, so no copy is made — then handles `ObjectFieldResolver`, other map kinds, and structs (via `json` tags). `newArrayAccessor` (validator/array.go) does the same for `[]any`. Consequence: keywords like `unevaluatedProperties` apply uniformly to maps, structs, and `ObjectFieldResolver` values, not only `map[string]any`.
+
+## Numeric values and `json.Number`
+
+Because `ValidateJSON` uses `UseNumber`, numbers can reach the validators as `json.Number` (a named *string* type, so its `reflect.Kind` is `String`). All numeric type detection is therefore centralized in `validator/numeric.go` — `isNumeric`, `isJSONNumber`, `numericFloat`, `numericInt` — which accept both native Go numeric kinds (from `json.Unmarshal`, struct fields, builder literals) and `json.Number`. The generated integer/number validators and the hand-written `inferredNumberValidator`/`convertToNumber` all route through these helpers; the string validator calls `isJSONNumber` to *exclude* a number that would otherwise look like a string. The integer validator stores constraints as `int64`, and `numericInt` preserves precision via `json.Number.Int64()` (exact up to 2^63); integer-valued numbers outside the `int64` range are reported as an error rather than silently truncated.
+
 ## Context, not globals
 
 State that must flow through compilation and validation is carried on `context.Context`, never in package globals. This keeps `Compile`/`Validate` reentrant and concurrency-safe. Key carriers:

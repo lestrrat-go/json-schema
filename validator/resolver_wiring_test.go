@@ -57,6 +57,47 @@ func TestObjectFieldResolverDrivesValidation(t *testing.T) {
 	})
 }
 
+// TestUnevaluatedPropertiesThroughResolver covers the unevaluatedProperties
+// keyword for object values that are not map[string]any. Previously the
+// unevaluated coordinator only accepted map[string]any, so it skipped (or, under
+// strict object type, wrongly rejected) ObjectFieldResolver and struct values.
+// It now reuses extractObjectProperties, matching the object validator and
+// dependentSchemas.
+func TestUnevaluatedPropertiesThroughResolver(t *testing.T) {
+	s, err := schema.NewBuilder().
+		Types(schema.ObjectType).
+		Property("name", schema.NewBuilder().Types(schema.StringType).MustBuild()).
+		UnevaluatedProperties(schema.FalseSchema()).
+		Build()
+	require.NoError(t, err)
+	v, err := validator.Compile(t.Context(), s)
+	require.NoError(t, err)
+
+	t.Run("resolver: evaluated-only object passes", func(t *testing.T) {
+		_, err := v.Validate(t.Context(), opaqueObject{store: map[string]any{"name": "ok"}})
+		require.NoError(t, err)
+	})
+
+	t.Run("resolver: unevaluated property rejected", func(t *testing.T) {
+		_, err := v.Validate(t.Context(), opaqueObject{store: map[string]any{"name": "ok", "extra": 1}})
+		require.Error(t, err, "extra is unevaluated and unevaluatedProperties:false")
+	})
+
+	t.Run("map sanity: unevaluated property rejected", func(t *testing.T) {
+		_, err := v.Validate(t.Context(), map[string]any{"name": "ok", "extra": 1})
+		require.Error(t, err)
+	})
+
+	t.Run("struct: unevaluated field rejected", func(t *testing.T) {
+		type person struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+		_, err := v.Validate(t.Context(), person{Name: "ok", Age: 1})
+		require.Error(t, err, "age is unevaluated and unevaluatedProperties:false")
+	})
+}
+
 // opaqueArray is reachable only through the ArrayIndexResolver interface,
 // demonstrating that Len() lets length-based keywords (minItems/maxItems) and
 // per-item keywords (prefixItems/items) work through the resolver.

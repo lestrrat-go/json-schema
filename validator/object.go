@@ -292,6 +292,13 @@ func (b *ObjectValidatorBuilder) Reset() *ObjectValidatorBuilder {
 // instances (using the JSON tag's name, ignoring options like ",omitempty").
 // The bool reports whether v is object-like at all.
 func extractObjectProperties(v any) (map[string]any, bool, error) {
+	// Fast path for the standard JSON-decoded shape: return the map directly
+	// instead of reflectively rebuilding it. Callers treat the result as
+	// read-only, so sharing the caller's map is safe.
+	if m, ok := v.(map[string]any); ok {
+		return m, true, nil
+	}
+
 	if resolver, ok := v.(ObjectFieldResolver); ok {
 		props := make(map[string]any)
 		for _, name := range resolver.FieldNames() {

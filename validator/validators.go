@@ -3,7 +3,6 @@ package validator
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	schema "github.com/lestrrat-go/json-schema"
 	"github.com/lestrrat-go/json-schema/vocabulary"
@@ -28,19 +27,14 @@ func compileInferredNumberValidator(s *schema.Schema, vocab *vocabulary.Vocabula
 }
 
 func (v *inferredNumberValidator) Validate(ctx context.Context, in any, _ ...ValidateOption) (Result, error) {
-	// Check if the value is numeric
-	rv := reflect.ValueOf(in)
-	switch rv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64:
-		// Value is numeric, apply number validation
+	// isNumeric recognizes native numeric kinds and json.Number (see
+	// validator/numeric.go); non-numeric values ignore numeric constraints per
+	// the JSON Schema spec.
+	if isNumeric(in) {
 		return v.numberValidator.Validate(ctx, in)
-	default:
-		// Value is not numeric, ignore numeric constraints (per JSON Schema spec)
-		//nolint: nilnil
-		return nil, nil
 	}
+	//nolint: nilnil
+	return nil, nil
 }
 
 type EmptyValidator struct{}

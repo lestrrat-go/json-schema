@@ -254,13 +254,14 @@ func (v *unevaluatedCoordinator) handleUnevaluatedItem(ctx context.Context, inde
 // Helper functions for type resolution
 
 func resolveToObjectMap(in any) (map[string]any, bool) {
-	switch obj := in.(type) {
-	case map[string]any:
-		return obj, true
-	default:
-		// Could add more object types here if needed
+	// Reuse the object validator's extraction so map[string]any takes the fast
+	// path and structs / ObjectFieldResolvers are handled identically to the
+	// object validator and dependentSchemas (rather than only map[string]any).
+	props, ok, err := extractObjectProperties(in)
+	if err != nil || !ok {
 		return nil, false
 	}
+	return props, true
 }
 
 func resolveToArray(in any) (reflect.Value, int, bool) {

@@ -27,9 +27,10 @@ Compile schemas to validators; validate; generate validator code.
 
 - **Interface** — `Validate(ctx context.Context, value any) (Result, error)`. Non-nil error == validation failure (validator.go).
 - **Result** — `type Result = any`. Annotation payload (e.g. `*ObjectResult`, `*ArrayResult`) used to track evaluated properties/items for `unevaluated*`.
-- **Compile(ctx context.Context, s *schema.Schema) (Interface, error)** (compiler.go) — single entry point. Sets up resolver/root/base/vocabulary in ctx; rebases `$id`; wraps `$dynamicAnchor` schemas in a `dynamicScopeValidator`.
+- **Compile(ctx context.Context, s *schema.Schema, ...CompileOption) (Interface, error)** (compiler.go) — single entry point. Sets up resolver/root/base/vocabulary in ctx; rebases `$id`; wraps `$dynamicAnchor` schemas in a `dynamicScopeValidator`.
+- **ValidateJSON(ctx, v Interface, data []byte, ...ValidateOption) (Result, error)** (json.go) — decode raw JSON (`UseNumber`, rejecting empty/trailing input) and validate via `v`. Numbers stay `json.Number` so large integers keep precision; helpers in `numeric.go` (`isNumeric`/`isJSONNumber`/`numericFloat`/`numericInt`) interpret them.
 - Hand-written validator builders (each `Build()/MustBuild()`): **Object()** (`*ObjectValidatorBuilder`: `Properties()`, `PatternProperties()`, `AdditionalProperties()`, `PropertyNames()`, `Required()`, `DependentRequired()`, `DependentSchemas()`, `Min/MaxProperties()`, `UnevaluatedProperties()`, `StrictObjectType()`), **String()** (`MinLength/MaxLength/Pattern/Format`), **Array()** (`Items/PrefixItems/Contains/Min/MaxItems/UniqueItems/Min/MaxContains/AdditionalItems/UnevaluatedItems`), **Boolean()**, **Null() Interface**.
-- Generated numeric builders: **Integer()** (`*IntegerValidatorBuilder`), **Number()** — `Minimum/Maximum/ExclusiveMinimum/ExclusiveMaximum/MultipleOf` (`int_gen.go`, `number_gen.go`).
+- Generated numeric builders: **Integer()** (`*IntegerValidatorBuilder`; methods take `int64`), **Number()** (`float64`) — `Minimum/Maximum/ExclusiveMinimum/ExclusiveMaximum/MultipleOf` (`int_gen.go`, `number_gen.go`).
 - **PropPair(name string, v Interface) PropertyPair** — for `ObjectValidatorBuilder.Properties(...)` (object.go).
 - Composition (multi.go): **AllOf/AnyOf/OneOf(...Interface) Interface**.
 - Code generation: **CodeGenerator** interface — `Generate(dst io.Writer, v Interface) error`; **NewCodeGenerator() CodeGenerator** (codegen_core.go). Emits Go builder source from a compiled validator.

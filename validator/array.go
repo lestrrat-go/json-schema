@@ -271,6 +271,12 @@ type arrayAccessor struct {
 // newArrayAccessor honors a custom ArrayIndexResolver first, then falls back to
 // reflection. The bool reports whether v is array-like at all.
 func newArrayAccessor(v any) (arrayAccessor, bool) {
+	// Fast path for the standard JSON-decoded shape: index the slice directly
+	// instead of reflecting on each element.
+	if s, ok := v.([]any); ok {
+		return arrayAccessor{length: len(s), at: func(i int) (any, error) { return s[i], nil }}, true
+	}
+
 	if resolver, ok := v.(ArrayIndexResolver); ok {
 		return arrayAccessor{length: resolver.Len(), at: resolver.ResolveArrayIndex}, true
 	}

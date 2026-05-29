@@ -295,7 +295,7 @@ func (g *codeGenerator) generateInteger(dst io.Writer, v *integerValidator) erro
 		for i, n := range v.enum {
 			strs[i] = fmt.Sprintf("%d", n)
 		}
-		enumStr := fmt.Sprintf("[]int{%s}", strings.Join(strs, ", "))
+		enumStr := fmt.Sprintf("[]int64{%s}", strings.Join(strs, ", "))
 		o.L("Enum(%s).", enumStr)
 	}
 	if v.constantValue != nil {

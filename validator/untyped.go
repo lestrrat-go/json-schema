@@ -148,34 +148,13 @@ func jsonSchemaEqual(a, b any) bool {
 	return false
 }
 
-// convertToNumber converts a value to float64 if it's a numeric type
+// convertToNumber converts a value to float64 if it's a numeric type. It
+// recognizes native numeric kinds and json.Number (see validator/numeric.go),
+// so enum/const equality treats 5, 5.0, and json.Number("5") as equal.
 func convertToNumber(v any) (float64, bool) {
-	switch val := v.(type) {
-	case int:
-		return float64(val), true
-	case int8:
-		return float64(val), true
-	case int16:
-		return float64(val), true
-	case int32:
-		return float64(val), true
-	case int64:
-		return float64(val), true
-	case uint:
-		return float64(val), true
-	case uint8:
-		return float64(val), true
-	case uint16:
-		return float64(val), true
-	case uint32:
-		return float64(val), true
-	case uint64:
-		return float64(val), true
-	case float32:
-		return float64(val), true
-	case float64:
-		return val, true
-	default:
+	f, ok, err := numericFloat(v)
+	if err != nil || !ok {
 		return 0, false
 	}
+	return f, true
 }

@@ -32,7 +32,7 @@ func main() {
 func _main(outputDir string) error {
 	defs := []definition{
 		{
-			typ:      "int",
+			typ:      "int64",
 			class:    "Integer",
 			filename: "int_gen.go",
 		},
@@ -101,14 +101,14 @@ func generateValidator(def definition, outputDir string) error {
 			o.L("var tmp %s", def.typ)
 			o.L("switch rv.Kind() {")
 			o.L("case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:")
-			if def.typ == "int" {
-				o.L("tmp = int(rv.Int())")
+			if def.class == "Integer" {
+				o.L("tmp = %s(rv.Int())", def.typ)
 			} else {
 				o.L("tmp = float64(rv.Int())")
 			}
 			o.L("case reflect.Float32, reflect.Float64:")
-			if def.typ == "int" {
-				o.L("tmp = int(rv.Float())")
+			if def.class == "Integer" {
+				o.L("tmp = %s(rv.Float())", def.typ)
 			} else {
 				o.L("tmp = rv.Float()")
 			}
@@ -128,8 +128,8 @@ func generateValidator(def definition, outputDir string) error {
 			o.L("var tmp %s", def.typ)
 			o.L("switch rv.Kind() {")
 			o.L("case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:")
-			if def.typ == "int" {
-				o.L("tmp = int(rv.Int())")
+			if def.class == "Integer" {
+				o.L("tmp = %s(rv.Int())", def.typ)
 			} else {
 				o.L("tmp = float64(rv.Int())")
 			}
@@ -137,26 +137,26 @@ func generateValidator(def definition, outputDir string) error {
 				o.L("b.%s(tmp)", methodName)
 			}
 			o.L("case reflect.Float32, reflect.Float64:")
-			if def.typ == "int" {
+			if def.class == "Integer" {
 				if prop == "multipleOf" {
 					o.L("f := rv.Float()")
 					o.L("// Skip multipleOf constraint for very small values with integer type")
 					o.L("// Any integer is a multiple of very small numbers like 1e-8")
 					o.L("if f <= 0 || f >= 1 {")
-					o.L("tmp = int(f)")
+					o.L("tmp = %s(f)", def.typ)
 					o.L("b.%s(tmp)", methodName)
 					o.L("}")
 				} else {
-					o.L("tmp = int(rv.Float())")
+					o.L("tmp = %s(rv.Float())", def.typ)
 				}
 			} else {
 				o.L("tmp = rv.Float()")
 			}
-			if def.typ != "int" || prop != "multipleOf" {
+			if def.class != "Integer" || prop != "multipleOf" {
 				o.L("default:")
 				o.L("return nil, fmt.Errorf(`invalid type for %s field: expected numeric type, got %%T`, rv.Interface())", prop)
 				o.L("}") // switch
-				if def.typ != "int" || prop != "multipleOf" {
+				if def.class != "Integer" || prop != "multipleOf" {
 					o.L("b.%s(tmp)", methodName)
 				}
 			} else {
@@ -238,39 +238,33 @@ func generateValidator(def definition, outputDir string) error {
 	o.L("}")
 
 	var template string
-	if def.typ == "int" {
+	if def.class == "Integer" {
 		template = "d"
 	} else {
 		template = "f"
 	}
 	o.LL("func (v *%sValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {", xstrings.Snake(def.class))
-	o.L("rv := reflect.ValueOf(in)")
-	if def.typ == "int" {
-		o.LL("var n int")
-		o.L("switch rv.Kind() {")
-		o.L("case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:")
-		o.L("n = int(rv.Int())")
-		o.L("case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:")
-		o.L("n = int(rv.Uint())")
-		o.L("case reflect.Float32, reflect.Float64:")
-		o.L("f := rv.Float()")
-		o.L("if f != float64(int(f)) {")
-		o.L("return nil, fmt.Errorf(`expected integer, got float value %%g`, f)")
+	if def.class == "Integer" {
+		// numericInt accepts native numeric kinds and json.Number (UseNumber),
+		// preserving int64 precision. isInt distinguishes a non-integer number
+		// (e.g. 5.5) from a genuine integer; err flags an integer outside int64.
+		o.L("n, ok, isInt, err := numericInt(in)")
+		o.L("if err != nil {")
+		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: %%w`, err)")
 		o.L("}")
-		o.L("n = int(f)")
-		o.L("default:")
+		o.L("if !ok {")
 		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %%T`, in)")
 		o.L("}")
+		o.L("if !isInt {")
+		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got non-integer value %%v`, in)")
+		o.L("}")
 	} else {
-		o.LL("var n float64")
-		o.L("switch rv.Kind() {")
-		o.L("case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:")
-		o.L("n = float64(rv.Int())")
-		o.L("case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:")
-		o.L("n = float64(rv.Uint())")
-		o.L("case reflect.Float32, reflect.Float64:")
-		o.L("n = rv.Float()")
-		o.L("default:")
+		// numericFloat accepts native numeric kinds and json.Number (UseNumber).
+		o.L("n, ok, err := numericFloat(in)")
+		o.L("if err != nil {")
+		o.L("return nil, fmt.Errorf(`invalid value passed to NumberValidator: %%w`, err)")
+		o.L("}")
+		o.L("if !ok {")
 		o.L("return nil, fmt.Errorf(`invalid value passed to NumberValidator: expected number, got %%T`, in)")
 		o.L("}")
 		o.L("")
@@ -300,7 +294,7 @@ func generateValidator(def definition, outputDir string) error {
 	o.L("}")
 	o.L("}")
 	o.LL("if mo := v.multipleOf; mo != nil {")
-	if def.typ == "int" {
+	if def.class == "Integer" {
 		o.L("if *mo == 0 {")
 		o.L("return nil, fmt.Errorf(`invalid value passed to IntegerValidator: multipleOf cannot be zero`)")
 		o.L("}")

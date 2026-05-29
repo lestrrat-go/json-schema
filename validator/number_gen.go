@@ -221,17 +221,11 @@ func (b *NumberValidatorBuilder) Reset() *NumberValidatorBuilder {
 }
 
 func (v *numberValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {
-	rv := reflect.ValueOf(in)
-
-	var n float64
-	switch rv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		n = float64(rv.Int())
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n = float64(rv.Uint())
-	case reflect.Float32, reflect.Float64:
-		n = rv.Float()
-	default:
+	n, ok, err := numericFloat(in)
+	if err != nil {
+		return nil, fmt.Errorf(`invalid value passed to NumberValidator: %w`, err)
+	}
+	if !ok {
 		return nil, fmt.Errorf(`invalid value passed to NumberValidator: expected number, got %T`, in)
 	}
 

@@ -39,8 +39,11 @@ func (v *stringValidator) Validate(ctx context.Context, in any, _ ...ValidateOpt
 	logger.InfoContext(ctx, "string validator starting", "value", in, "type", fmt.Sprintf("%T", in))
 	rv := reflect.ValueOf(in)
 
-	switch rv.Kind() {
-	case reflect.String:
+	// json.Number is a named string type, so its reflect.Kind is String. Exclude
+	// it explicitly so a JSON number decoded with UseNumber is not mistaken for a
+	// string (see validator/numeric.go).
+	switch {
+	case rv.Kind() == reflect.String && !isJSONNumber(in):
 		logger.InfoContext(ctx, "string validator processing string value")
 		// Continue with string validation
 	default:
