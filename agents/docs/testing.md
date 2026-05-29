@@ -21,6 +21,8 @@ If `tests/` is missing, `TestSpecificationCompliance` finds no cases. Run `init-
 - Remote refs: the suite's `tests/remotes/` tree is preloaded via the resolver (`loadRemotes` / `newSuiteResolver`) and served logically at `http://localhost:1234/...`, so `$ref`s to remotes resolve offline. This uses `Resolver.RegisterDocument` (see references.md).
 - Status: the entire **required** 2020-12 suite passes (1723 pass / 0 fail / 0 skip at last count). A new failure in this test is a real regression, not a flaky case.
 
+The suite is decoded with the default `json.Unmarshal` (numbers become `float64`), which exercises the native-numeric path. The `json.Number` path used by `validator.ValidateJSON` (UseNumber decode) is not run against the full suite; it is covered by targeted tests instead — `validator/numeric_test.go` (the `numericInt`/`numericFloat`/`isNumeric` helpers, including large-int and exponent forms) and `validator/json_test.go` (`ValidateJSON` end to end: malformed/trailing/empty input, integer precision, const/enum, multi-type). If you change numeric handling, both paths must stay in agreement. `validator/json_bench_test.go` benchmarks unmarshal-then-validate vs `ValidateJSON`.
+
 Other top-level tests are hand-written feature tests (`schema_references_test.go`, `resolver_test.go`, `schema_metaschema_test.go`, `boolean_schema_test.go`, the `validator/` package tests, the `meta/` tests, etc.). Runnable usage examples live in `examples/` as Go `Example` functions and table tests.
 
 ## Running

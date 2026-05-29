@@ -20,17 +20,17 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasMultipleOf() && vocab.IsKeywordEnabled("multipleOf") {
 		rv := reflect.ValueOf(s.MultipleOf())
-		var tmp int
+		var tmp int64
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp = int64(rv.Int())
 			b.MultipleOf(tmp)
 		case reflect.Float32, reflect.Float64:
 			f := rv.Float()
 			// Skip multipleOf constraint for very small values with integer type
 			// Any integer is a multiple of very small numbers like 1e-8
 			if f <= 0 || f >= 1 {
-				tmp = int(f)
+				tmp = int64(f)
 				b.MultipleOf(tmp)
 			}
 		default:
@@ -40,12 +40,12 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasMaximum() && vocab.IsKeywordEnabled("maximum") {
 		rv := reflect.ValueOf(s.Maximum())
-		var tmp int
+		var tmp int64
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp = int64(rv.Int())
 		case reflect.Float32, reflect.Float64:
-			tmp = int(rv.Float())
+			tmp = int64(rv.Float())
 		default:
 			return nil, fmt.Errorf(`invalid type for maximum field: expected numeric type, got %T`, rv.Interface())
 		}
@@ -54,12 +54,12 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasExclusiveMaximum() && vocab.IsKeywordEnabled("exclusiveMaximum") {
 		rv := reflect.ValueOf(s.ExclusiveMaximum())
-		var tmp int
+		var tmp int64
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp = int64(rv.Int())
 		case reflect.Float32, reflect.Float64:
-			tmp = int(rv.Float())
+			tmp = int64(rv.Float())
 		default:
 			return nil, fmt.Errorf(`invalid type for exclusiveMaximum field: expected numeric type, got %T`, rv.Interface())
 		}
@@ -68,12 +68,12 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasMinimum() && vocab.IsKeywordEnabled("minimum") {
 		rv := reflect.ValueOf(s.Minimum())
-		var tmp int
+		var tmp int64
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp = int64(rv.Int())
 		case reflect.Float32, reflect.Float64:
-			tmp = int(rv.Float())
+			tmp = int64(rv.Float())
 		default:
 			return nil, fmt.Errorf(`invalid type for minimum field: expected numeric type, got %T`, rv.Interface())
 		}
@@ -82,12 +82,12 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasExclusiveMinimum() && vocab.IsKeywordEnabled("exclusiveMinimum") {
 		rv := reflect.ValueOf(s.ExclusiveMinimum())
-		var tmp int
+		var tmp int64
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp = int64(rv.Int())
 		case reflect.Float32, reflect.Float64:
-			tmp = int(rv.Float())
+			tmp = int64(rv.Float())
 		default:
 			return nil, fmt.Errorf(`invalid type for exclusiveMinimum field: expected numeric type, got %T`, rv.Interface())
 		}
@@ -96,12 +96,12 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasConst() && vocab.IsKeywordEnabled("const") {
 		rv := reflect.ValueOf(s.Const())
-		var tmp int
+		var tmp int64
 		switch rv.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			tmp = int(rv.Int())
+			tmp = int64(rv.Int())
 		case reflect.Float32, reflect.Float64:
-			tmp = int(rv.Float())
+			tmp = int64(rv.Float())
 		default:
 			return nil, fmt.Errorf(`invalid type for constantValue field: expected numeric type, got %T`, rv.Interface())
 		}
@@ -110,15 +110,15 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 
 	if s.HasEnum() && vocab.IsKeywordEnabled("enum") {
 		enums := s.Enum()
-		l := make([]int, 0, len(enums))
+		l := make([]int64, 0, len(enums))
 		for i, e := range s.Enum() {
 			rv := reflect.ValueOf(e)
-			var tmp int
+			var tmp int64
 			switch rv.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				tmp = int(rv.Int())
+				tmp = int64(rv.Int())
 			case reflect.Float32, reflect.Float64:
-				tmp = int(rv.Float())
+				tmp = int64(rv.Float())
 			default:
 				return nil, fmt.Errorf(`invalid element in enum: expected numeric element, got %T for element %d`, e, i)
 			}
@@ -130,13 +130,13 @@ func compileIntegerValidator(s *schema.Schema, vocab *vocabulary.VocabularySet) 
 }
 
 type integerValidator struct {
-	multipleOf       *int
-	maximum          *int
-	exclusiveMaximum *int
-	minimum          *int
-	exclusiveMinimum *int
-	constantValue    *int
-	enum             []int
+	multipleOf       *int64
+	maximum          *int64
+	exclusiveMaximum *int64
+	minimum          *int64
+	exclusiveMinimum *int64
+	constantValue    *int64
+	enum             []int64
 }
 
 type IntegerValidatorBuilder struct {
@@ -148,7 +148,7 @@ func Integer() *IntegerValidatorBuilder {
 	return (&IntegerValidatorBuilder{}).Reset()
 }
 
-func (b *IntegerValidatorBuilder) MultipleOf(v int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) MultipleOf(v int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -156,7 +156,7 @@ func (b *IntegerValidatorBuilder) MultipleOf(v int) *IntegerValidatorBuilder {
 	return b
 }
 
-func (b *IntegerValidatorBuilder) Maximum(v int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) Maximum(v int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -164,7 +164,7 @@ func (b *IntegerValidatorBuilder) Maximum(v int) *IntegerValidatorBuilder {
 	return b
 }
 
-func (b *IntegerValidatorBuilder) ExclusiveMaximum(v int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) ExclusiveMaximum(v int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -172,7 +172,7 @@ func (b *IntegerValidatorBuilder) ExclusiveMaximum(v int) *IntegerValidatorBuild
 	return b
 }
 
-func (b *IntegerValidatorBuilder) Minimum(v int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) Minimum(v int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -180,7 +180,7 @@ func (b *IntegerValidatorBuilder) Minimum(v int) *IntegerValidatorBuilder {
 	return b
 }
 
-func (b *IntegerValidatorBuilder) ExclusiveMinimum(v int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) ExclusiveMinimum(v int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -188,7 +188,7 @@ func (b *IntegerValidatorBuilder) ExclusiveMinimum(v int) *IntegerValidatorBuild
 	return b
 }
 
-func (b *IntegerValidatorBuilder) Const(v int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) Const(v int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -196,11 +196,11 @@ func (b *IntegerValidatorBuilder) Const(v int) *IntegerValidatorBuilder {
 	return b
 }
 
-func (b *IntegerValidatorBuilder) Enum(v ...int) *IntegerValidatorBuilder {
+func (b *IntegerValidatorBuilder) Enum(v ...int64) *IntegerValidatorBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.c.enum = make([]int, len(v))
+	b.c.enum = make([]int64, len(v))
 	copy(b.c.enum, v)
 	return b
 }
@@ -226,22 +226,15 @@ func (b *IntegerValidatorBuilder) Reset() *IntegerValidatorBuilder {
 }
 
 func (v *integerValidator) Validate(_ context.Context, in any, _ ...ValidateOption) (Result, error) {
-	rv := reflect.ValueOf(in)
-
-	var n int
-	switch rv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		n = int(rv.Int())
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n = int(rv.Uint())
-	case reflect.Float32, reflect.Float64:
-		f := rv.Float()
-		if f != float64(int(f)) {
-			return nil, fmt.Errorf(`expected integer, got float value %g`, f)
-		}
-		n = int(f)
-	default:
+	n, ok, isInt, err := numericInt(in)
+	if err != nil {
+		return nil, fmt.Errorf(`invalid value passed to IntegerValidator: %w`, err)
+	}
+	if !ok {
 		return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got %T`, in)
+	}
+	if !isInt {
+		return nil, fmt.Errorf(`invalid value passed to IntegerValidator: expected integer, got non-integer value %v`, in)
 	}
 
 	if m := v.maximum; m != nil {

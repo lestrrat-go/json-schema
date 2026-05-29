@@ -23,7 +23,7 @@ Single Go module, `github.com/lestrrat-go/json-schema`, with sub-packages:
 | Import path | Directory | Responsibility |
 |-------------|-----------|----------------|
 | `github.com/lestrrat-go/json-schema` | `/` (root) | Schema data type + fluent builder (the `schema` package) |
-| `.../validator` | `validator/` | Compile schemas into validators; run validation; generate validator code |
+| `.../validator` | `validator/` | Compile schemas into validators; run validation; raw-JSON `ValidateJSON`; generate validator code |
 | `.../vocabulary` | `vocabulary/` | 2020-12 vocabularies and per-context enable/disable |
 | `.../keywords` | `keywords/` | String constants for every JSON Schema keyword |
 | `.../meta` | `meta/` | Pre-compiled 2020-12 meta-schema validator |
@@ -45,15 +45,16 @@ See [`agents/docs/packages.md`](agents/docs/packages.md) for the full exported-A
 |----------------|------------------|-------|
 | `schema_gen.go`, `builder_gen.go` | `internal/cmd/genobjects/` | `internal/cmd/genobjects/objects.yml` |
 | `meta/meta_gen.go` | `internal/cmd/genmeta/` | embedded 2020-12 meta-schema (no network) |
-| `validator/int_gen.go`, `validator/number_gen.go` | numeric-validator generator | — |
+| `validator/int_gen.go`, `validator/number_gen.go` | `validator/internal/cmd/gennumeric/` | — |
 
 ### Regenerate
 
 ```bash
-./gen.sh
+./gen.sh            # schema/builder (genobjects) + meta validator (genmeta)
+validator/gen.sh    # numeric validators (gennumeric) — NOT run by ./gen.sh
 ```
 
-`gen.sh` builds and runs `genobjects` (schema + builder) and `genmeta` (meta validator), then removes the temporary generator binaries. It must be run from anywhere — it `cd`s to its own directory. See [`agents/docs/codegen.md`](agents/docs/codegen.md) for what each generator emits and how validator code generation (the `gen-validator` CLI path) differs from object generation.
+`gen.sh` builds and runs `genobjects` (schema + builder) and `genmeta` (meta validator), then removes the temporary generator binaries. The numeric validators (`int_gen.go`/`number_gen.go`) are regenerated separately by `validator/gen.sh`; the emitted `Validate` methods depend on the hand-written helpers in `validator/numeric.go`. Both scripts `cd` to their own directory, so they run from anywhere. See [`agents/docs/codegen.md`](agents/docs/codegen.md) for what each generator emits and how validator code generation (the `gen-validator` CLI path) differs from object generation.
 
 When you edit an `_gen.go` file's generator, commit **both** the generator change and the regenerated output.
 

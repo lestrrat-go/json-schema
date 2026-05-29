@@ -8,6 +8,10 @@ That's the JSON Schema 2020-12 default: `format` is an **annotation**, not an as
 
 `Compile` once, keep the returned `validator.Interface`, and call `Validate` as often as you like. Compilation is the expensive step; the compiled validator is safe to reuse across goroutines. See [Validating Data](./02-validating.md).
 
+### How do I validate a JSON byte slice, or keep large integers precise?
+
+Call `validator.ValidateJSON(ctx, v, data)` with the raw `[]byte` instead of unmarshaling yourself. It decodes with `json.Decoder.UseNumber()`, so integers larger than 2^53 (e.g. 64-bit IDs) are validated exactly rather than being rounded by `float64`; integers outside the `int64` range are reported as an error. The input must be a single top-level JSON value with no trailing data. See [Validating raw JSON text](./02-validating.md#validating-raw-json-text).
+
 ### Can I just unmarshal a schema from JSON instead of building it?
 
 Yes. `*schema.Schema` implements `json.Unmarshaler`, so `json.Unmarshal(buf, &s)` is all it takes. A schema loaded from JSON and one built with `NewBuilder()` behave identically. See [Building Schemas](./01-building-schemas.md).

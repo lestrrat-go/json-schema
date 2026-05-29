@@ -6,7 +6,7 @@ Validation is two steps: **compile** a schema into a validator, then **validate*
 
 `validator.Compile(ctx, s)` returns a `validator.Interface`. Compiling walks the schema once and is the expensive step; the returned validator is safe to **reuse across goroutines** and across many `Validate` calls. Do the compile at startup, keep the `Interface` around, and call `Validate(ctx, data)` per request.
 
-`data` is any decoded JSON value — `map[string]any`, `[]any`, `string`, `float64`, `bool`, `nil`, etc. (the shapes `encoding/json` produces into an `any`).
+`data` is any decoded JSON value — `map[string]any`, `[]any`, `string`, `float64`, `bool`, `nil`, etc. (the shapes `encoding/json` produces into an `any`). To validate raw JSON text without decoding it yourself first, see [Validating raw JSON text](#validating-raw-json-text).
 
 ## Reading the result
 
@@ -63,6 +63,63 @@ func Example_docValidate() {
 }
 ```
 source: [examples/doc_validate_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/doc_validate_test.go)
+<!-- END INCLUDE -->
+
+## Validating raw JSON text
+
+If you start from JSON bytes, `validator.ValidateJSON(ctx, v, data)` decodes and validates in one call — no manual `json.Unmarshal` step. It uses the same compiled validator, so the compile-once / validate-many guidance above still applies; only the decoding differs.
+
+Two things to know:
+
+- **Numbers keep their precision.** `ValidateJSON` decodes with `json.Decoder.UseNumber()`, so a 64-bit identifier larger than 2^53 is validated exactly instead of being rounded by `float64`. (Integer values outside the `int64` range cannot be validated as integers and are reported as an error.)
+- **Exactly one value.** The input must contain a single top-level JSON value; trailing content after it (other than whitespace) is rejected. Empty or whitespace-only input is an error.
+
+<!-- INCLUDE(examples/validate_json_example_test.go) -->
+```go
+package examples_test
+
+import (
+  "context"
+  "fmt"
+
+  schema "github.com/lestrrat-go/json-schema"
+  "github.com/lestrrat-go/json-schema/validator"
+)
+
+// Example_validateJSON validates raw JSON text directly with
+// validator.ValidateJSON, skipping a manual json.Unmarshal step. Numbers are
+// decoded as json.Number, so a 64-bit identifier larger than 2^53 is validated
+// exactly rather than being rounded by float64.
+func Example_validateJSON() {
+  s := schema.NewBuilder().
+    Types(schema.ObjectType).
+    Property("id", schema.NewBuilder().Types(schema.IntegerType).MustBuild()).
+    Property("role", schema.Enum("admin", "user").MustBuild()).
+    Required("id", "role").
+    MustBuild()
+
+  ctx := context.Background()
+  v, err := validator.Compile(ctx, s)
+  if err != nil {
+    fmt.Println("compile failed:", err)
+    return
+  }
+
+  for _, data := range [][]byte{
+    []byte(`{"id": 9007199254740993, "role": "admin"}`), // large id, valid
+    []byte(`{"id": 1, "role": "root"}`),                  // role not in enum
+    []byte(`{"role": "admin"}`),                          // missing required id
+  } {
+    _, err := validator.ValidateJSON(ctx, v, data)
+    fmt.Printf("valid=%t\n", err == nil)
+  }
+  // Output:
+  // valid=true
+  // valid=false
+  // valid=false
+}
+```
+source: [examples/validate_json_example_test.go](https://github.com/lestrrat-go/json-schema/blob/main/examples/validate_json_example_test.go)
 <!-- END INCLUDE -->
 
 ## Configuring Compile and Validate
