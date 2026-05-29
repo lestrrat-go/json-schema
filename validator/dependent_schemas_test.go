@@ -164,6 +164,49 @@ func TestDependentSchemas(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("isolation: struct input to direct validator", func(t *testing.T) {
+		// The standalone DependentSchemasValidator (public API, not used by the
+		// Compile path) must handle Go structs the same way the object validator
+		// does, rather than silently skipping anything that is not map[string]any.
+		// Struct fields are always present after extraction regardless of
+		// omitempty, so the trigger property is always present; this exercises
+		// the dependent schema's type constraint.
+		dependentSchemaJSON := `{
+			"properties": {
+				"bar": {"type": "string"}
+			}
+		}`
+
+		var depSchema schema.Schema
+		require.NoError(t, depSchema.UnmarshalJSON([]byte(dependentSchemaJSON)))
+
+		ctx := context.Background()
+		v, err := validator.DependentSchemasValidator(ctx, map[string]*schema.Schema{"foo": &depSchema})
+		require.NoError(t, err)
+
+		// Invalid - foo triggers the dependency, but bar violates type:string.
+		// Before the fix the struct was not a map[string]any, so it was silently
+		// skipped and this passed.
+		type badDoc struct {
+			Foo int `json:"foo"`
+			Bar int `json:"bar"`
+		}
+		_, err = v.Validate(ctx, badDoc{Foo: 1, Bar: 2})
+		require.Error(t, err)
+
+		// A pointer to the struct must behave identically.
+		_, err = v.Validate(ctx, &badDoc{Foo: 1, Bar: 2})
+		require.Error(t, err)
+
+		// Valid - foo triggers the dependency, bar is a string.
+		type goodDoc struct {
+			Foo int    `json:"foo"`
+			Bar string `json:"bar"`
+		}
+		_, err = v.Validate(ctx, goodDoc{Foo: 1, Bar: "ok"})
+		require.NoError(t, err)
+	})
+
 	t.Run("dependent schemas with references", func(t *testing.T) {
 		jsonSchema := `{
 			"type": "object",

@@ -38,9 +38,14 @@ func (v *dependentSchemasValidator) Validate(ctx context.Context, value any, opt
 }
 
 func (v *dependentSchemasValidator) evaluate(ctx context.Context, value any, st *evalState) (Result, error) {
-	// dependentSchemas only applies to objects
-	obj, ok := value.(map[string]any)
-	if !ok {
+	// dependentSchemas only applies to objects. Reuse the object validator's
+	// extraction so structs and ObjectFieldResolvers are handled identically,
+	// instead of only accepting map[string]any.
+	obj, isObject, err := extractObjectProperties(value)
+	if err != nil {
+		return nil, fmt.Errorf("dependent schema validation failed: %w", err)
+	}
+	if !isObject {
 		//nolint: nilnil
 		return nil, nil
 	}
@@ -49,8 +54,7 @@ func (v *dependentSchemasValidator) evaluate(ctx context.Context, value any, st 
 	for propertyName, depValidator := range v.dependentSchemas {
 		// If the property exists in the object, validate the entire object with the dependent schema
 		if _, exists := obj[propertyName]; exists {
-			_, err := evalChild(ctx, depValidator, value, st)
-			if err != nil {
+			if _, err := evalChild(ctx, depValidator, value, st); err != nil {
 				return nil, fmt.Errorf("dependent schema validation failed for property %s: %w", propertyName, err)
 			}
 		}
