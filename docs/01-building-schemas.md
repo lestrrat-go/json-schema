@@ -98,7 +98,6 @@ For common shapes, the package ships one-line constructors that each return a pr
 | Constructor | Produces |
 |-------------|----------|
 | `schema.NonEmptyString()` | string, `minLength: 1` |
-| `schema.AlphanumericString()` | string with an alphanumeric pattern |
 | `schema.Email()` | string, `format: email` |
 | `schema.URI()` | string, `format: uri` |
 | `schema.UUID()` | string, `format: uuid` |

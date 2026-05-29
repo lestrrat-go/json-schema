@@ -83,8 +83,3 @@ func Date() *Builder {
 func DateTime() *Builder {
 	return NewBuilder().Types(StringType).Format(keywords.FormatDateTime)
 }
-
-// AlphanumericString creates a Builder for alphanumeric string validation
-func AlphanumericString() *Builder {
-	return NewBuilder().Types(StringType).Pattern("^[a-zA-Z0-9]+$")
-}
