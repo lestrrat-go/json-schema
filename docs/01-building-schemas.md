@@ -100,7 +100,7 @@ For common shapes, the package ships one-line constructors that each return a pr
 | `schema.NonEmptyString()` | string, `minLength: 1` |
 | `schema.AlphanumericString()` | string with an alphanumeric pattern |
 | `schema.Email()` | string, `format: email` |
-| `schema.URL()` | string, `format: uri` |
+| `schema.URI()` | string, `format: uri` |
 | `schema.UUID()` | string, `format: uuid` |
 | `schema.Date()` / `schema.DateTime()` | string, `format: date` / `date-time` |
 | `schema.PositiveInteger()` | integer, `minimum: 0` |

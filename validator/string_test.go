@@ -892,8 +892,8 @@ func TestCommonPatterns(t *testing.T) {
 			invalid: []any{"invalid-email", 123, "user@", "@domain.com"},
 		},
 		{
-			name:    "URL",
-			builder: schema.URL(),
+			name:    "URI",
+			builder: schema.URI(),
 			valid:   []any{"https://example.com", "http://localhost:8080/path"},
 			invalid: []any{"not-a-url", 123, "://invalid"},
 		},

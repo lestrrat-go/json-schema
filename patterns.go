@@ -12,8 +12,8 @@ func Email() *Builder {
 	return NewBuilder().Types(StringType).Format(keywords.FormatEmail)
 }
 
-// URL creates a Builder for URL validation using the "uri" format
-func URL() *Builder {
+// URI creates a Builder for URI validation using the "uri" format
+func URI() *Builder {
 	return NewBuilder().Types(StringType).Format(keywords.FormatURI)
 }
 
