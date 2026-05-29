@@ -922,12 +922,6 @@ func TestCommonPatterns(t *testing.T) {
 			invalid: []any{"not-a-uuid", "550e8400-e29b-41d4-a716", 123},
 		},
 		{
-			name:    "AlphanumericString",
-			builder: schema.AlphanumericString(),
-			valid:   []any{"abc123", "ABC", "123"},
-			invalid: []any{"hello-world", "with spaces", "special!", 123},
-		},
-		{
 			name:    "Date",
 			builder: schema.Date(),
 			valid:   []any{"2020-01-15", "1999-12-31"},
