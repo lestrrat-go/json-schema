@@ -107,7 +107,7 @@ type PrimitiveTypes []PrimitiveType
 
 // UnmarshalJSON initializes the list of primitive types
 func (pt *PrimitiveTypes) UnmarshalJSON(data []byte) error {
-	if data[0] != '[' {
+	if len(data) == 0 || data[0] != '[' {
 		var t PrimitiveType
 		if err := json.Unmarshal(data, &t); err != nil {
 			return err
