@@ -31,3 +31,13 @@ func TestIsScalarPrimitiveType(t *testing.T) {
 		require.False(t, schema.IsScalarPrimitiveType(typ), "%s should not be scalar", typ)
 	}
 }
+
+// A direct UnmarshalJSON call with empty input must return an error rather than
+// panicking on data[0] (encoding/json never feeds empty data to UnmarshalJSON,
+// but the method is exported and can be called directly).
+func TestPrimitiveTypesUnmarshalEmpty(t *testing.T) {
+	var pt schema.PrimitiveTypes
+	require.NotPanics(t, func() {
+		require.Error(t, pt.UnmarshalJSON([]byte{}))
+	})
+}
