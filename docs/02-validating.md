@@ -107,8 +107,8 @@ func Example_validateJSON() {
 
   for _, data := range [][]byte{
     []byte(`{"id": 9007199254740993, "role": "admin"}`), // large id, valid
-    []byte(`{"id": 1, "role": "root"}`),                  // role not in enum
-    []byte(`{"role": "admin"}`),                          // missing required id
+    []byte(`{"id": 1, "role": "root"}`),                 // role not in enum
+    []byte(`{"role": "admin"}`),                         // missing required id
   } {
     _, err := validator.ValidateJSON(ctx, v, data)
     fmt.Printf("valid=%t\n", err == nil)
