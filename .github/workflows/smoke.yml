@@ -19,7 +19,7 @@ jobs:
         run: |
           find . -name '*.md' -not -name 'AGENTS.md' -not -name 'CLAUDE.md' -not -path './examples/*' | xargs env AUTODOC_DRYRUN=1 perl tools/autodoc.pl
       - name: Cache testdata
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         env:
           TEST_SUITE_COMMIT: "48461fc3568972801b40eaccc428a31bce338f6e"
         with:
@@ -33,7 +33,7 @@ jobs:
         run: |
           ./init-test-suite.sh $TEST_SUITE_COMMIT
       - name: Cache Go modules
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             ~/go/pkg/mod
