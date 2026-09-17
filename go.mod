@@ -8,7 +8,7 @@ require (
 	github.com/lestrrat-go/jsref/v2 v2.0.0-20250713032959-1507af0872ba
 	github.com/lestrrat-go/option/v3 v3.0.0-alpha1
 	github.com/stretchr/testify v1.12.1
-	github.com/urfave/cli/v3 v3.11.0
+	github.com/urfave/cli/v3 v3.12.0
 )
 
 require (
