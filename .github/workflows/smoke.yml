@@ -14,12 +14,12 @@ jobs:
     name: "Smoke"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check documentation generator
         run: |
           find . -name '*.md' -not -name 'AGENTS.md' -not -name 'CLAUDE.md' -not -path './examples/*' | xargs env AUTODOC_DRYRUN=1 perl tools/autodoc.pl
       - name: Cache testdata
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         env:
           TEST_SUITE_COMMIT: "48461fc3568972801b40eaccc428a31bce338f6e"
         with:
@@ -33,7 +33,7 @@ jobs:
         run: |
           ./init-test-suite.sh $TEST_SUITE_COMMIT
       - name: Cache Go modules
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/go/pkg/mod
